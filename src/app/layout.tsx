@@ -10,14 +10,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
-        {/* Script inline evita flash de tema ao carregar a página */}
+        {/*
+          Aplica tema ANTES da primeira pintura para evitar flash.
+          Padrão: CLARO. Só ativa dark se o usuário tiver salvo explicitamente.
+          NÃO usa prefers-color-scheme — a preferência do sistema não interfere.
+        */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                var saved = localStorage.getItem('fischer-dark');
-                var dark = saved ? saved === 'true' : window.matchMedia('(prefers-color-scheme: dark)').matches;
-                if (dark) document.documentElement.classList.add('dark');
+                if (localStorage.getItem('fischer-dark') === 'true') {
+                  document.documentElement.classList.add('dark');
+                }
               } catch(e) {}
             `,
           }}

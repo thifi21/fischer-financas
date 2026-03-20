@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
@@ -7,32 +7,36 @@ import { MESES } from '@/types'
 import DrivePanel from '@/components/DrivePanel'
 
 const NAV_ITEMS = [
-  { href: '/dashboard',              icon: '📊', label: 'Dashboard'          },
-  { href: '/dashboard/cartoes',      icon: '💳', label: 'Cartões de Crédito' },
-  { href: '/dashboard/contas-fixas', icon: '🏠', label: 'Contas Fixas'       },
-  { href: '/dashboard/entradas',     icon: '💵', label: 'Entradas / Salários' },
-  { href: '/dashboard/combustivel',  icon: '⛽', label: 'Combustível'         },
+  { href: '/dashboard',              icon: '📊', label: 'Dashboard'           },
+  { href: '/dashboard/cartoes',      icon: '💳', label: 'Cartões de Crédito'  },
+  { href: '/dashboard/contas-fixas', icon: '🏠', label: 'Contas Fixas'        },
+  { href: '/dashboard/entradas',     icon: '💵', label: 'Entradas / Salários'  },
+  { href: '/dashboard/combustivel',  icon: '⛽', label: 'Combustível'          },
 ]
 
+// ── Relógio ────────────────────────────────────────────────────
 function useClock() {
   const [now, setNow] = useState(new Date())
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
-  const hora = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-  const data = now.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })
-  return { hora, data }
+  return {
+    hora: now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    data: now.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }),
+  }
 }
 
+// ── Dark mode — padrão CLARO ───────────────────────────────────
 function useDarkMode() {
   const [dark, setDark] = useState(false)
+
   useEffect(() => {
-    // Lê preferência salva
+    // Só ativa dark se o usuário tiver salvo explicitamente
     const saved = localStorage.getItem('fischer-dark')
-    const prefereDark = saved ? saved === 'true' : window.matchMedia('(prefers-color-scheme: dark)').matches
-    setDark(prefereDark)
-    document.documentElement.classList.toggle('dark', prefereDark)
+    const isDark = saved === 'true'
+    setDark(isDark)
+    document.documentElement.classList.toggle('dark', isDark)
   }, [])
 
   const toggle = useCallback(() => {
@@ -55,17 +59,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [mesAtivo, setMesAtivo] = useState(new Date().getMonth() + 1)
   const { hora, data } = useClock()
   const { dark, toggle: toggleDark } = useDarkMode()
+  const checked = useRef(false)
 
   useEffect(() => {
+    if (checked.current) return
+    checked.current = true
+
+    // Verifica sessão UMA vez — sem loop, sem dupla requisição
+    // getSession() usa cache local do Supabase, é praticamente instantâneo
     supabase.auth.getSession().then(({ data: d }) => {
-      if (!d.session) router.push('/')
-      else setLoading(false)
+      if (!d.session) {
+        router.replace('/')
+      } else {
+        setLoading(false)
+      }
     })
   }, [])
 
   async function handleLogout() {
     await supabase.auth.signOut()
-    router.push('/')
+    router.replace('/')
   }
 
   function handleMesChange(e: React.ChangeEvent<HTMLSelectElement>) {
@@ -75,17 +88,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   if (loading) return (
-    <div className={`min-h-screen flex items-center justify-center ${dark ? 'bg-gray-950 text-gray-400' : 'bg-gray-50 text-gray-500'}`}>
-      <div className="flex items-center gap-3 text-lg">
-        <span className="animate-spin text-2xl">⏳</span> Carregando...
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+      <div className="text-center">
+        <div className="text-4xl mb-4 animate-bounce">💰</div>
+        <div className="text-gray-500 dark:text-gray-400 text-sm font-medium">
+          Carregando Fischer Finanças...
+        </div>
       </div>
     </div>
   )
 
   return (
-    <div className="min-h-screen flex dark:bg-gray-950">
+    <div className="min-h-screen flex bg-gray-50 dark:bg-gray-950 transition-colors duration-200">
 
-      {/* ── SIDEBAR ──────────────────────────────────────────────── */}
+      {/* ── SIDEBAR ─────────────────────────────────────────── */}
       <aside className="w-64 bg-blue-900 dark:bg-gray-950 dark:border-r dark:border-gray-800 text-white flex flex-col min-h-screen fixed top-0 left-0 z-30">
 
         {/* Logo */}
@@ -99,7 +115,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
 
-        {/* Nav links */}
+        {/* Nav */}
         <nav className="flex-1 p-4 space-y-1">
           {NAV_ITEMS.map(({ href, icon, label }) => {
             const active = pathname === href
@@ -140,15 +156,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <DrivePanel mes={mesAtivo} />
       </aside>
 
-      {/* ── ÁREA PRINCIPAL ───────────────────────────────────────── */}
+      {/* ── ÁREA PRINCIPAL ───────────────────────────────────── */}
       <div className="ml-64 flex-1 flex flex-col min-h-screen">
 
-        {/* ── TOPBAR ─────────────────────────────────────────────── */}
-        <header className="sticky top-0 z-20 h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-6 shadow-sm">
+        {/* ── TOPBAR ────────────────────────────────────────── */}
+        <header className="sticky top-0 z-20 h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-6 shadow-sm transition-colors">
 
-          {/* Relógio + Data */}
+          {/* Relógio */}
           <div className="flex items-center gap-3">
-            <span className="text-lg">🕐</span>
+            <span className="text-lg select-none">🕐</span>
             <div className="leading-tight">
               <div className="text-base font-bold text-gray-800 dark:text-gray-100 tabular-nums tracking-wide">
                 {hora}
@@ -159,10 +175,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
 
-          {/* Ações da topbar */}
+          {/* Ações */}
           <div className="flex items-center gap-2">
 
-            {/* Botão Dark Mode */}
+            {/* Dark mode toggle */}
             <button
               onClick={toggleDark}
               title={dark ? 'Modo claro' : 'Modo escuro'}
@@ -171,10 +187,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {dark ? '☀️' : '🌙'}
             </button>
 
-            {/* Separador */}
             <div className="w-px h-6 bg-gray-200 dark:bg-gray-700" />
 
-            {/* Botão Sair */}
+            {/* Sair */}
             <button
               onClick={handleLogout}
               title="Sair da conta"
@@ -186,8 +201,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        {/* ── CONTEÚDO DA PÁGINA ─────────────────────────────────── */}
-        <main className="flex-1 p-6 bg-gray-50 dark:bg-gray-950">
+        {/* ── CONTEÚDO ─────────────────────────────────────── */}
+        <main className="flex-1 p-6 bg-gray-50 dark:bg-gray-950 transition-colors">
           {children}
         </main>
       </div>
