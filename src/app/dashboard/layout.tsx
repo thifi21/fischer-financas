@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import { MESES } from '@/types'
+import DrivePanel from '@/components/DrivePanel'
 
 const NAV_ITEMS = [
   { href: '/dashboard',              icon: '📊', label: 'Dashboard'          },
@@ -134,6 +135,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </select>
           </div>
         </nav>
+
+        {/* Google Drive comprovantes */}
+        <DrivePanel mes={mesAtivo} />
       </aside>
 
       {/* ── ÁREA PRINCIPAL ───────────────────────────────────────── */}

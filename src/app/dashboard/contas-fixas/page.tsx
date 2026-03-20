@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { formatBRL, formatDate, formatVencimento, getMesAtual, getAnoAtual } from '@/lib/utils'
 import { MESES, NOMES_CARTOES, type ContaFixa, type Cartao } from '@/types'
+import DriveUploadModal from '@/components/DriveUploadModal'
 
 const GRUPOS = [
   'Contas Fixas de Casa',
@@ -273,13 +274,18 @@ export default function ContasFixasPage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                           <span className={`font-bold text-sm ${cartao.pago ? 'text-green-600 line-through opacity-70' : 'text-gray-900'}`}>
                             {formatBRL(cartao.valor)}
                           </span>
                           <span className={cartao.pago ? 'badge-ok' : 'badge-pendente'}>
                             {cartao.pago ? 'Pago' : 'Pendente'}
                           </span>
+                          <button
+                            onClick={() => setDriveModal({ descricao: cartao.nome, valor: cartao.valor })}
+                            title="Enviar comprovante para o Google Drive"
+                            className="w-7 h-7 flex items-center justify-center rounded hover:bg-green-100 dark:hover:bg-green-900/30 text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors text-sm"
+                          >☁️</button>
                         </div>
                       </div>
                     ))}
@@ -525,6 +531,16 @@ export default function ContasFixasPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Drive Upload Modal */}
+      {driveModal && (
+        <DriveUploadModal
+          mes={mes}
+          descricao={driveModal.descricao}
+          valor={driveModal.valor}
+          onFechar={() => setDriveModal(null)}
+        />
       )}
     </div>
   )

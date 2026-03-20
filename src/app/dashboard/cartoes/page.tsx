@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { formatBRL, formatDate, formatVencimento, getMesAtual, getAnoAtual } from '@/lib/utils'
 import { MESES, NOMES_CARTOES, type Cartao, type LancamentoCartao } from '@/types'
+import DriveUploadModal from '@/components/DriveUploadModal'
 
 type ModalState =
   | { tipo: 'cartao'; dados?: Cartao }
@@ -304,6 +305,13 @@ export default function CartoesPage() {
                       {aberto ? '▲' : '▼'}
                     </button>
                     <button
+                      onClick={() => setDriveModal({ cartao })}
+                      title="Enviar comprovante para o Google Drive"
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-green-50 dark:hover:bg-green-900/30 text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                    >
+                      ☁️
+                    </button>
+                    <button
                       onClick={() => { setForm({ ...cartao }); setModal({ tipo: 'cartao' }) }}
                       title="Editar cartão"
                       className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
@@ -543,6 +551,16 @@ export default function CartoesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Drive Upload Modal */}
+      {driveModal && (
+        <DriveUploadModal
+          mes={mes}
+          descricao={driveModal.cartao.nome}
+          valor={driveModal.cartao.valor}
+          onFechar={() => setDriveModal(null)}
+        />
       )}
     </div>
   )
