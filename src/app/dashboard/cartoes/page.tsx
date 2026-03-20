@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
-import { formatBRL, formatDate, getMesAtual, getAnoAtual } from '@/lib/utils'
+import { formatBRL, formatDate, formatVencimento, getMesAtual, getAnoAtual } from '@/lib/utils'
 import { MESES, NOMES_CARTOES, type Cartao, type LancamentoCartao } from '@/types'
 
 type ModalState =
@@ -188,7 +188,7 @@ export default function CartoesPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">💳 Cartões de Crédito</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">💳 Cartões de Crédito</h1>
           <p className="text-gray-500 text-sm">
             {MESES[mes - 1]} {ano}
             {!loading && (
@@ -207,10 +207,10 @@ export default function CartoesPage() {
       </div>
 
       {/* Total do mês */}
-      <div className="card mb-5 bg-blue-50 border border-blue-100">
+      <div className="card mb-5 bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900">
         <div className="flex justify-between items-center">
           <div>
-            <span className="text-gray-600 font-semibold">Total de Cartões em {MESES[mes - 1]}</span>
+            <span className="text-gray-600 dark:text-gray-300 font-semibold">Total de Cartões em {MESES[mes - 1]}</span>
             {!loading && (
               <div className="text-xs text-gray-400 mt-0.5">
                 {cartoes.filter(c => c.pago).length} de {cartoes.length} pagos
@@ -228,22 +228,22 @@ export default function CartoesPage() {
             <div key={i} className="card animate-pulse">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-full bg-gray-200" />
+                  <div className="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-700" />
                   <div>
-                    <div className="h-4 bg-gray-200 rounded w-36 mb-2" />
-                    <div className="h-3 bg-gray-100 rounded w-24" />
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-36 mb-2" />
+                    <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded w-24" />
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="h-6 bg-gray-200 rounded w-24" />
-                  <div className="h-5 bg-gray-100 rounded w-16" />
+                  <div className="h-6 bg-gray-200 dark:bg-gray-700 dark:bg-gray-700 rounded w-24" />
+                  <div className="h-5 bg-gray-100 dark:bg-gray-800 rounded w-16" />
                 </div>
               </div>
             </div>
           ))}
         </div>
       ) : cartoes.length === 0 ? (
-        <div className="card text-center py-16 text-gray-400">
+        <div className="card text-center py-16 text-gray-400 dark:text-gray-500">
           <div className="text-4xl mb-3">💳</div>
           <p>Nenhum cartão cadastrado para {MESES[mes - 1]}.</p>
           <button
@@ -278,12 +278,12 @@ export default function CartoesPage() {
                     </button>
 
                     <div>
-                      <div className="font-semibold text-gray-900">{cartao.nome}</div>
+                      <div className="font-semibold text-gray-900 dark:text-gray-100">{cartao.nome}</div>
                       <div className="flex items-center gap-2 flex-wrap">
                         {cartao.vencimento && (
-                          <span className="text-xs text-gray-400">Venc: {cartao.vencimento}</span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500">Venc: {formatVencimento(cartao.vencimento)}</span>
                         )}
-                        <span className="text-xs bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded">
+                        <span className="text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-500 dark:text-blue-400 px-1.5 py-0.5 rounded">
                           {lancs.length} lançamento{lancs.length !== 1 ? 's' : ''}
                         </span>
                       </div>
@@ -341,7 +341,7 @@ export default function CartoesPage() {
                     </div>
 
                     {lancs.length === 0 ? (
-                      <div className="text-center py-6 text-gray-400 text-sm bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                      <div className="text-center py-6 text-gray-400 dark:text-gray-500 text-sm bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-dashed border-gray-200 dark:border-gray-700">
                         Nenhum lançamento.{' '}
                         <button
                           className="text-blue-500 hover:underline font-medium"
@@ -354,7 +354,7 @@ export default function CartoesPage() {
                       <div className="rounded-lg border border-gray-100 overflow-hidden">
                         <table className="w-full text-sm">
                           <thead>
-                            <tr className="bg-gray-50 text-xs text-gray-400 uppercase tracking-wide">
+                            <tr className="bg-gray-50 dark:bg-gray-800 text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide">
                               <th className="text-left px-3 py-2">Data</th>
                               <th className="text-left px-3 py-2">Local / Estabelecimento</th>
                               <th className="text-left px-3 py-2">Parcela</th>
@@ -364,15 +364,15 @@ export default function CartoesPage() {
                           </thead>
                           <tbody className="divide-y divide-gray-50">
                             {lancs.map(l => (
-                              <tr key={l.id} className="hover:bg-blue-50/40 transition-colors group">
-                                <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap text-xs">
+                              <tr key={l.id} className="hover:bg-blue-50/40 dark:hover:bg-gray-800/50 transition-colors group">
+                                <td className="px-3 py-2.5 text-gray-500 dark:text-gray-400 whitespace-nowrap text-xs">
                                   {formatDate(l.data_compra)}
                                 </td>
-                                <td className="px-3 py-2.5 font-medium text-gray-800">{l.local}</td>
-                                <td className="px-3 py-2.5 text-xs text-gray-400">
+                                <td className="px-3 py-2.5 font-medium text-gray-800 dark:text-gray-200">{l.local}</td>
+                                <td className="px-3 py-2.5 text-xs text-gray-400 dark:text-gray-500">
                                   {l.parcela || '—'}
                                 </td>
-                                <td className="px-3 py-2.5 text-right font-semibold text-gray-900">
+                                <td className="px-3 py-2.5 text-right font-semibold text-gray-900 dark:text-gray-100">
                                   {formatBRL(l.valor)}
                                 </td>
                                 <td className="px-3 py-2.5">
@@ -398,11 +398,11 @@ export default function CartoesPage() {
                             ))}
                           </tbody>
                           <tfoot>
-                            <tr className="bg-gray-50 border-t-2 border-gray-200">
-                              <td colSpan={3} className="px-3 py-2.5 text-xs font-bold text-gray-500 uppercase">
+                            <tr className="bg-gray-50 dark:bg-gray-800 border-t-2 border-gray-200 dark:border-gray-700">
+                              <td colSpan={3} className="px-3 py-2.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">
                                 Total dos lançamentos
                               </td>
-                              <td className="px-3 py-2.5 text-right font-bold text-blue-700 text-base">
+                              <td className="px-3 py-2.5 text-right font-bold text-blue-700 dark:text-blue-400 text-base">
                                 {formatBRL(subtotal)}
                               </td>
                               <td />
@@ -425,9 +425,9 @@ export default function CartoesPage() {
           className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
           onClick={e => e.target === e.currentTarget && fecharModal()}
         >
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+          <div className="bg-white dark:bg-gray-900 dark:border dark:border-gray-700 rounded-xl shadow-xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-lg">{form.id ? 'Editar Cartão' : 'Novo Cartão'}</h2>
+              <h2 className="font-bold text-lg text-gray-900 dark:text-gray-100">{form.id ? 'Editar Cartão' : 'Novo Cartão'}</h2>
               <button onClick={fecharModal} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">✕</button>
             </div>
             <div className="space-y-3">
@@ -482,15 +482,15 @@ export default function CartoesPage() {
           className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
           onClick={e => e.target === e.currentTarget && fecharModal()}
         >
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+          <div className="bg-white dark:bg-gray-900 dark:border dark:border-gray-700 rounded-xl shadow-xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-1">
-              <h2 className="font-bold text-lg">
+              <h2 className="font-bold text-lg text-gray-900 dark:text-gray-100">
                 {form.id ? 'Editar Lançamento' : 'Novo Lançamento'}
               </h2>
               <button onClick={fecharModal} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">✕</button>
             </div>
-            <p className="text-xs text-gray-400 mb-4">
-              Cartão: <span className="font-semibold text-gray-600">{modal.cartaoNome}</span>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
+              Cartão: <span className="font-semibold text-gray-600 dark:text-gray-300">{modal.cartaoNome}</span>
             </p>
             <div className="space-y-3">
               <div>
