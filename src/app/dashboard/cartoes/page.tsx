@@ -15,16 +15,20 @@ let cachedUserId: string | null = null
 export default function CartoesPage() {
   const supabase = createClient()
   const ano = getAnoAtual()
-  const [mes, setMes] = useState(getMesAtual())
-  const [cartoes, setCartoes] = useState<Cartao[]>([])
+
+  // ── State ────────────────────────────────────────────────────
+  const [mes, setMes]                   = useState(getMesAtual())
+  const [cartoes, setCartoes]           = useState<Cartao[]>([])
   const [todosLancamentos, setTodosLancamentos] = useState<Record<string, LancamentoCartao[]>>({})
-  const [expandidos, setExpandidos] = useState<Set<string>>(new Set())
-  const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState<ModalState>(null)
-  const [form, setForm] = useState<any>({})
-  const [saving, setSaving] = useState(false)
+  const [expandidos, setExpandidos]     = useState<Set<string>>(new Set())
+  const [loading, setLoading]           = useState(true)
+  const [modal, setModal]               = useState<ModalState>(null)
+  const [form, setForm]                 = useState<any>({})
+  const [saving, setSaving]             = useState(false)
+  const [driveModal, setDriveModal]     = useState<{ cartao: Cartao } | null>(null)
   const userIdRef = useRef<string | null>(cachedUserId)
 
+  // ── Init ─────────────────────────────────────────────────────
   useEffect(() => {
     async function init() {
       if (!userIdRef.current) {
@@ -50,32 +54,19 @@ export default function CartoesPage() {
     if (userIdRef.current) carregarTudo()
   }, [mes])
 
-  // Carrega cartões + TODOS os lançamentos do mês em apenas 2 queries paralelas
+  // ── Data loading ─────────────────────────────────────────────
   async function carregarTudo() {
     const uid = userIdRef.current
     if (!uid) return
     setLoading(true)
 
     const [{ data: cartoesData }, { data: lancsData }] = await Promise.all([
-      supabase
-        .from('cartoes')
-        .select('*')
-        .eq('user_id', uid)
-        .eq('mes', mes)
-        .eq('ano', ano)
-        .order('nome'),
-      supabase
-        .from('lancamentos_cartao')
-        .select('*')
-        .eq('user_id', uid)
-        .eq('mes', mes)
-        .eq('ano', ano)
-        .order('data_compra'),
+      supabase.from('cartoes').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).order('nome'),
+      supabase.from('lancamentos_cartao').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).order('data_compra'),
     ])
 
     setCartoes(cartoesData || [])
 
-    // Agrupa lançamentos por cartao_id localmente — zero queries adicionais
     const agrupado: Record<string, LancamentoCartao[]> = {}
     for (const l of lancsData || []) {
       if (!agrupado[l.cartao_id]) agrupado[l.cartao_id] = []
@@ -93,13 +84,13 @@ export default function CartoesPage() {
     })
   }
 
-  // Atualiza o total do cartão localmente (instantâneo) e persiste no banco
   async function recalcularTotal(cartaoId: string, lista: LancamentoCartao[]) {
     const novoTotal = lista.reduce((s, l) => s + Number(l.valor), 0)
     setCartoes(prev => prev.map(c => c.id === cartaoId ? { ...c, valor: novoTotal } : c))
     await supabase.from('cartoes').update({ valor: novoTotal }).eq('id', cartaoId)
   }
 
+  // ── CRUD Cartão ───────────────────────────────────────────────
   async function salvarCartao() {
     const uid = userIdRef.current
     if (!uid) return
@@ -122,6 +113,7 @@ export default function CartoesPage() {
     setSaving(false)
   }
 
+  // ── CRUD Lançamento ───────────────────────────────────────────
   async function salvarLancamento() {
     const uid = userIdRef.current
     if (!uid || modal?.tipo !== 'lancamento') return
@@ -181,19 +173,21 @@ export default function CartoesPage() {
 
   function fecharModal() { setModal(null); setForm({}) }
 
-  const totalMes = cartoes.reduce((s, c) => s + Number(c.valor), 0)
+  // ── Derivados ─────────────────────────────────────────────────
+  const totalMes  = cartoes.reduce((s, c) => s + Number(c.valor), 0)
   const totalLancs = Object.values(todosLancamentos).flat().length
 
+  // ─────────────────────────────────────────────────────────────
   return (
     <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">💳 Cartões de Crédito</h1>
-          <p className="text-gray-500 text-sm">
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
             {MESES[mes - 1]} {ano}
             {!loading && (
-              <span className="ml-2 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+              <span className="ml-2 text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full">
                 {totalLancs} lançamentos
               </span>
             )}
@@ -213,12 +207,12 @@ export default function CartoesPage() {
           <div>
             <span className="text-gray-600 dark:text-gray-300 font-semibold">Total de Cartões em {MESES[mes - 1]}</span>
             {!loading && (
-              <div className="text-xs text-gray-400 mt-0.5">
+              <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                 {cartoes.filter(c => c.pago).length} de {cartoes.length} pagos
               </div>
             )}
           </div>
-          <span className="text-2xl font-bold text-blue-700">{formatBRL(totalMes)}</span>
+          <span className="text-2xl font-bold text-blue-700 dark:text-blue-400">{formatBRL(totalMes)}</span>
         </div>
       </div>
 
@@ -236,7 +230,7 @@ export default function CartoesPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="h-6 bg-gray-200 dark:bg-gray-700 dark:bg-gray-700 rounded w-24" />
+                  <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-24" />
                   <div className="h-5 bg-gray-100 dark:bg-gray-800 rounded w-16" />
                 </div>
               </div>
@@ -257,15 +251,17 @@ export default function CartoesPage() {
       ) : (
         <div className="space-y-3">
           {cartoes.map(cartao => {
-            const lancs = todosLancamentos[cartao.id] || []
-            const aberto = expandidos.has(cartao.id)
+            const lancs  = todosLancamentos[cartao.id] || []
+            const aberto  = expandidos.has(cartao.id)
             const subtotal = lancs.reduce((s, l) => s + Number(l.valor), 0)
 
             return (
               <div key={cartao.id} className="card hover:shadow-md transition-shadow">
-                {/* Linha do cartão */}
+
+                {/* ── Linha principal do cartão ── */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
+                    {/* Toggle pago */}
                     <button
                       onClick={() => togglePago(cartao)}
                       title={cartao.pago ? 'Marcar como pendente' : 'Marcar como pago'}
@@ -282,7 +278,9 @@ export default function CartoesPage() {
                       <div className="font-semibold text-gray-900 dark:text-gray-100">{cartao.nome}</div>
                       <div className="flex items-center gap-2 flex-wrap">
                         {cartao.vencimento && (
-                          <span className="text-xs text-gray-400 dark:text-gray-500">Venc: {formatVencimento(cartao.vencimento)}</span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500">
+                            Venc: {formatVencimento(cartao.vencimento)}
+                          </span>
                         )}
                         <span className="text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-500 dark:text-blue-400 px-1.5 py-0.5 rounded">
                           {lancs.length} lançamento{lancs.length !== 1 ? 's' : ''}
@@ -292,18 +290,22 @@ export default function CartoesPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className={`text-lg font-bold ${cartao.pago ? 'text-green-600 line-through opacity-60' : 'text-gray-900'}`}>
+                    <span className={`text-lg font-bold ${cartao.pago ? 'text-green-600 line-through opacity-60' : 'text-gray-900 dark:text-gray-100'}`}>
                       {formatBRL(cartao.valor)}
                     </span>
                     <span className={cartao.pago ? 'badge-ok' : 'badge-pendente'}>
                       {cartao.pago ? 'Pago' : 'Pendente'}
                     </span>
+
+                    {/* Expandir lançamentos */}
                     <button
                       onClick={() => toggleExpandido(cartao.id)}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-blue-50 text-blue-400 hover:text-blue-600 transition-colors text-xs font-bold"
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-400 hover:text-blue-600 transition-colors text-xs font-bold"
                     >
                       {aberto ? '▲' : '▼'}
                     </button>
+
+                    {/* Upload comprovante Drive */}
                     <button
                       onClick={() => setDriveModal({ cartao })}
                       title="Enviar comprovante para o Google Drive"
@@ -311,32 +313,36 @@ export default function CartoesPage() {
                     >
                       ☁️
                     </button>
+
+                    {/* Editar cartão */}
                     <button
                       onClick={() => { setForm({ ...cartao }); setModal({ tipo: 'cartao' }) }}
                       title="Editar cartão"
-                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-700 transition-colors"
                     >
                       ✏️
                     </button>
+
+                    {/* Excluir cartão */}
                     <button
                       onClick={() => excluirCartao(cartao)}
                       title="Excluir cartão"
-                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors"
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-300 hover:text-red-500 transition-colors"
                     >
                       🗑️
                     </button>
                   </div>
                 </div>
 
-                {/* Painel de lançamentos */}
+                {/* ── Painel de lançamentos ── */}
                 {aberto && (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
+                  <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
                     <div className="flex justify-between items-center mb-3">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-gray-600">Lançamentos</span>
+                        <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">Lançamentos</span>
                         {lancs.length > 0 && (
-                          <span className="text-xs text-gray-400">
-                            subtotal: <span className="font-semibold text-blue-600">{formatBRL(subtotal)}</span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500">
+                            subtotal: <span className="font-semibold text-blue-600 dark:text-blue-400">{formatBRL(subtotal)}</span>
                           </span>
                         )}
                       </div>
@@ -349,7 +355,7 @@ export default function CartoesPage() {
                     </div>
 
                     {lancs.length === 0 ? (
-                      <div className="text-center py-6 text-gray-400 dark:text-gray-500 text-sm bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-dashed border-gray-200 dark:border-gray-700">
+                      <div className="text-center py-6 text-gray-400 dark:text-gray-500 text-sm bg-gray-50 dark:bg-gray-800/40 rounded-lg border border-dashed border-gray-200 dark:border-gray-700">
                         Nenhum lançamento.{' '}
                         <button
                           className="text-blue-500 hover:underline font-medium"
@@ -359,7 +365,7 @@ export default function CartoesPage() {
                         </button>
                       </div>
                     ) : (
-                      <div className="rounded-lg border border-gray-100 overflow-hidden">
+                      <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="bg-gray-50 dark:bg-gray-800 text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide">
@@ -370,7 +376,7 @@ export default function CartoesPage() {
                               <th className="px-3 py-2 w-20">Ações</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-gray-50">
+                          <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
                             {lancs.map(l => (
                               <tr key={l.id} className="hover:bg-blue-50/40 dark:hover:bg-gray-800/50 transition-colors group">
                                 <td className="px-3 py-2.5 text-gray-500 dark:text-gray-400 whitespace-nowrap text-xs">
@@ -384,22 +390,17 @@ export default function CartoesPage() {
                                   {formatBRL(l.valor)}
                                 </td>
                                 <td className="px-3 py-2.5">
-                                  {/* Botões aparecem no hover da linha */}
                                   <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button
                                       onClick={() => abrirModalLancamento(cartao, l)}
                                       title="Editar lançamento"
-                                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-blue-100 text-gray-400 hover:text-blue-600 transition-colors"
-                                    >
-                                      ✏️
-                                    </button>
+                                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-blue-100 dark:hover:bg-blue-900/40 text-gray-400 hover:text-blue-600 transition-colors"
+                                    >✏️</button>
                                     <button
                                       onClick={() => excluirLancamento(l)}
                                       title="Excluir lançamento"
-                                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-100 text-gray-300 hover:text-red-500 transition-colors"
-                                    >
-                                      🗑️
-                                    </button>
+                                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-100 dark:hover:bg-red-900/40 text-gray-300 hover:text-red-500 transition-colors"
+                                    >🗑️</button>
                                   </div>
                                 </td>
                               </tr>
@@ -427,7 +428,7 @@ export default function CartoesPage() {
         </div>
       )}
 
-      {/* MODAL: Cartão */}
+      {/* ── MODAL: Cartão ── */}
       {modal?.tipo === 'cartao' && (
         <div
           className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
@@ -435,8 +436,10 @@ export default function CartoesPage() {
         >
           <div className="bg-white dark:bg-gray-900 dark:border dark:border-gray-700 rounded-xl shadow-xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-lg text-gray-900 dark:text-gray-100">{form.id ? 'Editar Cartão' : 'Novo Cartão'}</h2>
-              <button onClick={fecharModal} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">✕</button>
+              <h2 className="font-bold text-lg text-gray-900 dark:text-gray-100">
+                {form.id ? 'Editar Cartão' : 'Novo Cartão'}
+              </h2>
+              <button onClick={fecharModal} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400">✕</button>
             </div>
             <div className="space-y-3">
               <div>
@@ -447,31 +450,15 @@ export default function CartoesPage() {
               </div>
               <div>
                 <label className="label">Vencimento</label>
-                <input
-                  className="input"
-                  value={form.vencimento || ''}
-                  onChange={e => setForm({ ...form, vencimento: e.target.value })}
-                  placeholder="ex: 10/03"
-                />
+                <input className="input" value={form.vencimento || ''} onChange={e => setForm({ ...form, vencimento: e.target.value })} placeholder="ex: 10/03" />
               </div>
               <div>
                 <label className="label">Valor Total da Fatura (R$)</label>
-                <input
-                  type="number" step="0.01" min="0"
-                  className="input"
-                  value={form.valor || ''}
-                  onChange={e => setForm({ ...form, valor: e.target.value })}
-                  placeholder="0,00"
-                />
+                <input type="number" step="0.01" min="0" className="input" value={form.valor || ''} onChange={e => setForm({ ...form, valor: e.target.value })} placeholder="0,00" />
               </div>
               <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox" id="pago_c"
-                  checked={!!form.pago}
-                  onChange={e => setForm({ ...form, pago: e.target.checked })}
-                  className="w-4 h-4 accent-green-500"
-                />
-                <label htmlFor="pago_c" className="text-sm text-gray-700">Fatura já paga</label>
+                <input type="checkbox" id="pago_c" checked={!!form.pago} onChange={e => setForm({ ...form, pago: e.target.checked })} className="w-4 h-4 accent-green-500" />
+                <label htmlFor="pago_c" className="text-sm text-gray-700 dark:text-gray-300">Fatura já paga</label>
               </div>
             </div>
             <div className="flex gap-3 mt-5">
@@ -484,7 +471,7 @@ export default function CartoesPage() {
         </div>
       )}
 
-      {/* MODAL: Lançamento */}
+      {/* ── MODAL: Lançamento ── */}
       {modal?.tipo === 'lancamento' && (
         <div
           className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
@@ -495,7 +482,7 @@ export default function CartoesPage() {
               <h2 className="font-bold text-lg text-gray-900 dark:text-gray-100">
                 {form.id ? 'Editar Lançamento' : 'Novo Lançamento'}
               </h2>
-              <button onClick={fecharModal} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">✕</button>
+              <button onClick={fecharModal} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400">✕</button>
             </div>
             <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
               Cartão: <span className="font-semibold text-gray-600 dark:text-gray-300">{modal.cartaoNome}</span>
@@ -503,40 +490,19 @@ export default function CartoesPage() {
             <div className="space-y-3">
               <div>
                 <label className="label">Data da Compra</label>
-                <input
-                  type="date" className="input"
-                  value={form.data_compra || ''}
-                  onChange={e => setForm({ ...form, data_compra: e.target.value })}
-                />
+                <input type="date" className="input" value={form.data_compra || ''} onChange={e => setForm({ ...form, data_compra: e.target.value })} />
               </div>
               <div>
                 <label className="label">Local / Estabelecimento</label>
-                <input
-                  className="input"
-                  value={form.local || ''}
-                  onChange={e => setForm({ ...form, local: e.target.value })}
-                  placeholder="Ex: Shopee, Netflix, Mercadinho..."
-                  autoFocus
-                />
+                <input className="input" value={form.local || ''} onChange={e => setForm({ ...form, local: e.target.value })} placeholder="Ex: Shopee, Netflix, Mercadinho..." autoFocus />
               </div>
               <div>
                 <label className="label">Parcela</label>
-                <input
-                  className="input"
-                  value={form.parcela || ''}
-                  onChange={e => setForm({ ...form, parcela: e.target.value })}
-                  placeholder="Ex: 01/12"
-                />
+                <input className="input" value={form.parcela || ''} onChange={e => setForm({ ...form, parcela: e.target.value })} placeholder="Ex: 01/12" />
               </div>
               <div>
                 <label className="label">Valor (R$)</label>
-                <input
-                  type="number" step="0.01" min="0"
-                  className="input text-lg font-semibold"
-                  value={form.valor || ''}
-                  onChange={e => setForm({ ...form, valor: e.target.value })}
-                  placeholder="0,00"
-                />
+                <input type="number" step="0.01" min="0" className="input text-lg font-semibold" value={form.valor || ''} onChange={e => setForm({ ...form, valor: e.target.value })} placeholder="0,00" />
               </div>
             </div>
             <div className="flex gap-3 mt-5">
@@ -553,7 +519,7 @@ export default function CartoesPage() {
         </div>
       )}
 
-      {/* Drive Upload Modal */}
+      {/* ── MODAL: Drive Upload ── */}
       {driveModal && (
         <DriveUploadModal
           mes={mes}
