@@ -135,9 +135,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )
           })}
 
-          {/* Seletor de mês */}
-          <div className="pt-5 pb-1">
-            <div className="text-blue-400 dark:text-gray-500 text-xs uppercase tracking-widest px-3 mb-2 font-semibold">
+          {/* Mês Ativo + Comprovantes Drive logo abaixo */}
+          <div className="pt-5 pb-2 space-y-2">
+            <div className="text-blue-400 dark:text-gray-500 text-xs uppercase tracking-widest px-3 font-semibold">
               Mês Ativo
             </div>
             <select
@@ -149,11 +149,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <option key={i} value={i + 1}>{m}</option>
               ))}
             </select>
+
+            {/* Comprovantes Drive — imediatamente abaixo do seletor de mês */}
+            <DrivePanel mes={mesAtivo} />
           </div>
         </nav>
-
-        {/* Google Drive comprovantes */}
-        <DrivePanel mes={mesAtivo} />
       </aside>
 
       {/* ── ÁREA PRINCIPAL ───────────────────────────────────── */}
