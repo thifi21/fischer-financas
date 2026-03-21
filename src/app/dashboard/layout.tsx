@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import { MESES } from '@/types'
 import DrivePanel from '@/components/DrivePanel'
+import { MesProvider, useMes } from '@/context/MesContext'
 
 const NAV_ITEMS = [
   { href: '/dashboard',              icon: '📊', label: 'Dashboard'           },
@@ -203,7 +204,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* ── CONTEÚDO ─────────────────────────────────────── */}
         <main className="flex-1 p-6 bg-gray-50 dark:bg-gray-950 transition-colors">
-          {children}
+          <MesProvider>
+            {children}
+          </MesProvider>
         </main>
       </div>
     </div>

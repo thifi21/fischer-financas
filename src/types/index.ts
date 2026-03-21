@@ -89,6 +89,24 @@ export const CATEGORIAS_FIXAS = [
 ]
 
 export const NOMES_CARTOES = [
-  'Hipercard', 'Cartão Crédito Caixa', 'Nu Bank',
-  'C6 Nara', 'Amazon Prime', 'Tricard', 'Mercado Pago', 'DM Card Koch'
+  'Hipercard',
+  'Cartão Crédito Caixa',
+  'Nu Bank',
+  'C6 Nara',
+  'Amazon Prime',
+  'Tricard',
+  'Mercado Pago',
+  'DM Card Koch',
 ]
+
+// Ordem de exibição personalizada — Thiago Fischer
+export const ORDEM_CARTOES: Record<string, number> = {
+  'Hipercard':            1,
+  'Cartão Crédito Caixa': 2,
+  'Nu Bank':              3,
+  'C6 Nara':              4,
+  'Amazon Prime':         5,
+  'Tricard':              6,
+  'Mercado Pago':         7,
+  'DM Card Koch':         8,
+}

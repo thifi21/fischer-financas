@@ -1,8 +1,9 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
-import { formatBRL, formatDate, formatVencimento, getMesAtual, getAnoAtual } from '@/lib/utils'
-import { MESES, NOMES_CARTOES, type Cartao, type LancamentoCartao } from '@/types'
+import { useMes } from '@/context/MesContext'
+import { formatBRL, formatDate, formatVencimento, getAnoAtual } from '@/lib/utils'
+import { MESES, NOMES_CARTOES, ORDEM_CARTOES, type Cartao, type LancamentoCartao } from '@/types'
 import DriveUploadModal from '@/components/DriveUploadModal'
 
 type ModalState =
@@ -17,7 +18,7 @@ export default function CartoesPage() {
   const ano = getAnoAtual()
 
   // ── State ────────────────────────────────────────────────────
-  const [mes, setMes]                   = useState(getMesAtual())
+  const { mes } = useMes()
   const [cartoes, setCartoes]           = useState<Cartao[]>([])
   const [todosLancamentos, setTodosLancamentos] = useState<Record<string, LancamentoCartao[]>>({})
   const [expandidos, setExpandidos]     = useState<Set<string>>(new Set())
@@ -41,14 +42,8 @@ export default function CartoesPage() {
     init()
   }, [])
 
-  useEffect(() => {
-    function handleMes(e: Event) {
-      setMes((e as CustomEvent).detail as number)
-      setExpandidos(new Set())
-    }
-    window.addEventListener('mesChange', handleMes)
-    return () => window.removeEventListener('mesChange', handleMes)
-  }, [])
+  // Reseta expandidos ao trocar de mês
+  useEffect(() => { setExpandidos(new Set()) }, [mes])
 
   useEffect(() => {
     if (userIdRef.current) carregarTudo()
@@ -61,11 +56,15 @@ export default function CartoesPage() {
     setLoading(true)
 
     const [{ data: cartoesData }, { data: lancsData }] = await Promise.all([
-      supabase.from('cartoes').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).order('nome'),
+      supabase.from('cartoes').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano),
       supabase.from('lancamentos_cartao').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).order('data_compra'),
     ])
 
-    setCartoes(cartoesData || [])
+    // Ordena pela sequência personalizada
+    const ordenados = (cartoesData || []).sort((a, b) =>
+      (ORDEM_CARTOES[a.nome] ?? 99) - (ORDEM_CARTOES[b.nome] ?? 99)
+    )
+    setCartoes(ordenados)
 
     const agrupado: Record<string, LancamentoCartao[]> = {}
     for (const l of lancsData || []) {
@@ -107,7 +106,7 @@ export default function CartoesPage() {
       if (data) setCartoes(prev => prev.map(c => c.id === form.id ? data : c))
     } else {
       const { data } = await supabase.from('cartoes').insert(payload).select().single()
-      if (data) setCartoes(prev => [...prev, data].sort((a, b) => a.nome.localeCompare(b.nome)))
+      if (data) setCartoes(prev => [...prev, data].sort((a, b) => (ORDEM_CARTOES[a.nome] ?? 99) - (ORDEM_CARTOES[b.nome] ?? 99)))
     }
     fecharModal()
     setSaving(false)

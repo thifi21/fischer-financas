@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
-import { formatBRL, getMesAtual, getAnoAtual } from '@/lib/utils'
+import { useMes } from '@/context/MesContext'
+import { formatBRL, getAnoAtual } from '@/lib/utils'
 import { MESES, type Entrada } from '@/types'
 
 let cachedUserId: string | null = null
@@ -9,7 +10,7 @@ let cachedUserId: string | null = null
 export default function EntradasPage() {
   const supabase = createClient()
   const ano = getAnoAtual()
-  const [mes, setMes]         = useState(getMesAtual())
+  const { mes } = useMes()
   const [entradas, setEntradas] = useState<Entrada[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal]     = useState(false)
@@ -29,11 +30,6 @@ export default function EntradasPage() {
     init()
   }, [])
 
-  useEffect(() => {
-    function h(e: Event) { setMes((e as CustomEvent).detail as number) }
-    window.addEventListener('mesChange', h)
-    return () => window.removeEventListener('mesChange', h)
-  }, [])
 
   useEffect(() => { if (userIdRef.current) carregar() }, [mes])
 
