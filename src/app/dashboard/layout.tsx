@@ -61,6 +61,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { hora, data } = useClock()
   const { dark, toggle: toggleDark } = useDarkMode()
   const checked = useRef(false)
+  const [ultimoAcesso, setUltimoAcesso] = useState<string>('')
+
+  useEffect(() => {
+    const salvo = localStorage.getItem('fischer-ultimo-acesso')
+    if (salvo) setUltimoAcesso(salvo)
+  }, [])
 
   useEffect(() => {
     if (checked.current) return
@@ -78,6 +84,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [])
 
   async function handleLogout() {
+    // Salva timestamp do último acesso antes de sair
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('fischer-ultimo-acesso',
+        new Date().toLocaleString('pt-BR', {
+          day: '2-digit', month: '2-digit', year: 'numeric',
+          hour: '2-digit', minute: '2-digit'
+        })
+      )
+    }
     await supabase.auth.signOut()
     router.replace('/')
   }
@@ -179,6 +194,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Ações */}
           <div className="flex items-center gap-2">
 
+            {/* Indicador de dados salvos */}
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-green-600 dark:text-green-500 bg-green-50 dark:bg-green-950/30 px-2.5 py-1.5 rounded-lg border border-green-100 dark:border-green-900">
+              <span>✓</span>
+              <span className="font-medium">Dados salvos</span>
+            </div>
+
             {/* Dark mode toggle */}
             <button
               onClick={toggleDark}
@@ -190,10 +211,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             <div className="w-px h-6 bg-gray-200 dark:bg-gray-700" />
 
-            {/* Sair */}
+            {/* Sair com confirmação */}
             <button
-              onClick={handleLogout}
-              title="Sair da conta"
+              onClick={() => {
+                if (window.confirm('Deseja sair? Seus dados estão salvos automaticamente no banco de dados.')) {
+                  handleLogout()
+                }
+              }}
+              title="Sair da conta (dados salvos automaticamente)"
               className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-colors"
             >
               <span className="text-base">🚪</span>
