@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import { MESES } from '@/types'
 import DrivePanel from '@/components/DrivePanel'
+import CotacoesPanel from '@/components/CotacoesPanel'
 import { MesProvider, useMes } from '@/context/MesContext'
 
 const NAV_ITEMS = [
@@ -150,6 +151,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
             {/* Comprovantes Drive */}
             <DrivePanel mes={mes} />
+
+            {/* Cotações ao vivo */}
+            <CotacoesPanel />
           </div>
         </nav>
       </aside>
