@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
-import { formatBRL, getMesAtual, getAnoAtual } from '@/lib/utils'
+import { useMes } from '@/context/MesContext'
+import { formatBRL, getAnoAtual } from '@/lib/utils'
 import { MESES } from '@/types'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -15,7 +16,7 @@ let cachedUserId: string | null = null
 export default function DashboardPage() {
   const supabase  = createClient()
   const ano       = getAnoAtual()
-  const [mes, setMes]             = useState(getMesAtual())
+  const { mes } = useMes()
   const [resumo, setResumo]       = useState({ entradas: 0, cartoes: 0, fixas: 0, combustivel: 0 })
   const [dadosMensais, setDados]  = useState<any[]>([])
   const [pieData, setPie]         = useState<any[]>([])
@@ -34,11 +35,6 @@ export default function DashboardPage() {
     init()
   }, [])
 
-  useEffect(() => {
-    function h(e: Event) { setMes((e as CustomEvent).detail) }
-    window.addEventListener('mesChange', h)
-    return () => window.removeEventListener('mesChange', h)
-  }, [])
 
   useEffect(() => { if (userIdRef.current) carregar() }, [mes])
 

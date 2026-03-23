@@ -1,8 +1,9 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
-import { formatBRL, formatDate, formatVencimento, getMesAtual, getAnoAtual } from '@/lib/utils'
-import { MESES, NOMES_CARTOES, type ContaFixa, type Cartao } from '@/types'
+import { useMes } from '@/context/MesContext'
+import { formatBRL, formatDate, formatVencimento, getAnoAtual } from '@/lib/utils'
+import { MESES, NOMES_CARTOES, ORDEM_CARTOES, type ContaFixa, type Cartao } from '@/types'
 import DriveUploadModal from '@/components/DriveUploadModal'
 
 const GRUPOS = [
@@ -36,7 +37,7 @@ export default function ContasFixasPage() {
   const ano      = getAnoAtual()
 
   // ── State ───────────────────────────────────────────────────
-  const [mes, setMes]                   = useState(getMesAtual())
+  const { mes } = useMes()
   const [contas, setContas]             = useState<ContaFixa[]>([])
   const [cartoes, setCartoes]           = useState<Cartao[]>([])
   const [loading, setLoading]           = useState(true)
@@ -60,11 +61,6 @@ export default function ContasFixasPage() {
     init()
   }, [])
 
-  useEffect(() => {
-    function h(e: Event) { setMes((e as CustomEvent).detail as number) }
-    window.addEventListener('mesChange', h)
-    return () => window.removeEventListener('mesChange', h)
-  }, [])
 
   useEffect(() => {
     if (userIdRef.current) carregarTudo()
@@ -78,11 +74,15 @@ export default function ContasFixasPage() {
 
     const [{ data: contasData }, { data: cartoesData }] = await Promise.all([
       supabase.from('contas_fixas').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).order('categoria'),
-      supabase.from('cartoes').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).order('nome'),
+      supabase.from('cartoes').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano),
     ])
 
     setContas(contasData || [])
-    setCartoes(cartoesData || [])
+    // Ordena cartões pela sequência personalizada
+    const cartoesOrdenados = (cartoesData || []).sort((a, b) =>
+      (ORDEM_CARTOES[a.nome] ?? 99) - (ORDEM_CARTOES[b.nome] ?? 99)
+    )
+    setCartoes(cartoesOrdenados)
     setLoading(false)
   }
 
