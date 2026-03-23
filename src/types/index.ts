@@ -64,28 +64,9 @@ export type Combustivel = {
   created_at: string
 }
 
-export type ResumoMes = {
-  mes: number
-  ano: number
-  total_entradas: number
-  total_cartoes: number
-  total_fixas: number
-  total_combustivel: number
-  total_saidas: number
-  saldo: number
-}
-
 export const MESES = [
   'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
   'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'
-]
-
-export const CATEGORIAS_FIXAS = [
-  'Condomínio/Água', 'Energia Elétrica', 'IPTU', 'Ambiental',
-  'Internet/TV', 'Celular Thiago', 'Celular Nayara',
-  'Escola e Faculdade', 'Alimentação Escolar', 'Material Escolar',
-  'Vestuário', 'Dentista', 'Academia', 'Previdência Yan',
-  'Juros Bancários', 'Outros'
 ]
 
 export const NOMES_CARTOES = [

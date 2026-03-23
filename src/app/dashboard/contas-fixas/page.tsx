@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
 import { formatBRL, formatDate, formatVencimento, getAnoAtual } from '@/lib/utils'
-import { MESES, NOMES_CARTOES, ORDEM_CARTOES, type ContaFixa, type Cartao } from '@/types'
+import { MESES, ORDEM_CARTOES, type ContaFixa, type Cartao } from '@/types'
 import DriveUploadModal from '@/components/DriveUploadModal'
 
 const GRUPOS = [
