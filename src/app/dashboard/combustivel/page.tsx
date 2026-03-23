@@ -94,7 +94,7 @@ export default function CombustivelPage() {
       data_abastecimento:  form.data_abastecimento || null,
       valor:               Number(form.valor || 0),
       litros:              form.litros      ? Number(form.litros)      : null,
-      km:                  form.km          ? Number(form.km)          : null,
+      km:                  form.km          ? Math.round(Number(String(form.km).replace(/[^0-9]/g, ''))) : null,
       preco_litro:         form.preco_litro ? Number(form.preco_litro) : null,
     }
 
@@ -365,11 +365,17 @@ export default function CombustivelPage() {
                 <div>
                   <label className="label">KM do Odômetro</label>
                   <input
-                    type="number" min="0" className="input"
-                    value={form.km || ''}
-                    onChange={e => setForm({ ...form, km: Number(e.target.value) })}
-                    placeholder="000000"
+                    type="text"
+                    inputMode="numeric"
+                    className="input"
+                    value={form.km != null ? String(form.km) : ''}
+                    onChange={e => {
+                      const limpo = e.target.value.replace(/\D/g, '')
+                      setForm({ ...form, km: limpo ? parseInt(limpo, 10) : undefined })
+                    }}
+                    placeholder="Ex: 233169"
                   />
+                  <p className="text-xs text-gray-400 dark:text-gray-600 mt-0.5">Somente números, sem ponto</p>
                 </div>
               </div>
             </div>
