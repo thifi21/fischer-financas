@@ -75,11 +75,13 @@ export default function EntradasPage() {
   const total = entradas.reduce((s, e) => s + Number(e.valor), 0)
 
   const CATEGORIAS = [
-    { value: 'salario',      label: '💼 Salário'      },
-    { value: 'freelance',    label: '💻 Freelance'    },
-    { value: 'extra',        label: '⭐ Extra'         },
-    { value: 'investimento', label: '📈 Investimento' },
-    { value: 'outro',        label: '📌 Outro'        },
+    { value: 'salario',      label: '💼 Salário'       },
+    { value: '13salario',    label: '🎁 13º Salário'   },
+    { value: '14salario',    label: '🎉 14º Salário'   },
+    { value: 'freelance',    label: '💻 Freelance'     },
+    { value: 'extra',        label: '⭐ Extra'          },
+    { value: 'investimento', label: '📈 Investimento'  },
+    { value: 'outro',        label: '📌 Outro'         },
   ]
 
   const catLabel = (v: string) => CATEGORIAS.find(c => c.value === v)?.label ?? v
