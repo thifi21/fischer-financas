@@ -2,15 +2,15 @@
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
-import { formatBRL, getAnoAtual } from '@/lib/utils'
+import { formatBRL } from '@/lib/utils'
 import { MESES, type Entrada } from '@/types'
 
 let cachedUserId: string | null = null
 
 export default function EntradasPage() {
   const supabase = createClient()
-  const ano = getAnoAtual()
-  const { mes } = useMes()
+  
+  const { mes, ano } = useMes()
   const [entradas, setEntradas] = useState<Entrada[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal]     = useState(false)

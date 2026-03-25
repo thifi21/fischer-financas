@@ -2,8 +2,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
-import { formatBRL, formatDate, formatVencimento, getAnoAtual } from '@/lib/utils'
-import { MESES, NOMES_CARTOES, ORDEM_CARTOES, type Cartao, type LancamentoCartao } from '@/types'
+import { formatBRL, formatDate, formatVencimento } from '@/lib/utils'
+import { MESES, NOMES_CARTOES, ORDEM_CARTOES, LOGOS_CARTOES, type Cartao, type LancamentoCartao } from '@/types'
 import DriveUploadModal from '@/components/DriveUploadModal'
 
 type ModalState =
@@ -40,8 +40,8 @@ function formatParcela(atual: number, total: number): string {
 
 export default function CartoesPage() {
   const supabase  = createClient()
-  const ano       = getAnoAtual()
-  const { mes }   = useMes()
+  
+  const { mes, ano } = useMes()
 
   const [cartoes, setCartoes]                       = useState<Cartao[]>([])
   const [todosLancamentos, setTodosLancamentos]     = useState<Record<string, LancamentoCartao[]>>({})
@@ -454,6 +454,26 @@ export default function CartoesPage() {
                     >
                       {cartao.pago ? '✓' : ''}
                     </button>
+                    {/* Logo do cartão */}
+                    {LOGOS_CARTOES[cartao.nome] ? (
+                      <div
+                        className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden"
+                        style={{ backgroundColor: LOGOS_CARTOES[cartao.nome].bg }}
+                      >
+                        <img
+                          src={LOGOS_CARTOES[cartao.nome].src}
+                          alt={cartao.nome}
+                          className="w-5 h-5 object-contain"
+                          onError={e => {
+                            const el = e.currentTarget
+                            el.style.display = 'none'
+                            if (el.parentElement) el.parentElement.innerHTML = '💳'
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <span className="text-base flex-shrink-0">💳</span>
+                    )}
                     <div>
                       <div className="font-semibold text-gray-900 dark:text-gray-100">{cartao.nome}</div>
                       <div className="flex items-center gap-2 flex-wrap">

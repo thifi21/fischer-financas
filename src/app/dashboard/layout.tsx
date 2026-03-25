@@ -62,7 +62,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const checked = useRef(false)
 
   // Lê o mês do contexto — fonte única de verdade
-  const { mes, setMes } = useMes()
+  const { mes, setMes, ano, setAno } = useMes()
+
+  // Estado local para controlar qual ano está expandido na sidebar
+  const [anoExpandido, setAnoExpandido] = useState<number>(ano)
 
   useEffect(() => {
     if (checked.current) return
@@ -109,7 +112,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             <span className="text-3xl">💰</span>
             <div>
               <div className="font-bold text-base">Família Fischer</div>
-              <div className="text-blue-300 dark:text-gray-500 text-xs">Finanças 2026</div>
+              <div className="text-blue-300 dark:text-gray-500 text-xs">Finanças {ano}</div>
             </div>
           </div>
         </div>
@@ -134,23 +137,60 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             )
           })}
 
-          {/* Seletor de mês — atualiza o contexto diretamente */}
-          <div className="pt-5 pb-2 space-y-2">
-            <div className="text-blue-400 dark:text-gray-500 text-xs uppercase tracking-widest px-3 font-semibold">
-              Mês Ativo
+          {/* Seletor de Ano/Mês — árvore expansível */}
+          <div className="pt-5 pb-2 space-y-1">
+            <div className="text-blue-400 dark:text-gray-500 text-xs uppercase tracking-widest px-3 pb-1 font-semibold">
+              Período
             </div>
-            <select
-              value={mes}
-              onChange={e => setMes(Number(e.target.value))}
-              className="w-full bg-blue-800 dark:bg-gray-800 text-white border border-blue-700 dark:border-gray-700 rounded-lg px-3 py-2 text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {MESES.map((m, i) => (
-                <option key={i} value={i + 1}>{m}</option>
-              ))}
-            </select>
+
+            {Array.from({ length: 2030 - 2024 + 1 }, (_, i) => 2024 + i).map(a => {
+              const isAnoAtivo  = a === ano
+              const isExpandido = a === anoExpandido
+              return (
+                <div key={a}>
+                  {/* Cabeçalho do ano */}
+                  <button
+                    onClick={() => setAnoExpandido(isExpandido ? 0 : a)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                      isAnoAtivo
+                        ? 'bg-blue-700 dark:bg-blue-900 text-white'
+                        : 'hover:bg-blue-800 dark:hover:bg-gray-800 text-blue-100 dark:text-gray-300'
+                    }`}
+                  >
+                    <span>📅 {a}</span>
+                    <span className="text-xs opacity-70">{isExpandido ? '▲' : '▼'}</span>
+                  </button>
+
+                  {/* Meses do ano expandido */}
+                  {isExpandido && (
+                    <div className="ml-3 mt-0.5 space-y-0.5 border-l-2 border-blue-700/40 dark:border-gray-700 pl-2">
+                      {MESES.map((nome, i) => {
+                        const m = i + 1
+                        const ativo = isAnoAtivo && m === mes
+                        return (
+                          <button
+                            key={m}
+                            onClick={() => { setAno(a); setMes(m) }}
+                            className={`w-full text-left px-2 py-1.5 rounded text-xs font-medium transition-colors ${
+                              ativo
+                                ? 'bg-blue-500 dark:bg-blue-700 text-white'
+                                : 'text-blue-200 dark:text-gray-400 hover:bg-blue-800 dark:hover:bg-gray-800 hover:text-white'
+                            }`}
+                          >
+                            {nome}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
 
             {/* Comprovantes Drive */}
-            <DrivePanel mes={mes} />
+            <div className="pt-2">
+              <DrivePanel mes={mes} />
+            </div>
 
             {/* Cotações ao vivo */}
             <CotacoesPanel />
@@ -180,7 +220,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             {/* Indicador do mês ativo */}
             <div className="hidden md:flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 px-2.5 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900">
               <span>📅</span>
-              <span>{MESES[mes - 1]} 2026</span>
+              <span>{MESES[mes - 1]} {ano}</span>
             </div>
           </div>
 
@@ -232,8 +272,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 // ── Layout raiz — MesProvider envolve TUDO incluindo a sidebar ──
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const mesInicial = new Date().getMonth() + 1
+  const anoInicial = new Date().getFullYear()
   return (
-    <MesProvider mesInicial={mesInicial}>
+    <MesProvider mesInicial={mesInicial} anoInicial={anoInicial}>
       <DashboardShell>{children}</DashboardShell>
     </MesProvider>
   )

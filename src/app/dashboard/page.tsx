@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
-import { formatBRL, getAnoAtual } from '@/lib/utils'
+import { formatBRL } from '@/lib/utils'
 import { MESES } from '@/types'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -15,8 +15,7 @@ let cachedUserId: string | null = null
 
 export default function DashboardPage() {
   const supabase  = createClient()
-  const ano       = getAnoAtual()
-  const { mes } = useMes()
+  const { mes, ano } = useMes()
   const [resumo, setResumo]       = useState({ entradas: 0, cartoes: 0, fixas: 0, combustivel: 0 })
   const [dadosMensais, setDados]  = useState<any[]>([])
   const [pieData, setPie]         = useState<any[]>([])

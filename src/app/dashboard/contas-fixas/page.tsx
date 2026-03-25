@@ -2,8 +2,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
-import { formatBRL, formatDate, formatVencimento, getAnoAtual } from '@/lib/utils'
-import { MESES, ORDEM_CARTOES, type ContaFixa, type Cartao } from '@/types'
+import { formatBRL, formatDate, formatVencimento } from '@/lib/utils'
+import { MESES, ORDEM_CARTOES, LOGOS_CARTOES, type ContaFixa, type Cartao } from '@/types'
 import DriveUploadModal from '@/components/DriveUploadModal'
 
 const GRUPOS = [
@@ -34,10 +34,8 @@ let cachedUserId: string | null = null
 
 export default function ContasFixasPage() {
   const supabase = createClient()
-  const ano      = getAnoAtual()
-
+  const { mes, ano } = useMes()
   // ── State ───────────────────────────────────────────────────
-  const { mes } = useMes()
   const [contas, setContas]             = useState<ContaFixa[]>([])
   const [cartoes, setCartoes]           = useState<Cartao[]>([])
   const [loading, setLoading]           = useState(true)
@@ -46,6 +44,8 @@ export default function ContasFixasPage() {
   const [saving, setSaving]             = useState(false)
   const [cartoesExpandido, setCartoesExpandido] = useState(true)
   const [driveModal, setDriveModal]     = useState<{ descricao: string; valor: number } | null>(null)
+  const [conferidosContas, setConferidosContas]   = useState<Set<string>>(new Set())
+  const [conferidosCartoes, setConferidosCartoes] = useState<Set<string>>(new Set())
   const [totalEntradas, setTotalEntradas] = useState(0)
   const userIdRef = useRef<string | null>(cachedUserId)
 
@@ -246,6 +246,26 @@ export default function ContasFixasPage() {
                           >
                             {cartao.pago ? '✓' : ''}
                           </button>
+                          {/* Logo do cartão */}
+                          {LOGOS_CARTOES[cartao.nome] ? (
+                            <div
+                              className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden"
+                              style={{ backgroundColor: LOGOS_CARTOES[cartao.nome].bg }}
+                            >
+                              <img
+                                src={LOGOS_CARTOES[cartao.nome].src}
+                                alt={cartao.nome}
+                                className="w-5 h-5 object-contain"
+                                onError={e => {
+                                  const el = e.currentTarget
+                                  el.style.display = 'none'
+                                  if (el.parentElement) el.parentElement.innerHTML = '💳'
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <span className="text-base flex-shrink-0">💳</span>
+                          )}
                           <div>
                             <div className={`text-sm font-semibold ${cartao.pago ? 'line-through text-gray-400 dark:text-gray-600' : 'text-gray-800 dark:text-gray-200'}`}>
                               {cartao.nome}
@@ -271,6 +291,20 @@ export default function ContasFixasPage() {
                             title="Enviar comprovante para o Google Drive"
                             className="w-7 h-7 flex items-center justify-center rounded hover:bg-green-100 dark:hover:bg-green-900/30 text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors opacity-0 group-hover:opacity-100"
                           >☁️</button>
+                          {/* Flag de conferência */}
+                          <button
+                            onClick={() => setConferidosCartoes(prev => {
+                              const next = new Set(prev)
+                              next.has(cartao.id) ? next.delete(cartao.id) : next.add(cartao.id)
+                              return next
+                            })}
+                            title={conferidosCartoes.has(cartao.id) ? 'Remover conferência' : 'Marcar como conferido'}
+                            className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+                              conferidosCartoes.has(cartao.id)
+                                ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
+                                : 'text-gray-300 hover:text-yellow-400 opacity-0 group-hover:opacity-100'
+                            }`}
+                          >🚩</button>
                         </div>
                       </div>
                     ))}
@@ -378,6 +412,20 @@ export default function ContasFixasPage() {
                               title="Excluir"
                               className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-100 dark:hover:bg-red-900/40 text-gray-300 hover:text-red-500 transition-colors"
                             >🗑️</button>
+                            {/* Flag de conferência */}
+                            <button
+                              onClick={() => setConferidosContas(prev => {
+                                const next = new Set(prev)
+                                next.has(conta.id) ? next.delete(conta.id) : next.add(conta.id)
+                                return next
+                              })}
+                              title={conferidosContas.has(conta.id) ? 'Remover conferência' : 'Marcar como conferido'}
+                              className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+                                conferidosContas.has(conta.id)
+                                  ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
+                                  : 'text-gray-300 hover:text-yellow-400 opacity-0 group-hover:opacity-100'
+                              }`}
+                            >🚩</button>
                           </div>
                         </div>
                       </div>

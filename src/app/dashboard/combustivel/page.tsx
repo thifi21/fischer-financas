@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
-import { formatBRL, formatDate, getAnoAtual } from '@/lib/utils'
+import { formatBRL, formatDate } from '@/lib/utils'
 import { MESES, type Combustivel } from '@/types'
 
 let cachedUserId: string | null = null
@@ -15,8 +15,7 @@ function mesAnoDeData(dataStr: string): { mes: number; ano: number } {
 
 export default function CombustivelPage() {
   const supabase = createClient()
-  const { mes }  = useMes()
-  const anoAtual = getAnoAtual()
+  const { mes, ano: anoAtual }  = useMes()
 
   const [registros, setRegistros] = useState<Combustivel[]>([])
   const [loading, setLoading]     = useState(true)
