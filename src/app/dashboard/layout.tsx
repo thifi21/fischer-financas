@@ -18,6 +18,8 @@ const NAV_ITEMS = [
   { href: '/dashboard/contas-fixas', icon: '🏠', label: 'Contas Fixas'        },
   { href: '/dashboard/entradas',     icon: '💵', label: 'Entradas / Salários'  },
   { href: '/dashboard/combustivel',  icon: '⛽', label: 'Combustível'          },
+  { href: '/dashboard/metas',        icon: '🎯', label: 'Metas e Orçamento'   },
+  { href: '/dashboard/relatorios',   icon: '📈', label: 'Relatórios'          },
 ]
 
 function useClock() {
