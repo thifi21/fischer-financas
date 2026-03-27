@@ -13,14 +13,19 @@ import CotacoesPanel from '@/components/CotacoesPanel'
 import { MesProvider, useMes } from '@/context/MesContext'
 
 const NAV_ITEMS = [
-  { href: '/dashboard',              icon: '📊', label: 'Dashboard'           },
-  { href: '/dashboard/cartoes',      icon: '💳', label: 'Cartões de Crédito'  },
-  { href: '/dashboard/contas-fixas', icon: '🏠', label: 'Contas Fixas'        },
-  { href: '/dashboard/entradas',     icon: '💵', label: 'Entradas / Salários'  },
-  { href: '/dashboard/combustivel',  icon: '⛽', label: 'Combustível'          },
-  { href: '/dashboard/metas',        icon: '🎯', label: 'Metas e Orçamento'   },
-  { href: '/dashboard/relatorios',   icon: '📈', label: 'Relatórios'          },
-  { href: '/dashboard/notificacoes', icon: '🔔', label: 'Notificações'        },
+  { href: '/dashboard',              icon: '📊', label: 'Dashboard',             grupo: 'principal' },
+  { href: '/dashboard/cartoes',      icon: '💳', label: 'Cartões de Crédito',   grupo: 'principal' },
+  { href: '/dashboard/contas-fixas', icon: '🏠', label: 'Contas Fixas',         grupo: 'principal' },
+  { href: '/dashboard/entradas',     icon: '💵', label: 'Entradas / Salários',  grupo: 'principal' },
+  { href: '/dashboard/combustivel',  icon: '⛽', label: 'Combustível',           grupo: 'principal' },
+  { href: '/dashboard/metas',        icon: '🎯', label: 'Metas e Orçamento',    grupo: 'principal' },
+  { href: '/dashboard/relatorios',   icon: '📈', label: 'Relatórios',           grupo: 'principal' },
+  { href: '/dashboard/notificacoes', icon: '🔔', label: 'Notificações',         grupo: 'principal' },
+  // Fase 3
+  { href: '/dashboard/open-finance', icon: '🏦', label: 'Open Finance',         grupo: 'avancado'  },
+  { href: '/dashboard/ia-analise',   icon: '🤖', label: 'IA Financeira',        grupo: 'avancado'  },
+  { href: '/dashboard/familia',      icon: '👨‍👩‍👧‍👦', label: 'Modo Família',         grupo: 'avancado'  },
+  { href: '/dashboard/investimentos',icon: '📈', label: 'Investimentos',        grupo: 'avancado'  },
 ]
 
 function useClock() {
@@ -122,7 +127,32 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
         {/* Nav */}
         <nav className="flex-1 p-4 space-y-1">
-          {NAV_ITEMS.map(({ href, icon, label }) => {
+          {/* Navegação Principal */}
+          {NAV_ITEMS.filter(n => n.grupo === 'principal').map(({ href, icon, label }) => {
+            const active = pathname === href
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  active
+                    ? 'bg-blue-700 dark:bg-blue-900 text-white shadow-inner'
+                    : 'hover:bg-blue-800 dark:hover:bg-gray-800 text-blue-100 dark:text-gray-300'
+                }`}
+              >
+                <span className="text-base">{icon}</span>
+                {label}
+              </Link>
+            )
+          })}
+
+          {/* Seção Fase 3 — Recursos Avançados */}
+          <div className="pt-3 pb-1">
+            <div className="text-blue-400 dark:text-gray-500 text-xs uppercase tracking-widest px-3 pb-1 font-semibold">
+              Recursos Avançados
+            </div>
+          </div>
+          {NAV_ITEMS.filter(n => n.grupo === 'avancado').map(({ href, icon, label }) => {
             const active = pathname === href
             return (
               <Link

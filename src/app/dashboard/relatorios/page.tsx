@@ -197,6 +197,24 @@ export default function RelatoriosPage() {
     a.click()
   }
 
+  function exportarPDF() {
+    // Adiciona estilos de impressão ao head
+    const styleEl = document.getElementById('print-style') || document.createElement('style')
+    styleEl.id = 'print-style'
+    styleEl.innerHTML = `
+      @media print {
+        body > *:not(#relatorio-print) { display: none !important; }
+        aside, header, nav, button, .no-print { display: none !important; }
+        #relatorio-print { display: block !important; }
+        .card { break-inside: avoid; box-shadow: none !important; border: 1px solid #e5e7eb; }
+        @page { margin: 1cm; size: A4; }
+      }
+    `
+    if (!document.getElementById('print-style')) document.head.appendChild(styleEl)
+    window.print()
+  }
+
+
   const totalGeral = dados.porCategoria.reduce((s: number, d: any) => s + d.value, 0)
 
   if (loading) {
@@ -220,6 +238,9 @@ export default function RelatoriosPage() {
           <p className="text-gray-500 dark:text-gray-400 text-sm">{MESES[mes - 1]} {ano}</p>
         </div>
         <div className="flex gap-2">
+          <button onClick={exportarPDF} className="btn-secondary">
+            🖨️ Exportar PDF
+          </button>
           <button onClick={exportarCSV} className="btn-secondary">
             📄 Exportar CSV
           </button>
@@ -371,6 +392,35 @@ export default function RelatoriosPage() {
           </div>
         )}
       </div>
+
+      {/* Projeção dos próximos 3 meses */}
+      {dados.totaisPorMes.length >= 2 && (
+        <div className="card">
+          <h3 className="font-semibold mb-4 text-gray-900 dark:text-gray-100">🔮 Projeção dos Próximos 3 Meses</h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+            Estimativa baseada na média dos últimos meses com crescimento de +2%/mês (inflação estimada)
+          </p>
+          <div className="grid grid-cols-3 gap-4">
+            {[1, 2, 3].map(offset => {
+              const base = dados.totaisPorMes.slice(-3)
+              const mediaCartoes = base.reduce((s: number, m: any) => s + m.cartoes, 0) / base.length
+              const mediaFixas   = base.reduce((s: number, m: any) => s + m.fixas, 0) / base.length
+              const mediaComb    = base.reduce((s: number, m: any) => s + m.combustivel, 0) / base.length
+              const fator = Math.pow(1.02, offset)
+              const proj = (mediaCartoes + mediaFixas + mediaComb) * fator
+              const d = new Date(ano, mes - 1 + offset, 1)
+              const nomeMes = MESES[d.getMonth()]
+              return (
+                <div key={offset} className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl p-4 text-center border border-purple-100 dark:border-purple-900">
+                  <p className="text-xs text-purple-600 dark:text-purple-400 font-semibold uppercase mb-1">{nomeMes}</p>
+                  <p className="text-xl font-bold text-purple-700 dark:text-purple-300">{formatBRL(proj)}</p>
+                  <p className="text-xs text-gray-500 mt-1">+{(offset * 2).toFixed(0)}% estimado</p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
