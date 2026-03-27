@@ -21,6 +21,7 @@ export type LancamentoCartao = {
   local: string
   parcela: string | null
   valor: number
+  conferido: boolean
   created_at: string
 }
 
@@ -62,6 +63,33 @@ export type Combustivel = {
   km: number | null
   preco_litro: number | null
   created_at: string
+}
+
+export type Meta = {
+  id: string
+  user_id: string
+  categoria: 'cartoes' | 'fixas' | 'combustivel' | 'total'
+  valor_limite: number
+  mes: number
+  ano: number
+  notificar_em: number
+  ativo: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type Lembrete = {
+  id: string
+  user_id: string
+  tipo: 'vencimento' | 'meta' | 'geral'
+  titulo: string
+  mensagem: string
+  data_lembrete: string
+  prioridade: 'baixa' | 'media' | 'alta'
+  lido: boolean
+  ativo: boolean
+  created_at: string
+  updated_at: string
 }
 
 export const MESES = [

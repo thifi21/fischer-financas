@@ -18,6 +18,9 @@ const NAV_ITEMS = [
   { href: '/dashboard/contas-fixas', icon: '🏠', label: 'Contas Fixas'        },
   { href: '/dashboard/entradas',     icon: '💵', label: 'Entradas / Salários'  },
   { href: '/dashboard/combustivel',  icon: '⛽', label: 'Combustível'          },
+  { href: '/dashboard/metas',        icon: '🎯', label: 'Metas e Orçamento'   },
+  { href: '/dashboard/relatorios',   icon: '📈', label: 'Relatórios'          },
+  { href: '/dashboard/notificacoes', icon: '🔔', label: 'Notificações'        },
 ]
 
 function useClock() {
@@ -143,7 +146,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               Período
             </div>
 
-            {Array.from({ length: 2030 - 2024 + 1 }, (_, i) => 2024 + i).map(a => {
+            {Array.from({ length: 2030 - 2026 + 1 }, (_, i) => 2026 + i).map(a => {
               const isAnoAtivo  = a === ano
               const isExpandido = a === anoExpandido
               return (
