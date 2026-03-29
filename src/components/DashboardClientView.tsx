@@ -74,7 +74,7 @@ export default function DashboardClientView({ mes, ano, resumo, pieData, dadosMe
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   labelLine={true}
                 >
-                  {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  {pieData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Pie>
                 <Tooltip formatter={(v: any) => formatBRL(Number(v))} />
               </PieChart>
