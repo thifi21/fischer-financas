@@ -18,6 +18,7 @@
 | 🏠 **Contas Fixas** | Contas por categoria com seção de cartões integrada e resumo completo do mês |
 | 💵 **Entradas / Salários** | Receitas mensais com categorias (Salário, Freelance, Extra, Investimento) |
 | ⛽ **Combustível** | Abastecimentos com mês/ano derivados da data — suporte a lançamentos retroativos |
+| 📱 **App Mobile** | Aplicativo nativo (iOS/Android) com Expo consumindo a mesma API |
 | ☁️ **Google Drive** | Upload de comprovantes direto para `Contas 2026/[Mês]/Pagas` via Service Account |
 | 📈 **Cotações** | Dólar, Euro, PETR4 e CDI em tempo real na sidebar (atualiza a cada 5 min) |
 
@@ -75,6 +76,7 @@ Todas as tabelas usam **Row Level Security (RLS)** — cada usuário acessa apen
 
 ```
 fischer-financas/
+├── mobile/                        ← Aplicativo nativo em React Native (Expo)
 ├── docs/
 │   ├── CHANGELOG.md               ← Histórico completo de versões
 │   └── GOOGLE_DRIVE.md            ← Tutorial integração Drive
@@ -118,6 +120,7 @@ fischer-financas/
 
 - [Histórico de Versões](./docs/CHANGELOG.md)
 - [Tutorial Google Drive](./docs/GOOGLE_DRIVE.md)
+- [Documentação do App Mobile](./mobile/README.md)
 
 ---
 
