@@ -133,7 +133,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             return (
               <Link
                 key={href}
-                href={href}
+                href={`${href}?mes=${mes}&ano=${ano}`}
                 className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   active
                     ? 'bg-blue-700 dark:bg-blue-900 text-white shadow-inner'
@@ -157,7 +157,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             return (
               <Link
                 key={href}
-                href={href}
+                href={`${href}?mes=${mes}&ano=${ano}`}
                 className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   active
                     ? 'bg-blue-700 dark:bg-blue-900 text-white shadow-inner'
