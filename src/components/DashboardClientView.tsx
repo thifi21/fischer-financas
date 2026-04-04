@@ -96,8 +96,8 @@ export default function DashboardClientView({ mes, ano, resumo, pieData, dadosMe
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `R$${(v / 1000).toFixed(0)}k`} />
                 <Tooltip formatter={(v: any) => formatBRL(Number(v))} />
                 <Legend />
-                <Bar dataKey="entradas" name="Entradas" fill="#10b981" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="saidas" name="Saídas" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="entradas" name="Entradas" fill="#10b981" radius={[4,4,0,0]} />
+                <Bar dataKey="saidas"   name="Saídas"   fill="#ef4444" radius={[4,4,0,0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -114,10 +114,10 @@ export default function DashboardClientView({ mes, ano, resumo, pieData, dadosMe
           </h2>
           <div className="space-y-3 text-sm">
             {[
-              { label: 'Entradas', valor: resumo.entradas, cor: 'bg-green-500' },
-              { label: 'Cartões', valor: resumo.cartoes, cor: 'bg-blue-500' },
-              { label: 'Contas Fixas', valor: resumo.fixas, cor: 'bg-orange-500' },
-              { label: 'Combustível', valor: resumo.combustivel, cor: 'bg-yellow-500' },
+              { label: 'Entradas',    valor: resumo.entradas,    cor: 'bg-green-500' },
+              { label: 'Cartões',     valor: resumo.cartoes,     cor: 'bg-blue-500'  },
+              { label: 'Contas Fixas',valor: resumo.fixas,       cor: 'bg-orange-500'},
+              { label: 'Combustível', valor: resumo.combustivel, cor: 'bg-yellow-500'},
             ].filter(i => i.valor > 0).map(item => {
               const pct = totalSaidas > 0 ? Math.min(100, (item.valor / Math.max(resumo.entradas, totalSaidas)) * 100) : 0
               return (
