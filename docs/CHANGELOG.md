@@ -1,9 +1,116 @@
 # 📋 Changelog — Fischer Finanças 2026
 
-Todas as mudanças significativas do projeto estão documentadas aqui.
-
 **Desenvolvido por:** Thiago Fischer  
 **Projeto:** Fischer Finanças 2026
+
+---
+
+## [1.3.0] — Março 2026
+
+### 🔧 Correções
+
+#### Combustível — lançamentos retroativos
+- **Bug corrigido:** ao inserir um abastecimento com data de mês anterior, o sistema salvava com o mês atual (da sidebar) em vez de derivar o mês da data informada
+- `mes` e `ano` agora são extraídos diretamente da data digitada (`AAAA-MM-DD`)
+- Aviso no modal quando a data pertence a mês diferente do exibido
+- Aviso pós-salvo informando em qual mês o registro foi guardado
+- Query de carregamento sem filtro de `ano` fixo — registros históricos aparecem corretamente
+
+#### Combustível — campo KM
+- **Bug corrigido:** campo KM com `type="number"` aceitava `233.169` como decimal, causando erro `invalid input syntax for type integer` no banco
+- Campo trocado para `type="text"` com `inputMode="numeric"`
+- Filtro automático no `onChange` remove pontos, vírgulas e letras — aceita `233.169`, `233,169` ou `233169`
+- Payload sanitizado com `Math.round(parseInt(...))` antes de enviar ao banco
+
+#### Limpeza de código
+- Removidos 3 pacotes npm sem uso: `lucide-react`, `date-fns`, `clsx`
+- Removidos 2 exports do `types/index.ts` sem uso: `ResumoMes`, `CATEGORIAS_FIXAS`
+- Removido import desnecessário `NOMES_CARTOES` em `contas-fixas/page.tsx`
+- Removida pasta vazia `src/app/api/cotacoes/`
+
+---
+
+## [1.2.0] — Março 2026
+
+### ✨ Funcionalidades novas
+
+#### Parcelas automáticas nos cartões
+- Ao adicionar um lançamento com parcela (ex: `03/08`), o sistema cria automaticamente as parcelas restantes nos meses seguintes
+- Preview em tempo real no modal mostrando quais meses receberão parcelas antes de salvar
+- Botão exibe quantidade de parcelas a serem criadas (ex: "Adicionar + 5 parcela(s)")
+- Ao excluir: pergunta se exclui só a parcela atual ou todas as parcelas do item
+- Formatos aceitos: `01/12`, `1/12`, `01 de 12`, `1 de 12`
+- Cria cartão no mês futuro automaticamente se ele ainda não existir
+
+#### Painel de Cotações na sidebar
+- Dólar (USD/BRL) — fonte: AwesomeAPI
+- Euro (EUR/BRL) — fonte: AwesomeAPI
+- PETR4 — fonte: brapi.dev (B3)
+- CDI / Meta SELIC — fonte: Banco Central do Brasil
+- Variação do dia em % com cor verde (alta) / vermelha (queda)
+- Atualiza automaticamente a cada 5 minutos quando painel está aberto
+- Sistema de fallback: se a fonte primária falhar, tenta fonte alternativa
+- Busca direto no browser (client-side) para evitar limitações serverless
+- Ponto verde piscando indica dados ao vivo
+
+### 🔧 Correções
+
+#### Mês ativo persistido entre páginas
+- **Bug corrigido:** ao navegar entre telas, cada página reiniciava com o mês atual ignorando a seleção da sidebar
+- Criado `src/context/MesContext.tsx` como fonte única de verdade para o mês
+- `MesProvider` envolve toda a aplicação (sidebar + conteúdo) no nível do layout
+- `DashboardShell` separado para permitir uso de `useMes()` dentro do provider
+- Todas as 5 páginas usam `const { mes } = useMes()` em vez de `useState(getMesAtual())`
+- Removidos todos os listeners manuais de `mesChange` das páginas
+- O mês ativo agora aparece na topbar (ex: `📅 Março 2026`)
+
+#### Ordem personalizada dos cartões
+- Sequência definida por Thiago Fischer: `Hipercard → Cartão Crédito Caixa → Nu Bank → C6 Nara → Amazon Prime → Tricard → Mercado Pago → DM Card Koch`
+- Exportado `ORDEM_CARTOES` em `types/index.ts` com valores numéricos
+- Ordenação feita localmente após fetch — independe da ordem do banco
+
+#### Tricard restaurado
+- Cartão Tricard havia sido omitido na importação inicial da planilha
+- Adicionado `supabase/migrations/003_tricard_seed.sql` com dados de Jan–Dez 2026
+
+---
+
+## [1.1.0] — Março 2026
+
+### ✨ Funcionalidades novas
+
+#### Google Drive — Comprovantes
+- Botão ☁️ em cada cartão (Cartões de Crédito) e em cada item (Contas Fixas) no hover
+- Modal com arrastar-e-soltar (drag & drop), preview de imagem e nome automático do arquivo
+- Nome gerado: `2026-03-20_Nubank_R$957.pdf`
+- Estrutura: `Contas 2026 / [Mês] / Pagas`
+- Painel "Comprovantes" na sidebar mostrando arquivos do mês ativo com link direto
+- Integração via Service Account (configura uma vez, funciona sempre)
+- Parâmetro `supportsAllDrives: true` em todas as operações para funcionar em pastas compartilhadas
+- Mensagens de erro amigáveis em português para cada tipo de falha
+- Aceita PDF, JPG, PNG — limite de 10MB
+
+#### Botão Sair com confirmação
+- Confirmação antes de sair: "Seus dados estão salvos automaticamente"
+- Salva timestamp do último acesso no localStorage
+- Indicador verde "✓ Dados salvos" na topbar
+
+### 🔧 Correções
+
+#### Tema claro como padrão
+- Removido `prefers-color-scheme` do script de tema
+- Padrão sempre claro independente do sistema operacional
+- Dark mode só ativa se o usuário escolheu explicitamente antes
+
+#### Login mais rápido
+- `router.push` substituído por `router.replace` — não empilha histórico
+- `useRef(false)` como guard no `getSession` — chamado uma única vez
+- Cache de `userId` em módulo — sem re-fetch em cada operação
+
+#### Vencimento corrigido
+- Formato `2025-03-12 00:00:00` agora exibe como `12/03`
+- Criada função `formatVencimento()` em `utils.ts`
+- Aceita qualquer formato de entrada e normaliza para `DD/MM`
 
 ---
 
@@ -11,126 +118,65 @@ Todas as mudanças significativas do projeto estão documentadas aqui.
 
 ### 🎉 Lançamento inicial
 
-Sistema completo de controle financeiro familiar baseado na planilha `Contas_Família_Fischer_2026.xlsx`.
-
----
-
-### ✨ Funcionalidades implementadas
-
 #### Autenticação
 - Login seguro com email e senha via Supabase Auth
-- Botão para mostrar/ocultar senha na tela de login
-- Redirecionamento rápido com `router.replace` (sem empilhar histórico)
-- Verificação de sessão com cache local — sem dupla requisição ao Supabase
-- Botão de dark mode na própria tela de login
+- Botão para mostrar/ocultar senha
+- Dark mode na tela de login com botão flutuante 🌙/☀️
+- Preferência salva no localStorage — persiste entre sessões
+- Script anti-flash no `<head>` — aplica tema antes da primeira pintura
 
 #### Dashboard
 - Cards de resumo: Entradas, Cartões, Contas Fixas, Total Saídas
-- Card de saldo do mês com indicador visual (verde/vermelho)
+- Card de saldo do mês com indicador visual verde/vermelho
 - Gráfico de pizza — distribuição de gastos do mês
-- Gráfico de barras — Entradas vs Saídas por todos os meses do ano
+- Gráfico de barras — Entradas vs Saídas de todos os 12 meses
 - Barras de progresso por categoria
-- Carregamento de todos os 12 meses em paralelo (uma rodada de queries)
 - Skeleton animado durante carregamento
+- Carregamento paralelo: todos os 12 meses em uma rodada de queries
 
 #### Cartões de Crédito
-- Listagem de todos os cartões do mês com valor total e status (Pago/Pendente)
+- Listagem ordenada por sequência personalizada
 - Expandir cartão para ver lançamentos detalhados
-- Adicionar, editar e excluir lançamentos
-- Total do cartão recalculado automaticamente ao alterar lançamentos
-- Carregamento paralelo: cartões + todos os lançamentos em 2 queries
-- Botão ☁️ para enviar comprovante ao Google Drive
+- Editar e excluir lançamentos com botões no hover
+- Total recalculado automaticamente ao alterar lançamentos
+- Carregamento paralelo: cartões + lançamentos em 2 queries
+- Parcelas exibidas com badge colorido
 
 #### Contas Fixas
-- Seção **Cartões de Crédito** no topo com totais e status de cada cartão
-- Contas agrupadas por categoria com ícones (🏠 🎒 👕 🦷 ⛽ 💰 💪 🏦)
-- Contador de itens pagos por grupo
-- Rodapé com resumo completo: cartões + fixas + total geral + pago + a pagar
-- Marcar cartões como pago/pendente diretamente nesta tela
-- Botão ☁️ em cada item para upload de comprovante
+- Seção Cartões de Crédito no topo com totais e status
+- Contas agrupadas por categoria com ícones por grupo
+- Marcação de pago/pendente em cartões e contas fixas
+- Rodapé com resumo: total geral, pago, a pagar
+- Toggle de expansão da seção de cartões
 
 #### Entradas / Salários
-- Registro de receitas com categorias (Salário, Freelance, Extra, Investimento, Outro)
-- Edição inline com botão ✏️ no hover
-- Ícones por categoria
+- Categorias com ícones: 💼 Salário, 💻 Freelance, ⭐ Extra, 📈 Investimento
+- Edição com botão ✏️ no hover
 
 #### Combustível
-- Registro de abastecimentos com data, litros, valor, KM e preço por litro
+- Registro com data, litros, valor, KM e preço/litro
 - Card de preço médio calculado automaticamente
 - Edição com botão ✏️ no hover
 
-#### Google Drive — Comprovantes
-- Upload de comprovantes (PDF, JPG, PNG — até 10MB)
-- Salvamento automático em `Contas 2026 / [Mês] / Pagas`
-- Nome do arquivo gerado automaticamente: `2026-03-20_Nubank_R$957.pdf`
-- Painel de comprovantes na sidebar mostrando arquivos do mês ativo
-- Arrastar e soltar (drag & drop) no modal de upload
-- Preview de imagem antes do envio
-- Integração via Service Account (sem login OAuth)
-
 #### Interface
-- Tema claro como padrão
-- Modo escuro (dark mode) com alternância via botão 🌙/☀️
-- Preferência salva no `localStorage` — persiste entre sessões
-- Script anti-flash no `<head>` — aplica tema antes da primeira pintura
-- Sidebar com navegação, seletor de mês e painel de comprovantes
-- Topbar com relógio em tempo real, data e botão Sair
-- Fontes aumentadas ~15% em toda a aplicação
-- Botões ✏️ e 🗑️ aparecem apenas no hover (menos poluição visual)
-- Skeleton animado em todas as páginas
+- Tema claro como padrão com toggle 🌙/☀️ na topbar
+- Sidebar com navegação, seletor de mês, comprovantes e cotações
+- Topbar com relógio em tempo real, data, mês ativo, dados salvos e botão Sair
+- Fontes aumentadas ~15% via `tailwind.config.js`
+- Botões aparecem no hover — menos poluição visual
 - Modais fecham ao clicar fora
-- Botões de salvar desabilitados com campos obrigatórios vazios
+- Skeleton animado em todas as páginas
 
 #### Performance
 - Cache de `userId` em módulo — sem re-fetch em cada operação
-- Queries paralelas com `Promise.all` em todas as páginas
+- `Promise.all` em todas as páginas para queries paralelas
 - Atualização otimista de state — UI responde antes do banco confirmar
-- Recálculo de totais feito localmente sem queries extras
+- `useCallback` com parâmetro para evitar closures desatualizados
 
----
-
-### 🗄️ Banco de Dados
-
-#### Tabelas criadas
-- `cartoes` — faturas de cartão por mês/ano
-- `lancamentos_cartao` — itens detalhados de cada fatura
-- `contas_fixas` — contas agrupadas por categoria
-- `entradas` — receitas e salários
-- `combustivel` — registros de abastecimento
-
-#### Segurança
-- Row Level Security (RLS) habilitado em todas as tabelas
-- Policies: cada usuário acessa apenas seus próprios dados
-- Trigger `update_updated_at` para auditoria de alterações
-
----
-
-### 📊 Dados importados da planilha
-
-Importação automática via `supabase/migrations/002_seed_dados.sql`:
-
-| Dados | Quantidade |
-|---|---|
-| Cartões (mês a mês) | 72 registros — Jan a Dez |
-| Lançamentos detalhados | 644 itens |
-| Contas Fixas | 80 registros — Jan a Jun |
-| Abastecimentos | 11 registros — Jan a Mar |
-| Entradas / Salários | 2 registros — Março |
-
-Cartões importados: Hipercard, Cartão Caixa, Nubank, Amazon Prime, Mercado Pago, C6 Nara
-
----
-
-### 🔧 Correções aplicadas
-
-| Problema | Correção |
-|---|---|
-| Lentidão no login | `router.replace` + `useRef` guard no `getSession` |
-| Tema escuro como padrão | Removido `prefers-color-scheme`, padrão forçado claro |
-| Vencimento com formato `2025-03-12 00:00:00` | Criada função `formatVencimento()` |
-| `setDriveModal` fora do escopo | Arquivos `cartoes` e `contas-fixas` reescritos do zero |
-| Painel Drive mostrando `Abril / Pagas` | Simplificado para mostrar apenas o mês |
-| Botão Comprovantes longe do seletor | Reposicionado imediatamente abaixo do mês ativo |
+#### Banco de Dados
+- Row Level Security (RLS) em todas as tabelas
+- Trigger `update_updated_at` para auditoria
+- Importação de 644 lançamentos, 72 cartões, 80 contas fixas, 11 abastecimentos
 
 ---
 

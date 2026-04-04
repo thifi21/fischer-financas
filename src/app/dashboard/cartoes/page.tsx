@@ -2,8 +2,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
-import { formatBRL, formatDate, formatVencimento, getAnoAtual } from '@/lib/utils'
-import { MESES, NOMES_CARTOES, ORDEM_CARTOES, type Cartao, type LancamentoCartao } from '@/types'
+import { formatBRL, formatDate, formatVencimento } from '@/lib/utils'
+import { MESES, NOMES_CARTOES, ORDEM_CARTOES, LOGOS_CARTOES, type Cartao, type LancamentoCartao } from '@/types'
 import DriveUploadModal from '@/components/DriveUploadModal'
 
 type ModalState =
@@ -40,8 +40,8 @@ function formatParcela(atual: number, total: number): string {
 
 export default function CartoesPage() {
   const supabase  = createClient()
-  const ano       = getAnoAtual()
-  const { mes }   = useMes()
+  
+  const { mes, ano } = useMes()
 
   const [cartoes, setCartoes]                       = useState<Cartao[]>([])
   const [todosLancamentos, setTodosLancamentos]     = useState<Record<string, LancamentoCartao[]>>({})
@@ -215,6 +215,7 @@ export default function CartoesPage() {
       local: form.local,
       parcela: form.parcela || null,
       valor: Number(form.valor || 0),
+      conferido: form.conferido ?? false,
     }
 
     if (form.id) {
@@ -271,6 +272,7 @@ export default function CartoesPage() {
             local: form.local,
             parcela: formatParcela(parsed.atual + i, parsed.total),
             valor: Number(form.valor || 0),
+            conferido: false,
           })
 
           // Recalcula o total do cartão futuro
@@ -352,6 +354,22 @@ export default function CartoesPage() {
     const novoPago = !cartao.pago
     setCartoes(prev => prev.map(c => c.id === cartao.id ? { ...c, pago: novoPago } : c))
     await supabase.from('cartoes').update({ pago: novoPago }).eq('id', cartao.id)
+  }
+
+  async function toggleConferido(lancamento: LancamentoCartao) {
+    const novoConferido = !lancamento.conferido
+    // Atualiza localmente
+    setTodosLancamentos(prev => ({
+      ...prev,
+      [lancamento.cartao_id]: (prev[lancamento.cartao_id] || []).map(l =>
+        l.id === lancamento.id ? { ...l, conferido: novoConferido } : l
+      )
+    }))
+    // Atualiza no banco
+    await supabase
+      .from('lancamentos_cartao')
+      .update({ conferido: novoConferido })
+      .eq('id', lancamento.id)
   }
 
   async function excluirCartao(cartao: Cartao) {
@@ -454,6 +472,26 @@ export default function CartoesPage() {
                     >
                       {cartao.pago ? '✓' : ''}
                     </button>
+                    {/* Logo do cartão */}
+                    {LOGOS_CARTOES[cartao.nome] ? (
+                      <div
+                        className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden"
+                        style={{ backgroundColor: LOGOS_CARTOES[cartao.nome].bg }}
+                      >
+                        <img
+                          src={LOGOS_CARTOES[cartao.nome].src}
+                          alt={cartao.nome}
+                          className="w-5 h-5 object-contain"
+                          onError={e => {
+                            const el = e.currentTarget
+                            el.style.display = 'none'
+                            if (el.parentElement) el.parentElement.innerHTML = '💳'
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <span className="text-base flex-shrink-0">💳</span>
+                    )}
                     <div>
                       <div className="font-semibold text-gray-900 dark:text-gray-100">{cartao.nome}</div>
                       <div className="flex items-center gap-2 flex-wrap">
@@ -527,6 +565,7 @@ export default function CartoesPage() {
                               <th className="text-left px-3 py-2">Local / Estabelecimento</th>
                               <th className="text-left px-3 py-2">Parcela</th>
                               <th className="text-right px-3 py-2">Valor</th>
+                              <th className="text-center px-3 py-2 w-16">✓</th>
                               <th className="px-3 py-2 w-20">Ações</th>
                             </tr>
                           </thead>
@@ -550,6 +589,21 @@ export default function CartoesPage() {
                                   {formatBRL(l.valor)}
                                 </td>
                                 <td className="px-3 py-2.5">
+                                  <div className="flex items-center justify-center">
+                                    <button
+                                      onClick={() => toggleConferido(l)}
+                                      className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
+                                        l.conferido
+                                          ? 'bg-green-500 border-green-500 text-white hover:bg-green-600'
+                                          : 'border-gray-300 dark:border-gray-600 hover:border-green-400 dark:hover:border-green-500'
+                                      }`}
+                                      title={l.conferido ? 'Marcar como não conferido' : 'Marcar como conferido'}
+                                    >
+                                      {l.conferido && '✓'}
+                                    </button>
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2.5">
                                   <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button onClick={() => abrirModalLancamento(cartao, l)} title="Editar"
                                       className="w-7 h-7 flex items-center justify-center rounded hover:bg-blue-100 dark:hover:bg-blue-900/40 text-gray-400 hover:text-blue-600 transition-colors">✏️</button>
@@ -562,7 +616,7 @@ export default function CartoesPage() {
                           </tbody>
                           <tfoot>
                             <tr className="bg-gray-50 dark:bg-gray-800 border-t-2 border-gray-200 dark:border-gray-700">
-                              <td colSpan={3} className="px-3 py-2.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Total</td>
+                              <td colSpan={4} className="px-3 py-2.5 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Total</td>
                               <td className="px-3 py-2.5 text-right font-bold text-blue-700 dark:text-blue-400 text-base">{formatBRL(subtotal)}</td>
                               <td />
                             </tr>

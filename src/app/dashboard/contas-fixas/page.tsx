@@ -2,8 +2,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
-import { formatBRL, formatDate, formatVencimento, getAnoAtual } from '@/lib/utils'
-import { MESES, NOMES_CARTOES, ORDEM_CARTOES, type ContaFixa, type Cartao } from '@/types'
+import { formatBRL, formatDate, formatVencimento } from '@/lib/utils'
+import { MESES, ORDEM_CARTOES, LOGOS_CARTOES, type ContaFixa, type Cartao } from '@/types'
 import DriveUploadModal from '@/components/DriveUploadModal'
 
 const GRUPOS = [
@@ -34,10 +34,8 @@ let cachedUserId: string | null = null
 
 export default function ContasFixasPage() {
   const supabase = createClient()
-  const ano      = getAnoAtual()
-
+  const { mes, ano } = useMes()
   // ── State ───────────────────────────────────────────────────
-  const { mes } = useMes()
   const [contas, setContas]             = useState<ContaFixa[]>([])
   const [cartoes, setCartoes]           = useState<Cartao[]>([])
   const [loading, setLoading]           = useState(true)
@@ -46,6 +44,9 @@ export default function ContasFixasPage() {
   const [saving, setSaving]             = useState(false)
   const [cartoesExpandido, setCartoesExpandido] = useState(true)
   const [driveModal, setDriveModal]     = useState<{ descricao: string; valor: number } | null>(null)
+  const [conferidosContas, setConferidosContas]   = useState<Set<string>>(new Set())
+  const [conferidosCartoes, setConferidosCartoes] = useState<Set<string>>(new Set())
+  const [totalEntradas, setTotalEntradas] = useState(0)
   const userIdRef = useRef<string | null>(cachedUserId)
 
   // ── Init ────────────────────────────────────────────────────
@@ -72,9 +73,10 @@ export default function ContasFixasPage() {
     if (!uid) return
     setLoading(true)
 
-    const [{ data: contasData }, { data: cartoesData }] = await Promise.all([
+    const [{ data: contasData }, { data: cartoesData }, { data: entradasData }] = await Promise.all([
       supabase.from('contas_fixas').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).order('categoria'),
       supabase.from('cartoes').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano),
+      supabase.from('entradas').select('valor').eq('user_id', uid).eq('mes', mes).eq('ano', ano),
     ])
 
     setContas(contasData || [])
@@ -83,6 +85,7 @@ export default function ContasFixasPage() {
       (ORDEM_CARTOES[a.nome] ?? 99) - (ORDEM_CARTOES[b.nome] ?? 99)
     )
     setCartoes(cartoesOrdenados)
+    setTotalEntradas((entradasData || []).reduce((s, e) => s + Number(e.valor), 0))
     setLoading(false)
   }
 
@@ -141,6 +144,7 @@ export default function ContasFixasPage() {
   const totalPagoFixas    = contas.filter(c => c.pago).reduce((s, c) => s + Number(c.valor), 0)
   const totalPago         = totalPagoCartoes + totalPagoFixas
   const totalPendente     = totalGeral - totalPago
+  const saldoLiquido      = totalEntradas - totalGeral  // Entradas - (Cartões + Fixas)
 
   // ── Render ──────────────────────────────────────────────────
   return (
@@ -242,6 +246,26 @@ export default function ContasFixasPage() {
                           >
                             {cartao.pago ? '✓' : ''}
                           </button>
+                          {/* Logo do cartão */}
+                          {LOGOS_CARTOES[cartao.nome] ? (
+                            <div
+                              className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden"
+                              style={{ backgroundColor: LOGOS_CARTOES[cartao.nome].bg }}
+                            >
+                              <img
+                                src={LOGOS_CARTOES[cartao.nome].src}
+                                alt={cartao.nome}
+                                className="w-5 h-5 object-contain"
+                                onError={e => {
+                                  const el = e.currentTarget
+                                  el.style.display = 'none'
+                                  if (el.parentElement) el.parentElement.innerHTML = '💳'
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <span className="text-base flex-shrink-0">💳</span>
+                          )}
                           <div>
                             <div className={`text-sm font-semibold ${cartao.pago ? 'line-through text-gray-400 dark:text-gray-600' : 'text-gray-800 dark:text-gray-200'}`}>
                               {cartao.nome}
@@ -267,6 +291,20 @@ export default function ContasFixasPage() {
                             title="Enviar comprovante para o Google Drive"
                             className="w-7 h-7 flex items-center justify-center rounded hover:bg-green-100 dark:hover:bg-green-900/30 text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors opacity-0 group-hover:opacity-100"
                           >☁️</button>
+                          {/* Flag de conferência */}
+                          <button
+                            onClick={() => setConferidosCartoes(prev => {
+                              const next = new Set(prev)
+                              next.has(cartao.id) ? next.delete(cartao.id) : next.add(cartao.id)
+                              return next
+                            })}
+                            title={conferidosCartoes.has(cartao.id) ? 'Remover conferência' : 'Marcar como conferido'}
+                            className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+                              conferidosCartoes.has(cartao.id)
+                                ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
+                                : 'text-gray-300 hover:text-yellow-400 opacity-0 group-hover:opacity-100'
+                            }`}
+                          >🚩</button>
                         </div>
                       </div>
                     ))}
@@ -374,6 +412,20 @@ export default function ContasFixasPage() {
                               title="Excluir"
                               className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-100 dark:hover:bg-red-900/40 text-gray-300 hover:text-red-500 transition-colors"
                             >🗑️</button>
+                            {/* Flag de conferência */}
+                            <button
+                              onClick={() => setConferidosContas(prev => {
+                                const next = new Set(prev)
+                                next.has(conta.id) ? next.delete(conta.id) : next.add(conta.id)
+                                return next
+                              })}
+                              title={conferidosContas.has(conta.id) ? 'Remover conferência' : 'Marcar como conferido'}
+                              className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+                                conferidosContas.has(conta.id)
+                                  ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
+                                  : 'text-gray-300 hover:text-yellow-400 opacity-0 group-hover:opacity-100'
+                              }`}
+                            >🚩</button>
                           </div>
                         </div>
                       </div>
@@ -387,8 +439,18 @@ export default function ContasFixasPage() {
           {/* ── RODAPÉ RESUMO ── */}
           {(cartoes.length > 0 || contas.length > 0) && (
             <div className="card bg-gray-900 dark:bg-gray-950 text-white border-0">
-              <div className="text-xs text-gray-400 uppercase tracking-widest mb-3 font-semibold">Resumo do Mês</div>
+              <div className="text-xs text-gray-400 uppercase tracking-widest mb-3 font-semibold">Resumo do Mês — {MESES[mes - 1]}</div>
               <div className="space-y-2 text-sm">
+
+                {/* Entradas */}
+                <div className="flex justify-between">
+                  <span className="text-gray-400">💵 Entradas / Salários</span>
+                  <span className="font-semibold text-green-400">{formatBRL(totalEntradas)}</span>
+                </div>
+
+                <div className="border-t border-gray-800 my-1" />
+
+                {/* Saídas */}
                 <div className="flex justify-between">
                   <span className="text-gray-400">💳 Total Cartões</span>
                   <span className="font-semibold">{formatBRL(totalCartoes)}</span>
@@ -397,10 +459,29 @@ export default function ContasFixasPage() {
                   <span className="text-gray-400">🏠 Total Contas Fixas</span>
                   <span className="font-semibold">{formatBRL(totalFixas)}</span>
                 </div>
-                <div className="border-t border-gray-700 pt-2 mt-1 flex justify-between">
-                  <span className="text-gray-300 font-semibold">Total Geral</span>
-                  <span className="text-xl font-bold text-white">{formatBRL(totalGeral)}</span>
+                <div className="flex justify-between">
+                  <span className="text-gray-300 font-semibold">Total Saídas</span>
+                  <span className="font-bold text-white">{formatBRL(totalGeral)}</span>
                 </div>
+
+                <div className="border-t border-gray-700 pt-2 mt-1" />
+
+                {/* Saldo líquido */}
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300 font-bold">Saldo Líquido</span>
+                  <span className={`text-xl font-bold ${saldoLiquido >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {formatBRL(saldoLiquido)}
+                  </span>
+                </div>
+                {totalEntradas === 0 && (
+                  <div className="text-xs text-gray-600 italic">
+                    * Cadastre as entradas do mês para ver o saldo líquido
+                  </div>
+                )}
+
+                <div className="border-t border-gray-800 pt-2" />
+
+                {/* Pago / Pendente */}
                 <div className="flex justify-between text-xs">
                   <span className="text-green-400">✓ Já pago</span>
                   <span className="text-green-400 font-semibold">{formatBRL(totalPago)}</span>

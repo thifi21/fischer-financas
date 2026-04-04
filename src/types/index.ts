@@ -21,6 +21,7 @@ export type LancamentoCartao = {
   local: string
   parcela: string | null
   valor: number
+  conferido: boolean
   created_at: string
 }
 
@@ -64,28 +65,36 @@ export type Combustivel = {
   created_at: string
 }
 
-export type ResumoMes = {
+export type Meta = {
+  id: string
+  user_id: string
+  categoria: 'cartoes' | 'fixas' | 'combustivel' | 'total'
+  valor_limite: number
   mes: number
   ano: number
-  total_entradas: number
-  total_cartoes: number
-  total_fixas: number
-  total_combustivel: number
-  total_saidas: number
-  saldo: number
+  notificar_em: number
+  ativo: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type Lembrete = {
+  id: string
+  user_id: string
+  tipo: 'vencimento' | 'meta' | 'geral'
+  titulo: string
+  mensagem: string
+  data_lembrete: string
+  prioridade: 'baixa' | 'media' | 'alta'
+  lido: boolean
+  ativo: boolean
+  created_at: string
+  updated_at: string
 }
 
 export const MESES = [
   'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
   'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'
-]
-
-export const CATEGORIAS_FIXAS = [
-  'Condomínio/Água', 'Energia Elétrica', 'IPTU', 'Ambiental',
-  'Internet/TV', 'Celular Thiago', 'Celular Nayara',
-  'Escola e Faculdade', 'Alimentação Escolar', 'Material Escolar',
-  'Vestuário', 'Dentista', 'Academia', 'Previdência Yan',
-  'Juros Bancários', 'Outros'
 ]
 
 export const NOMES_CARTOES = [
@@ -99,7 +108,19 @@ export const NOMES_CARTOES = [
   'DM Card Koch',
 ]
 
-// Ordem de exibição personalizada — Thiago Fischer
+// Logos dos cartões — CDN público (Clearbit)
+export const LOGOS_CARTOES: Record<string, { src: string; bg: string }> = {
+  'Hipercard':            { src: 'https://logo.clearbit.com/hipercard.com.br',      bg: '#C8102E' },
+  'Cartão Crédito Caixa': { src: 'https://logo.clearbit.com/caixa.gov.br',          bg: '#005CA9' },
+  'Nu Bank':              { src: 'https://logo.clearbit.com/nubank.com.br',          bg: '#820AD1' },
+  'C6 Nara':              { src: 'https://logo.clearbit.com/c6bank.com.br',          bg: '#141414' },
+  'Amazon Prime':         { src: 'https://logo.clearbit.com/amazon.com.br',          bg: '#FF9900' },
+  'Tricard':              { src: 'https://logo.clearbit.com/tricard.com.br',         bg: '#E30613' },
+  'Mercado Pago':         { src: 'https://logo.clearbit.com/mercadopago.com.br',     bg: '#009EE3' },
+  'DM Card Koch':         { src: 'https://logo.clearbit.com/dmcard.com.br',          bg: '#E30613' },
+}
+
+
 export const ORDEM_CARTOES: Record<string, number> = {
   'Hipercard':            1,
   'Cartão Crédito Caixa': 2,
