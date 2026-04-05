@@ -108,15 +108,15 @@ export const NOMES_CARTOES = [
   'DM Card Koch',
 ]
 
-// Logos dos cartões — CDN público (Clearbit)
+// Logos dos cartões — Locais (public/logos) e via CDN como fallback
 export const LOGOS_CARTOES: Record<string, { src: string; bg: string }> = {
-  'Hipercard':            { src: 'https://logo.clearbit.com/hipercard.com.br',      bg: '#C8102E' },
-  'Cartão Crédito Caixa': { src: 'https://logo.clearbit.com/caixa.gov.br',          bg: '#005CA9' },
-  'Nu Bank':              { src: 'https://logo.clearbit.com/nubank.com.br',          bg: '#820AD1' },
-  'C6 Nara':              { src: 'https://logo.clearbit.com/c6bank.com.br',          bg: '#141414' },
+  'Hipercard':            { src: '/logos/Hipercard.png',      bg: '#C8102E' },
+  'Cartão Crédito Caixa': { src: '/logos/Caixa.png',          bg: '#005CA9' },
+  'Nu Bank':              { src: '/logos/Nubank.png',          bg: '#820AD1' },
+  'C6 Nara':              { src: '/logos/C6.png',          bg: '#141414' },
   'Amazon Prime':         { src: 'https://logo.clearbit.com/amazon.com.br',          bg: '#FF9900' },
-  'Tricard':              { src: 'https://logo.clearbit.com/tricard.com.br',         bg: '#E30613' },
-  'Mercado Pago':         { src: 'https://logo.clearbit.com/mercadopago.com.br',     bg: '#009EE3' },
+  'Tricard':              { src: '/logos/Tricard.jpg',         bg: '#E30613' },
+  'Mercado Pago':         { src: '/logos/Mercado_Pago.png',     bg: '#009EE3' },
   'DM Card Koch':         { src: 'https://logo.clearbit.com/dmcard.com.br',          bg: '#E30613' },
 }
 

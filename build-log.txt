@@ -1,0 +1,53 @@
+
+> fischer-financas@1.0.0 build
+> next build
+
+  ▲ Next.js 14.2.5
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/20) ...
+   Generating static pages (5/20) 
+   Generating static pages (10/20) 
+Error: @supabase/ssr: Your project's URL and API key are required to create a Supabase client!
+
+Check your Supabase project's API settings to find these values
+
+https://supabase.com/dashboard/project/_/settings/api
+    at rY (D:\Repositório GitHub Projetos\fischer-financas\.next\server\chunks\202.js:37:55859)
+    at a (D:\Repositório GitHub Projetos\fischer-financas\.next\server\app\page.js:1:5667)
+    at o (D:\Repositório GitHub Projetos\fischer-financas\.next\server\app\page.js:1:2504)
+    at nj (D:\Repositório GitHub Projetos\fischer-financas\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:46251)
+    at nM (D:\Repositório GitHub Projetos\fischer-financas\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:47571)
+    at nN (D:\Repositório GitHub Projetos\fischer-financas\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:64546)
+    at nI (D:\Repositório GitHub Projetos\fischer-financas\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:47010)
+    at nM (D:\Repositório GitHub Projetos\fischer-financas\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:47717)
+    at nM (D:\Repositório GitHub Projetos\fischer-financas\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:61546)
+    at nN (D:\Repositório GitHub Projetos\fischer-financas\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:64546) {
+  digest: '2767794171'
+}
+
+Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+
+Error: @supabase/ssr: Your project's URL and API key are required to create a Supabase client!
+
+Check your Supabase project's API settings to find these values
+
+https://supabase.com/dashboard/project/_/settings/api
+    at rY (D:\Repositório GitHub Projetos\fischer-financas\.next\server\chunks\202.js:37:55859)
+    at a (D:\Repositório GitHub Projetos\fischer-financas\.next\server\app\page.js:1:5667)
+    at o (D:\Repositório GitHub Projetos\fischer-financas\.next\server\app\page.js:1:2504)
+    at nj (D:\Repositório GitHub Projetos\fischer-financas\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:46251)
+    at nM (D:\Repositório GitHub Projetos\fischer-financas\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:47571)
+    at nN (D:\Repositório GitHub Projetos\fischer-financas\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:64546)
+    at nI (D:\Repositório GitHub Projetos\fischer-financas\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:47010)
+    at nM (D:\Repositório GitHub Projetos\fischer-financas\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:47717)
+    at nM (D:\Repositório GitHub Projetos\fischer-financas\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:61546)
+    at nN (D:\Repositório GitHub Projetos\fischer-financas\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:64546)
+   Generating static pages (15/20) 
+ ✓ Generating static pages (20/20)
+
+> Export encountered errors on following paths:
+	/page: /
