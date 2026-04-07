@@ -13,19 +13,19 @@ import CotacoesPanel from '@/components/CotacoesPanel'
 import { MesProvider, useMes } from '@/context/MesContext'
 
 const NAV_ITEMS = [
-  { href: '/dashboard',              icon: '📊', label: 'Dashboard',             grupo: 'principal' },
-  { href: '/dashboard/cartoes',      icon: '💳', label: 'Cartões de Crédito',   grupo: 'principal' },
-  { href: '/dashboard/contas-fixas', icon: '🏠', label: 'Contas Fixas',         grupo: 'principal' },
-  { href: '/dashboard/entradas',     icon: '💵', label: 'Entradas / Salários',  grupo: 'principal' },
-  { href: '/dashboard/combustivel',  icon: '⛽', label: 'Combustível',           grupo: 'principal' },
-  { href: '/dashboard/metas',        icon: '🎯', label: 'Metas e Orçamento',    grupo: 'principal' },
-  { href: '/dashboard/relatorios',   icon: '📈', label: 'Relatórios',           grupo: 'principal' },
-  { href: '/dashboard/notificacoes', icon: '🔔', label: 'Notificações',         grupo: 'principal' },
+  { href: '/dashboard', icon: '📊', label: 'Dashboard', grupo: 'principal' },
+  { href: '/dashboard/cartoes', icon: '💳', label: 'Cartões de Crédito', grupo: 'principal' },
+  { href: '/dashboard/contas-fixas', icon: '🏠', label: 'Contas Fixas', grupo: 'principal' },
+  { href: '/dashboard/entradas', icon: '💵', label: 'Entradas / Salários', grupo: 'principal' },
+  { href: '/dashboard/combustivel', icon: '⛽', label: 'Combustível', grupo: 'principal' },
+  { href: '/dashboard/metas', icon: '🎯', label: 'Metas e Orçamento', grupo: 'principal' },
+  { href: '/dashboard/relatorios', icon: '📈', label: 'Relatórios', grupo: 'principal' },
+  { href: '/dashboard/notificacoes', icon: '🔔', label: 'Notificações', grupo: 'principal' },
   // Fase 3
-  { href: '/dashboard/open-finance', icon: '🏦', label: 'Open Finance',         grupo: 'avancado'  },
-  { href: '/dashboard/ia-analise',   icon: '🤖', label: 'IA Financeira',        grupo: 'avancado'  },
-  { href: '/dashboard/familia',      icon: '👨‍👩‍👧‍👦', label: 'Modo Família',         grupo: 'avancado'  },
-  { href: '/dashboard/investimentos',icon: '📈', label: 'Investimentos',        grupo: 'avancado'  },
+  { href: '/dashboard/open-finance', icon: '🏦', label: 'Open Finance', grupo: 'avancado' },
+  { href: '/dashboard/ia-analise', icon: '🤖', label: 'IA Financeira', grupo: 'avancado' },
+  { href: '/dashboard/familia', icon: '👨‍👩‍👧‍👦', label: 'Modo Família', grupo: 'avancado' },
+  { href: '/dashboard/investimentos', icon: '📈', label: 'Investimentos', grupo: 'avancado' },
 ]
 
 function useClock() {
@@ -61,11 +61,11 @@ function useDarkMode() {
 // ── Componente interno que usa o contexto do mês ───────────────
 // Separado para poder chamar useMes() dentro do MesProvider
 function DashboardShell({ children }: { children: React.ReactNode }) {
-  const router   = useRouter()
+  const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
-  const { hora, data }        = useClock()
+  const { hora, data } = useClock()
   const { dark, toggle: toggleDark } = useDarkMode()
   const checked = useRef(false)
 
@@ -112,7 +112,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex bg-gray-50 dark:bg-gray-950 transition-colors duration-200">
 
       {/* ── SIDEBAR ─────────────────────────────────────────── */}
-      <aside className="w-64 bg-blue-900 dark:bg-gray-950 dark:border-r dark:border-gray-800 text-white flex flex-col min-h-screen fixed top-0 left-0 z-30">
+      <aside className="w-64 bg-blue-900 dark:bg-gray-950 dark:border-r dark:border-gray-800 text-white flex flex-col h-screen fixed top-0 left-0 z-30">
 
         {/* Logo */}
         <div className="p-5 border-b border-blue-800 dark:border-gray-800">
@@ -126,7 +126,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-1 scrollbar-thin scrollbar-thumb-blue-800 dark:scrollbar-thumb-gray-800 scrollbar-track-transparent">
+        <nav className="flex-1 p-4 space-y-1">
           {/* Navegação Principal */}
           {NAV_ITEMS.filter(n => n.grupo === 'principal').map(({ href, icon, label }) => {
             const active = pathname === href
@@ -134,11 +134,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={href}
                 href={`${href}?mes=${mes}&ano=${ano}`}
-                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  active
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${active
                     ? 'bg-blue-700 dark:bg-blue-900 text-white shadow-inner'
                     : 'hover:bg-blue-800 dark:hover:bg-gray-800 text-blue-100 dark:text-gray-300'
-                }`}
+                  }`}
               >
                 <span className="text-base">{icon}</span>
                 {label}
@@ -158,11 +157,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={href}
                 href={`${href}?mes=${mes}&ano=${ano}`}
-                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  active
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${active
                     ? 'bg-blue-700 dark:bg-blue-900 text-white shadow-inner'
                     : 'hover:bg-blue-800 dark:hover:bg-gray-800 text-blue-100 dark:text-gray-300'
-                }`}
+                  }`}
               >
                 <span className="text-base">{icon}</span>
                 {label}
@@ -177,18 +175,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             </div>
 
             {Array.from({ length: 2030 - 2026 + 1 }, (_, i) => 2026 + i).map(a => {
-              const isAnoAtivo  = a === ano
+              const isAnoAtivo = a === ano
               const isExpandido = a === anoExpandido
               return (
                 <div key={a}>
                   {/* Cabeçalho do ano */}
                   <button
                     onClick={() => setAnoExpandido(isExpandido ? 0 : a)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                      isAnoAtivo
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${isAnoAtivo
                         ? 'bg-blue-700 dark:bg-blue-900 text-white'
                         : 'hover:bg-blue-800 dark:hover:bg-gray-800 text-blue-100 dark:text-gray-300'
-                    }`}
+                      }`}
                   >
                     <span>📅 {a}</span>
                     <span className="text-xs opacity-70">{isExpandido ? '▲' : '▼'}</span>
@@ -204,11 +201,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                           <button
                             key={m}
                             onClick={() => { setAno(a); setMes(m) }}
-                            className={`w-full text-left px-2 py-1.5 rounded text-xs font-medium transition-colors ${
-                              ativo
+                            className={`w-full text-left px-2 py-1.5 rounded text-xs font-medium transition-colors ${ativo
                                 ? 'bg-blue-500 dark:bg-blue-700 text-white'
                                 : 'text-blue-200 dark:text-gray-400 hover:bg-blue-800 dark:hover:bg-gray-800 hover:text-white'
-                            }`}
+                              }`}
                           >
                             {nome}
                           </button>
