@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
+import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
 import { formatBRL, formatDate, formatVencimento } from '@/lib/utils'
@@ -96,11 +97,13 @@ export default function ContasFixasPage() {
     setSaving(true)
     const payload = { ...form, user_id: uid, mes, ano, valor: Number(form.valor || 0), pago: !!form.pago }
     if (form.id) {
-      const { data } = await supabase.from('contas_fixas').update(payload).eq('id', form.id).select().single()
-      if (data) setContas(prev => prev.map(c => c.id === form.id ? data : c))
+      const { data, error } = await supabase.from('contas_fixas').update(payload).eq('id', form.id).select().single()
+      if (error) { toast.error('Erro ao atualizar conta'); console.error(error); }
+      if (data) { setContas(prev => prev.map(c => c.id === form.id ? data : c)); toast.success('Conta atualizada!'); }
     } else {
-      const { data } = await supabase.from('contas_fixas').insert(payload).select().single()
-      if (data) setContas(prev => [...prev, data])
+      const { data, error } = await supabase.from('contas_fixas').insert(payload).select().single()
+      if (error) { toast.error('Erro ao adicionar conta'); console.error(error); }
+      if (data) { setContas(prev => [...prev, data]); toast.success('Conta adicionada!'); }
     }
     fecharModal()
     setSaving(false)
@@ -120,8 +123,42 @@ export default function ContasFixasPage() {
 
   async function excluir(id: string) {
     if (!confirm('Excluir esta conta?')) return
-    await supabase.from('contas_fixas').delete().eq('id', id)
-    setContas(prev => prev.filter(c => c.id !== id))
+    const { error } = await supabase.from('contas_fixas').delete().eq('id', id)
+    if (error) {
+      toast.error('Erro ao excluir conta')
+    } else {
+      toast.success('Conta excluída com sucesso')
+      setContas(prev => prev.filter(c => c.id !== id))
+    }
+  }
+
+  async function duplicarParaMesSeguinte() {
+    if (!userIdRef.current || contas.length === 0) return
+    const proximoMes = mes === 12 ? 1 : mes + 1
+    const proximoAno = mes === 12 ? ano + 1 : ano
+    
+    if (!confirm(`Deseja copiar as ${contas.length} contas deste mês (${mes}/${ano}) para o mês seguinte (${proximoMes}/${proximoAno})?`)) return
+    
+    setSaving(true)
+    const novasContas = contas.map(c => ({
+      user_id: c.user_id,
+      mes: proximoMes,
+      ano: proximoAno,
+      categoria: c.categoria,
+      descricao: c.descricao,
+      valor: c.valor,
+      pago: false,
+      parcela: null
+    }))
+    
+    const { error } = await supabase.from('contas_fixas').insert(novasContas)
+    if (error) {
+      toast.error('Erro ao duplicar contas')
+      console.error(error)
+    } else {
+      toast.success(`Contas copiadas com sucesso para ${proximoMes}/${proximoAno}!`)
+    }
+    setSaving(false)
   }
 
   function fecharModal() { setModal(false); setForm({}) }
@@ -155,9 +192,14 @@ export default function ContasFixasPage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">🏠 Contas do Mês</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm">{MESES[mes - 1]} {ano}</p>
         </div>
-        <button className="btn-primary" onClick={() => { setForm({ categoria: GRUPOS[0] }); setModal(true) }}>
-          + Nova Conta Fixa
-        </button>
+        <div className="flex items-center gap-2">
+          <button className="btn-secondary hidden sm:flex items-center gap-2" onClick={duplicarParaMesSeguinte} disabled={contas.length === 0 || saving}>
+            <span className="text-sm">🔁</span> Copiar p/ Próx. Mês
+          </button>
+          <button className="btn-primary" onClick={() => { setForm({ categoria: GRUPOS[0] }); setModal(true) }}>
+            + Nova Conta Fixa
+          </button>
+        </div>
       </div>
 
       {/* Cards de resumo */}
