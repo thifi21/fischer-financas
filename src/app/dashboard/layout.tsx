@@ -126,7 +126,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-1 scrollbar-thin scrollbar-thumb-blue-800 dark:scrollbar-thumb-gray-800 scrollbar-track-transparent">
           {/* Navegação Principal */}
           {NAV_ITEMS.filter(n => n.grupo === 'principal').map(({ href, icon, label }) => {
             const active = pathname === href
