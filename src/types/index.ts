@@ -48,6 +48,7 @@ export type Entrada = {
   descricao: string
   valor: number
   categoria: string
+  data_entrada?: string
   created_at: string
   updated_at: string
 }

@@ -164,3 +164,4 @@ WHERE table_schema = 'public'
     'lancamentos_importados'
   )
 ORDER BY table_name;
+ALTER TABLE entradas ADD COLUMN IF NOT EXISTS data_entrada date;
