@@ -64,6 +64,11 @@ export default function EntradasPage() {
   const [loadingExtrato, setLoadingExtrato] = useState(false)
   const [saldoInicial, setSaldoInicial] = useState<Partial<Entrada>>({ valor: 0 })
   const [savingSaldo, setSavingSaldo] = useState(false)
+  
+  // Estados aba Extrato_Manual
+  const [modalManual, setModalManual] = useState(false)
+  const [formManual, setFormManual] = useState<Partial<Entrada & { tipo: 'entrada' | 'saida' }>>({})
+  const [savingManual, setSavingManual] = useState(false)
 
   const userIdRef = useRef<string | null>(cachedUserId)
 
@@ -101,6 +106,8 @@ export default function EntradasPage() {
       .eq('mes', mes)
       .eq('ano', ano)
       .neq('categoria', 'saldo_inicial') // Oculta saldo inicial da lista comum
+      .neq('categoria', 'extrato_entrada') // Oculta manual do extrato
+      .neq('categoria', 'extrato_saida') // Oculta manual do extrato
       .order('descricao')
       
     setEntradas(data || [])
@@ -173,13 +180,14 @@ export default function EntradasPage() {
     resEntradas.data?.filter(e => e.categoria !== 'saldo_inicial').forEach(e => {
        // Pega o YYYY-MM-DD do banco
        const ts = e.data_entrada || (e.created_at ? e.created_at.split('T')[0] : get5thBusinessDayFormatado(ano, mes))
+       const isSaida = e.categoria === 'extrato_saida'
        items.push({
          id: e.id,
          data: ts,
          descricao: e.descricao,
          categoria: e.categoria,
          valor: e.valor,
-         tipo: 'entrada',
+         tipo: isSaida ? 'saida' : 'entrada',
          tabelaOrigem: 'entradas'
        })
     })
@@ -263,7 +271,49 @@ export default function EntradasPage() {
       const { data } = await supabase.from('entradas').insert(payload).select().single()
       if (data) setSaldoInicial(data)
     }
+    }
     setSavingSaldo(false)
+  }
+
+  async function salvarManual() {
+    const uid = userIdRef.current
+    if (!uid) return
+    setSavingManual(true)
+    
+    const payload = { 
+      user_id: uid, 
+      mes, 
+      ano, 
+      descricao: formManual.descricao,
+      valor: Number(formManual.valor || 0),
+      categoria: formManual.tipo === 'saida' ? 'extrato_saida' : 'extrato_entrada',
+      data_entrada: formManual.data_entrada || get5thBusinessDayFormatado(ano, mes)
+    }
+
+    if (formManual.id) {
+      await supabase.from('entradas').update(payload).eq('id', formManual.id)
+    } else {
+      await supabase.from('entradas').insert(payload)
+    }
+    
+    await carregarExtrato()
+    setModalManual(false)
+    setFormManual({})
+    setSavingManual(false)
+  }
+
+  async function excluirManual(id: string) {
+    if (!confirm('Excluir esta movimentação avulsa?')) return
+    await supabase.from('entradas').delete().eq('id', id)
+    await carregarExtrato()
+  }
+
+  function abrirModalManual() {
+    setFormManual({
+      tipo: 'saida',
+      data_entrada: get5thBusinessDayFormatado(ano, mes)
+    })
+    setModalManual(true)
   }
 
   // ==========================================
@@ -271,6 +321,8 @@ export default function EntradasPage() {
   // ==========================================
 
   const totalEntradas = entradas.reduce((s, e) => s + Number(e.valor), 0)
+  
+  const saldoFinalCalculado = extrato.reduce((acc, item) => acc + (item.tipo === 'entrada' ? item.valor : -item.valor), Number(saldoInicial.valor || 0))
 
   const CATEGORIAS = [
     { value: 'salario',      label: '💼 Salário'       },
@@ -421,7 +473,12 @@ export default function EntradasPage() {
           </div>
 
           <div className="card">
-            <h2 className="text-lg font-bold mb-4 text-gray-800 dark:text-gray-100">Movimentações do Mês (Realizadas)</h2>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+              <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">Movimentações do Mês (Realizadas)</h2>
+              <button className="btn-primary text-sm py-1.5" onClick={abrirModalManual}>
+                + Movimentação Avulsa
+              </button>
+            </div>
             
             {loadingExtrato ? (
                <div className="animate-pulse space-y-3">
@@ -437,6 +494,7 @@ export default function EntradasPage() {
                        <th className="text-center py-3 px-2">Tipo</th>
                        <th className="text-right py-3 px-2">Valor</th>
                        <th className="text-right py-3 px-2">Saldo Progressivo</th>
+                       <th className="py-3 px-2 w-16"></th>
                      </tr>
                    </thead>
                    <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
@@ -447,6 +505,7 @@ export default function EntradasPage() {
                         <td className="py-3 px-2 text-center">-</td>
                         <td className="py-3 px-2 text-right"></td>
                         <td className="py-3 px-2 text-right font-bold text-gray-800 dark:text-gray-200">{formatBRL(saldoInicial.valor || 0)}</td>
+                        <td className="py-3 px-2"></td>
                      </tr>
                      
                      {/* Linhas dinâmicas com reduce de saldo */}
@@ -481,6 +540,16 @@ export default function EntradasPage() {
                    </tbody>
                  </table>
                </div>
+            )}
+
+            {/* SALDO FINAL FOOTER */}
+            {!loadingExtrato && (
+              <div className="mt-6 p-5 rounded-xl border border-gray-100 dark:border-gray-800 bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 flex flex-col sm:flex-row justify-between items-center text-lg font-bold shadow-sm">
+                <span className="text-gray-600 dark:text-gray-300 mb-1 sm:mb-0">Saldo Atual da Conta</span>
+                <span className={`text-2xl ${saldoFinalCalculado >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {formatBRL(saldoFinalCalculado)}
+                </span>
+              </div>
             )}
           </div>
         </>
@@ -550,6 +619,81 @@ export default function EntradasPage() {
                 disabled={saving || !form.descricao || !form.valor}
               >
                 {saving ? 'Salvando...' : form.id ? 'Salvar Alterações' : 'Adicionar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Movimentação Avulsa (Extrato) */}
+      {modalManual && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={e => e.target === e.currentTarget && setModalManual(false)}
+        >
+          <div className="bg-white dark:bg-gray-900 dark:border dark:border-gray-700 rounded-xl shadow-xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-lg text-gray-900 dark:text-gray-100">
+                {formManual.id ? 'Editar Movimentação' : 'Nova Movimentação Avulsa'}
+              </h2>
+              <button onClick={() => setModalManual(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400">✕</button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="label">Tipo de Movimentação</label>
+                <div className="flex gap-4 mt-2">
+                  <label className="flex items-center gap-2 cursor-pointer p-3 border dark:border-gray-700 rounded-lg flex-1 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                    <input type="radio" name="tipo" value="entrada" checked={formManual.tipo === 'entrada'} onChange={() => setFormManual({ ...formManual, tipo: 'entrada' })} />
+                    <span className="text-sm font-medium text-green-600 dark:text-green-400">Crédito (+)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer p-3 border dark:border-gray-700 rounded-lg flex-1 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                    <input type="radio" name="tipo" value="saida" checked={formManual.tipo === 'saida'} onChange={() => setFormManual({ ...formManual, tipo: 'saida' })} />
+                    <span className="text-sm font-medium text-red-600 dark:text-red-400">Débito (-)</span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Data</label>
+                <input
+                  type="date"
+                  className="input"
+                  value={formManual.data_entrada || ''}
+                  onChange={e => setFormManual({ ...formManual, data_entrada: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="label">Descrição</label>
+                <input
+                  className="input"
+                  value={formManual.descricao || ''}
+                  onChange={e => setFormManual({ ...formManual, descricao: e.target.value })}
+                  placeholder="Ex: Pagamento extra, Transferência..."
+                />
+              </div>
+              
+              <div>
+                <label className="label">Valor (R$)</label>
+                <input
+                  type="number" step="0.01" min="0"
+                  className="input text-lg font-semibold"
+                  value={formManual.valor || ''}
+                  onChange={e => setFormManual({ ...formManual, valor: Number(e.target.value) })}
+                  placeholder="0,00"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button className="btn-secondary flex-1" onClick={() => setModalManual(false)}>Cancelar</button>
+              <button
+                className="btn-primary flex-1"
+                onClick={salvarManual}
+                disabled={savingManual || !formManual.descricao || !formManual.valor}
+              >
+                {savingManual ? 'Salvando...' : formManual.id ? 'Salvar Alterações' : 'Adicionar'}
               </button>
             </div>
           </div>
