@@ -134,28 +134,33 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-1">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-0.5">
           {/* Navegação Principal */}
+          <div className="pt-1 pb-1">
+            <div className="text-blue-300/60 dark:text-gray-500 text-[10px] uppercase tracking-[0.2em] px-3 font-black">
+              Contas Mensais
+            </div>
+          </div>
           {NAV_ITEMS.filter(n => n.grupo === 'principal').map(({ href, icon, label }) => {
             const active = pathname === href
             return (
               <Link
                 key={href}
                 href={`${href}?mes=${mes}&ano=${ano}`}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-300 group ${active
+                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-300 group ${active
                     ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-lg shadow-blue-500/20 active:scale-95'
                     : 'hover:bg-white/10 dark:hover:bg-slate-800/50 text-blue-100/80 dark:text-slate-400 hover:text-white dark:hover:text-slate-200'
                   }`}
               >
-                <span className={`text-lg transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-125'}`}>{icon}</span>
+                <span className={`text-base transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-125'}`}>{icon}</span>
                 {label}
               </Link>
             )
           })}
 
           {/* Seletor de Ano/Mês — árvore expansível */}
-          <div className="pt-5 pb-2 space-y-1">
-            <div className="text-blue-400 dark:text-gray-500 text-xs uppercase tracking-widest px-3 pb-1 font-semibold">
+          <div className="pt-3 pb-1 space-y-0.5">
+            <div className="text-blue-300/60 dark:text-gray-500 text-[10px] uppercase tracking-[0.2em] px-3 font-black">
               Período
             </div>
 
@@ -167,18 +172,18 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                   {/* Cabeçalho do ano */}
                   <button
                     onClick={() => setAnoExpandido(isExpandido ? 0 : a)}
-                    className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${isAnoAtivo
+                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all duration-300 ${isAnoAtivo
                         ? 'bg-blue-600/20 dark:bg-blue-500/10 text-white border border-white/10'
                         : 'hover:bg-white/5 dark:hover:bg-slate-800/30 text-blue-100/60 dark:text-slate-500 hover:text-white'
                       }`}
                   >
-                    <span className="flex items-center gap-2.5">📅 {a}</span>
-                    <span className={`text-[10px] transition-transform duration-300 ${isExpandido ? 'rotate-180' : ''}`}>▼</span>
+                    <span className="flex items-center gap-2">📅 {a}</span>
+                    <span className={`text-[8px] transition-transform duration-300 ${isExpandido ? 'rotate-180' : ''}`}>▼</span>
                   </button>
 
                   {/* Meses do ano expandido */}
                   {isExpandido && (
-                    <div className="ml-3 mt-0.5 space-y-0.5 border-l-2 border-blue-700/40 dark:border-gray-700 pl-2">
+                    <div className="ml-2.5 mt-0.5 space-y-0.5 border-l-2 border-blue-700/40 dark:border-gray-700 pl-2">
                       {MESES.map((nome, i) => {
                         const m = i + 1
                         const ativo = isAnoAtivo && m === mes
@@ -186,7 +191,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                           <button
                             key={m}
                             onClick={() => { setAno(a); setMes(m) }}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-all duration-300 ${ativo
+                            className={`w-full text-left px-2 py-1 rounded-lg text-xs font-bold transition-all duration-300 ${ativo
                                 ? 'bg-blue-600 text-white shadow-md'
                                 : 'text-blue-100/40 dark:text-slate-600 hover:bg-white/10 dark:hover:bg-slate-800/10 hover:text-white dark:hover:text-slate-300'
                               }`}
@@ -204,7 +209,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
           {/* Seção Fase 3 — Recursos Avançados */}
           <div className="pt-3 pb-1">
-            <div className="text-blue-400 dark:text-gray-500 text-xs uppercase tracking-widest px-3 pb-1 font-semibold">
+            <div className="text-blue-300/60 dark:text-gray-500 text-[10px] uppercase tracking-[0.2em] px-3 font-black">
               Recursos Avançados
             </div>
           </div>
@@ -214,12 +219,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={href}
                 href={`${href}?mes=${mes}&ano=${ano}`}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-300 group ${active
+                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-300 group ${active
                     ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-lg shadow-blue-500/20 active:scale-95'
                     : 'hover:bg-white/10 dark:hover:bg-slate-800/50 text-blue-100/80 dark:text-slate-400 hover:text-white dark:hover:text-slate-200'
                   }`}
               >
-                <span className={`text-lg transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-125'}`}>{icon}</span>
+                <span className={`text-base transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-125'}`}>{icon}</span>
                 {label}
               </Link>
             )
