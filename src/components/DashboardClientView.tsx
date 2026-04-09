@@ -1,5 +1,9 @@
 'use client'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { formatBRL } from '@/lib/utils'
+import { MESES } from '@/types'
+import { Card } from '@/components/ui/Card'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
@@ -133,7 +137,7 @@ export default function DashboardClientView({ mes, ano, resumo, pieData, dadosMe
                         label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                         labelLine={false}
                       >
-                        {pieData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} cornerRadius={4} />)}
+                        {pieData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                       </Pie>
                       <Tooltip 
                         contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', fontWeight: 'bold' }}

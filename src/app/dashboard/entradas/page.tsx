@@ -271,7 +271,6 @@ export default function EntradasPage() {
       const { data } = await supabase.from('entradas').insert(payload).select().single()
       if (data) setSaldoInicial(data)
     }
-    }
     setSavingSaldo(false)
   }
 

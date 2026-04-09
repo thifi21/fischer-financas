@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { Toaster } from 'sonner'
 import { Outfit } from 'next/font/google'
 import '../styles/globals.css'
