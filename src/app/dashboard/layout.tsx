@@ -25,7 +25,6 @@ const NAV_ITEMS = [
   // Fase 3
   { href: '/dashboard/open-finance', icon: '🏦', label: 'Open Finance', grupo: 'avancado' },
   { href: '/dashboard/ia-analise', icon: '🤖', label: 'IA Financeira', grupo: 'avancado' },
-  { href: '/dashboard/familia', icon: '👨‍👩‍👧‍👦', label: 'Modo Família', grupo: 'avancado' },
   { href: '/dashboard/investimentos', icon: '📈', label: 'Investimentos', grupo: 'avancado' },
 ]
 
