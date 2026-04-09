@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Toaster } from 'sonner'
 import { Outfit } from 'next/font/google'
+import QueryProvider from '@/components/QueryProvider'
 import '../styles/globals.css'
 
 const mainFont = Outfit({
@@ -36,8 +37,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className={mainFont.className}>
-        {children}
-        <Toaster position="bottom-right" richColors />
+        <QueryProvider>
+          {children}
+          <Toaster position="bottom-right" richColors />
+        </QueryProvider>
       </body>
     </html>
   )
