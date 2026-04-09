@@ -153,29 +153,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             )
           })}
 
-          {/* Seção Fase 3 — Recursos Avançados */}
-          <div className="pt-3 pb-1">
-            <div className="text-blue-400 dark:text-gray-500 text-xs uppercase tracking-widest px-3 pb-1 font-semibold">
-              Recursos Avançados
-            </div>
-          </div>
-          {NAV_ITEMS.filter(n => n.grupo === 'avancado').map(({ href, icon, label }) => {
-            const active = pathname === href
-            return (
-              <Link
-                key={href}
-                href={`${href}?mes=${mes}&ano=${ano}`}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-300 group ${active
-                    ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-lg shadow-blue-500/20 active:scale-95'
-                    : 'hover:bg-white/10 dark:hover:bg-slate-800/50 text-blue-100/80 dark:text-slate-400 hover:text-white dark:hover:text-slate-200'
-                  }`}
-              >
-                <span className={`text-lg transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-125'}`}>{icon}</span>
-                {label}
-              </Link>
-            )
-          })}
-
           {/* Seletor de Ano/Mês — árvore expansível */}
           <div className="pt-5 pb-2 space-y-1">
             <div className="text-blue-400 dark:text-gray-500 text-xs uppercase tracking-widest px-3 pb-1 font-semibold">
@@ -223,13 +200,38 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                 </div>
               )
             })}
+          </div>
 
-            {/* Comprovantes Drive */}
-            <div className="pt-2">
-              <DrivePanel mes={mes} />
+          {/* Seção Fase 3 — Recursos Avançados */}
+          <div className="pt-3 pb-1">
+            <div className="text-blue-400 dark:text-gray-500 text-xs uppercase tracking-widest px-3 pb-1 font-semibold">
+              Recursos Avançados
             </div>
+          </div>
+          {NAV_ITEMS.filter(n => n.grupo === 'avancado').map(({ href, icon, label }) => {
+            const active = pathname === href
+            return (
+              <Link
+                key={href}
+                href={`${href}?mes=${mes}&ano=${ano}`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-300 group ${active
+                    ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-lg shadow-blue-500/20 active:scale-95'
+                    : 'hover:bg-white/10 dark:hover:bg-slate-800/50 text-blue-100/80 dark:text-slate-400 hover:text-white dark:hover:text-slate-200'
+                  }`}
+              >
+                <span className={`text-lg transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-125'}`}>{icon}</span>
+                {label}
+              </Link>
+            )
+          })}
 
-            {/* Cotações ao vivo */}
+          {/* Comprovantes Drive */}
+          <div className="pt-5 pb-2">
+            <DrivePanel mes={mes} />
+          </div>
+
+          {/* Cotações ao vivo */}
+          <div className="pt-2">
             <CotacoesPanel />
           </div>
         </nav>
