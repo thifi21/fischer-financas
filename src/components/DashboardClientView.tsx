@@ -1,14 +1,26 @@
 'use client'
-import { useState } from 'react'
-import { formatBRL } from '@/lib/utils'
-import { MESES } from '@/types'
-import { Card } from '@/components/ui/Card'
+import { motion } from 'framer-motion'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts'
 
-const COLORS = ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899']
+const COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899']
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0 }
+}
 
 export default function DashboardClientView({ mes, ano, resumo, pieData, dadosMensais, totalSaidas, saldo }: any) {
   const [visao, setVisao] = useState<'mensal' | 'anual'>('mensal')
@@ -42,164 +54,218 @@ export default function DashboardClientView({ mes, ano, resumo, pieData, dadosMe
       </div>
 
       {visao === 'mensal' ? (
-        <>
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+        >
           {/* Cards de resumo Mensal */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <Card>
-              <div className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase mb-1">Entradas</div>
-              <div className="text-2xl font-bold text-green-600">{formatBRL(resumo.entradas)}</div>
-            </Card>
-            <Card>
-              <div className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase mb-1">Cartões</div>
-              <div className="text-2xl font-bold text-blue-600">{formatBRL(resumo.cartoes)}</div>
-            </Card>
-            <Card>
-              <div className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase mb-1">Contas Fixas</div>
-              <div className="text-2xl font-bold text-orange-500">{formatBRL(resumo.fixas)}</div>
-            </Card>
-            <Card>
-              <div className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase mb-1">Total Saídas</div>
-              <div className="text-2xl font-bold text-red-600">{formatBRL(totalSaidas)}</div>
-            </Card>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <motion.div variants={itemVariants} whileHover={{ y: -5, scale: 1.02 }} transition={{ type: 'spring', stiffness: 300 }}>
+              <Card className="h-full border-b-4 border-b-emerald-500/50">
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2 ml-0.5">Entradas</div>
+                <div className="text-2xl font-black text-emerald-600 tracking-tight">{formatBRL(resumo.entradas)}</div>
+              </Card>
+            </motion.div>
+            <motion.div variants={itemVariants} whileHover={{ y: -5, scale: 1.02 }} transition={{ type: 'spring', stiffness: 300 }}>
+              <Card className="h-full border-b-4 border-b-indigo-500/50">
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2 ml-0.5">Cartões</div>
+                <div className="text-2xl font-black text-indigo-600 tracking-tight">{formatBRL(resumo.cartoes)}</div>
+              </Card>
+            </motion.div>
+            <motion.div variants={itemVariants} whileHover={{ y: -5, scale: 1.02 }} transition={{ type: 'spring', stiffness: 300 }}>
+              <Card className="h-full border-b-4 border-b-amber-500/50">
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2 ml-0.5">Contas Fixas</div>
+                <div className="text-2xl font-black text-amber-600 tracking-tight">{formatBRL(resumo.fixas)}</div>
+              </Card>
+            </motion.div>
+            <motion.div variants={itemVariants} whileHover={{ y: -5, scale: 1.02 }} transition={{ type: 'spring', stiffness: 300 }}>
+              <Card className="h-full border-b-4 border-b-rose-500/50">
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2 ml-0.5">Total Saídas</div>
+                <div className="text-2xl font-black text-rose-600 tracking-tight">{formatBRL(totalSaidas)}</div>
+              </Card>
+            </motion.div>
           </div>
 
           {/* Saldo Mensal */}
-          <Card className={`mb-6 border-l-4 ${saldo >= 0 ? 'border-l-green-500' : 'border-l-red-500'}`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wide">
-                  Saldo do Mês — {MESES[mes - 1]}
+          <motion.div variants={itemVariants}>
+            <Card className={`mb-8 border-l-8 overflow-hidden relative ${saldo >= 0 ? 'border-l-emerald-500' : 'border-l-rose-500'}`}>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-current opacity-5 rounded-full -mr-16 -mt-16 pointer-events-none" />
+              <div className="flex items-center justify-between relative z-10">
+                <div>
+                  <div className="text-[11px] text-slate-400 font-bold uppercase tracking-[0.2em]">
+                    Saldo do Mês — {MESES[mes - 1]}
+                  </div>
+                  <div className={`text-4xl font-black mt-2 tracking-tighter ${saldo >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {formatBRL(saldo)}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-400/80 mt-2">
+                    <span className="text-emerald-500/80">{formatBRL(resumo.entradas)} IN</span> 
+                    <span className="opacity-30">|</span>
+                    <span className="text-rose-500/80">{formatBRL(totalSaidas)} OUT</span>
+                  </div>
                 </div>
-                <div className={`text-3xl font-bold mt-1 ${saldo >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatBRL(saldo)}
-                </div>
-                <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                  {formatBRL(resumo.entradas)} de entradas − {formatBRL(totalSaidas)} de saídas
-                </div>
+                <div className="text-6xl drop-shadow-xl select-none">{saldo >= 0 ? '✅' : '⚠️'}</div>
               </div>
-              <div className="text-5xl">{saldo >= 0 ? '✅' : '⚠️'}</div>
-            </div>
-          </Card>
+            </Card>
+          </motion.div>
 
           {/* Gráficos Mensais */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <Card>
-              <h2 className="font-bold text-gray-800 dark:text-gray-200 mb-4">
-                Distribuição de Gastos — {MESES[mes - 1]}
-              </h2>
-              {pieData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={240}>
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%" cy="50%"
-                      outerRadius={85}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      labelLine={true}
-                    >
-                      {pieData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip formatter={(v: any) => formatBRL(Number(v))} />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="text-center text-gray-400 py-16">Sem dados para {MESES[mes - 1]}</div>
-              )}
-            </Card>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <motion.div variants={itemVariants}>
+              <Card className="h-full">
+                <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-6 px-1 border-l-4 border-indigo-500 pl-3">
+                  Distribuição de Gastos — {MESES[mes - 1]}
+                </h2>
+                {pieData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%" cy="50%"
+                        innerRadius={60}
+                        outerRadius={90}
+                        paddingAngle={5}
+                        animationBegin={0}
+                        animationDuration={1500}
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        labelLine={false}
+                      >
+                        {pieData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} cornerRadius={4} />)}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', fontWeight: 'bold' }}
+                        formatter={(v: any) => formatBRL(Number(v))} 
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-center text-slate-400 py-16 font-medium italic">Sem dados para {MESES[mes - 1]}</div>
+                )}
+              </Card>
+            </motion.div>
 
-            <Card>
-              <h2 className="font-bold text-gray-800 dark:text-gray-200 mb-4">
-                Entradas vs Saídas — {ano}
-              </h2>
-              {dadosMensais.length > 0 ? (
-                <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={dadosMensais} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: any) => `R$${(v / 1000).toFixed(0)}k`} />
-                    <Tooltip formatter={(v: any) => formatBRL(Number(v))} />
-                    <Legend />
-                    <Bar dataKey="entradas" name="Entradas" fill="#10b981" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="saidas" name="Saídas" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="text-center text-gray-400 py-16">Sem dados para exibir</div>
-              )}
-            </Card>
+            <motion.div variants={itemVariants}>
+              <Card className="h-full">
+                <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-6 px-1 border-l-4 border-emerald-500 pl-3">
+                  Entradas vs Saídas — {ano}
+                </h2>
+                {dadosMensais.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={dadosMensais} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
+                      <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: '#94a3b8' }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: '#94a3b8' }} tickFormatter={(v: any) => `R$${(v / 1000).toFixed(0)}k`} />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', fontWeight: 'bold' }}
+                        formatter={(v: any) => formatBRL(Number(v))} 
+                      />
+                      <Legend iconType="circle" />
+                      <Bar dataKey="entradas" name="Entradas" fill="#10b981" radius={[6, 6, 0, 0]} animationBegin={300} animationDuration={1500} />
+                      <Bar dataKey="saidas" name="Saídas" fill="#6366f1" radius={[6, 6, 0, 0]} animationBegin={500} animationDuration={1500} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-center text-slate-400 py-16 font-medium italic">Sem dados para exibir</div>
+                )}
+              </Card>
+            </motion.div>
           </div>
 
           {/* Progresso de Pagamentos Mensal */}
           {totalSaidas > 0 && (
-            <Card>
-              <h2 className="font-bold text-gray-800 dark:text-gray-200 mb-4">
-                Progresso de Pagamentos — {MESES[mes - 1]}
-              </h2>
-              <div className="space-y-3 text-sm">
-                {[
-                  { label: 'Entradas', valor: resumo.entradas, cor: 'bg-green-500' },
-                  { label: 'Cartões', valor: resumo.cartoes, cor: 'bg-blue-500' },
-                  { label: 'Contas Fixas', valor: resumo.fixas, cor: 'bg-orange-500' },
-                  { label: 'Combustível', valor: resumo.combustivel, cor: 'bg-yellow-500' },
-                ].filter(i => i.valor > 0).map(item => {
-                  const pct = totalSaidas > 0 ? Math.min(100, (item.valor / Math.max(resumo.entradas, totalSaidas)) * 100) : 0
-                  return (
-                    <div key={item.label}>
-                      <div className="flex justify-between mb-1">
-                        <span className="text-gray-600 dark:text-gray-400 font-medium">{item.label}</span>
-                        <span className="font-bold text-gray-800 dark:text-gray-200">{formatBRL(item.valor)}</span>
+            <motion.div variants={itemVariants}>
+              <Card>
+                <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-6 px-1 border-l-4 border-amber-500 pl-3">
+                  Alocação de Renda — {MESES[mes - 1]}
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6 text-sm">
+                  {[
+                    { label: 'Entradas', valor: resumo.entradas, cor: 'bg-emerald-500', shadow: 'shadow-emerald-500/20' },
+                    { label: 'Cartões', valor: resumo.cartoes, cor: 'bg-indigo-500', shadow: 'shadow-indigo-500/20' },
+                    { label: 'Contas Fixas', valor: resumo.fixas, cor: 'bg-amber-500', shadow: 'shadow-amber-500/20' },
+                    { label: 'Combustível', valor: resumo.combustivel, cor: 'bg-yellow-500', shadow: 'shadow-yellow-500/20' },
+                  ].filter(i => i.valor > 0).map(item => {
+                    const pct = totalSaidas > 0 ? Math.min(100, (item.valor / Math.max(resumo.entradas, totalSaidas)) * 100) : 0
+                    return (
+                      <div key={item.label} className="group">
+                        <div className="flex justify-between mb-2">
+                          <span className="text-slate-500 font-bold group-hover:text-slate-800 transition-colors uppercase text-[10px] tracking-widest">{item.label}</span>
+                          <span className="font-black text-slate-900 dark:text-slate-100">{formatBRL(item.valor)}</span>
+                        </div>
+                        <div className="w-full h-3 bg-slate-100 dark:bg-slate-800/50 rounded-full overflow-hidden p-0.5 border border-slate-200/50 dark:border-slate-700/50">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${pct}%` }}
+                            transition={{ duration: 1.5, ease: 'circOut' }}
+                            className={`h-full rounded-full ${item.cor} ${item.shadow} shadow-lg`} 
+                          />
+                        </div>
                       </div>
-                      <div className="w-full h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                        <div className={`h-2 rounded-full ${item.cor}`} style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </Card>
+                    )
+                  })}
+                </div>
+              </Card>
+            </motion.div>
           )}
-        </>
+        </motion.div>
       ) : (
-        <>
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+        >
           {/* Visão Anual */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <Card className="bg-green-50 dark:bg-green-950/20 border-green-100 dark:border-green-900">
-              <div className="text-xs text-green-600 dark:text-green-500 font-semibold uppercase mb-1">Entradas no Ano</div>
-              <div className="text-3xl font-bold text-green-700 dark:text-green-400">{formatBRL(totalAnoEntradas)}</div>
-            </Card>
-            <Card className="bg-red-50 dark:bg-red-950/20 border-red-100 dark:border-red-900">
-              <div className="text-xs text-red-600 dark:text-red-500 font-semibold uppercase mb-1">Saídas no Ano</div>
-              <div className="text-3xl font-bold text-red-700 dark:text-red-400">{formatBRL(totalAnoSaidas)}</div>
-            </Card>
-            <Card className={saldoAno >= 0 ? "bg-blue-50 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900" : "bg-orange-50 dark:bg-orange-950/20 border-orange-100 dark:border-orange-900"}>
-              <div className={`text-xs font-semibold uppercase mb-1 ${saldoAno >= 0 ? 'text-blue-600 dark:text-blue-500' : 'text-orange-600 dark:text-orange-500'}`}>Saldo Anual</div>
-              <div className={`text-3xl font-bold ${saldoAno >= 0 ? 'text-blue-700 dark:text-blue-400' : 'text-orange-700 dark:text-orange-400'}`}>{formatBRL(saldoAno)}</div>
-            </Card>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <motion.div variants={itemVariants} whileHover={{ y: -5 }}>
+              <Card className="!bg-emerald-50/50 dark:!bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/30">
+                <div className="text-[10px] text-emerald-600 dark:text-emerald-500 font-black uppercase tracking-widest mb-2">Entradas no Ano</div>
+                <div className="text-3xl font-black text-emerald-700 dark:text-emerald-400 tracking-tighter">{formatBRL(totalAnoEntradas)}</div>
+              </Card>
+            </motion.div>
+            <motion.div variants={itemVariants} whileHover={{ y: -5 }}>
+              <Card className="!bg-rose-50/50 dark:!bg-rose-900/10 border-rose-100 dark:border-rose-900/30">
+                <div className="text-[10px] text-rose-600 dark:text-rose-500 font-black uppercase tracking-widest mb-2">Saídas no Ano</div>
+                <div className="text-3xl font-black text-rose-700 dark:text-rose-400 tracking-tighter">{formatBRL(totalAnoSaidas)}</div>
+              </Card>
+            </motion.div>
+            <motion.div variants={itemVariants} whileHover={{ y: -5 }}>
+              <Card className={saldoAno >= 0 ? "!bg-indigo-50/50 dark:!bg-indigo-900/10 border-indigo-100 dark:border-indigo-900/30" : "!bg-amber-50/50 dark:!bg-amber-900/10 border-amber-100 dark:border-amber-900/30"}>
+                <div className={`text-[10px] font-black uppercase tracking-widest mb-2 ${saldoAno >= 0 ? 'text-indigo-600 dark:text-indigo-500' : 'text-amber-600 dark:text-amber-500'}`}>Saldo Anual</div>
+                <div className={`text-3xl font-black tracking-tighter ${saldoAno >= 0 ? 'text-indigo-700 dark:text-indigo-400' : 'text-amber-700 dark:text-amber-400'}`}>{formatBRL(saldoAno)}</div>
+              </Card>
+            </motion.div>
           </div>
 
-          <Card>
-            <h2 className="font-bold text-gray-800 dark:text-gray-200 mb-4 text-center">
-              Evolução Patrimonial — {ano}
-            </h2>
-            {dadosMensais.length > 0 ? (
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={dadosMensais} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                  <XAxis dataKey="mes" tick={{ fontSize: 13, fill: '#6b7280' }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} tickFormatter={(v: any) => `R$${(v / 1000).toFixed(0)}k`} tickLine={false} axisLine={false} />
-                  <Tooltip formatter={(v: any) => formatBRL(Number(v))} cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                  <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                  <Bar dataKey="entradas" name="Entradas" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                  <Bar dataKey="saidas" name="Saídas" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="text-center text-gray-400 py-24">Sem dados ao longo do ano de {ano}</div>
-            )}
-          </Card>
-        </>
+          <motion.div variants={itemVariants}>
+            <Card className="overflow-hidden">
+              <h2 className="text-xs font-black text-slate-500 uppercase tracking-[0.3em] mb-10 text-center">
+                Evolução Patrimonial — {ano}
+              </h2>
+              {dadosMensais.length > 0 ? (
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={dadosMensais} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} opacity={0.5} />
+                    <XAxis dataKey="mes" tick={{ fontSize: 11, fontWeight: 'bold', fill: '#94a3b8' }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 10, fontWeight: 'bold', fill: '#94a3b8' }} tickFormatter={(v: any) => `R$${(v / 1000).toFixed(0)}k`} tickLine={false} axisLine={false} />
+                    <Tooltip 
+                      cursor={{ fill: 'rgba(99, 102, 241, 0.05)' }} 
+                      contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 50px rgba(0,0,0,0.1)', fontWeight: 'bold', padding: '16px' }}
+                      formatter={(v: any) => formatBRL(Number(v))} 
+                    />
+                    <Legend wrapperStyle={{ paddingTop: '30px' }} />
+                    <Bar dataKey="entradas" name="Entradas" fill="#10b981" radius={[8, 8, 0, 0]} maxBarSize={32} />
+                    <Bar dataKey="saidas" name="Saídas" fill="#6366f1" radius={[8, 8, 0, 0]} maxBarSize={32} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="text-center text-slate-400 py-24 font-medium italic">Sem dados ao longo do ano de {ano}</div>
+              )}
+            </Card>
+          </motion.div>
+        </motion.div>
       )}
     </div>
   )

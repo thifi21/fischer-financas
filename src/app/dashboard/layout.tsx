@@ -7,6 +7,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
+import { motion, AnimatePresence } from 'framer-motion'
 import { MESES } from '@/types'
 import DrivePanel from '@/components/DrivePanel'
 import CotacoesPanel from '@/components/CotacoesPanel'
@@ -109,18 +110,25 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   )
 
   return (
-    <div className="min-h-screen flex bg-gray-50 dark:bg-gray-950 transition-colors duration-200">
+    <div className="min-h-screen flex bg-[#f8fafc] dark:bg-[#020617] transition-colors duration-500">
 
       {/* ── SIDEBAR ─────────────────────────────────────────── */}
-      <aside className="w-64 bg-blue-900 dark:bg-gray-950 dark:border-r dark:border-gray-800 text-white flex flex-col h-screen fixed top-0 left-0 z-30">
+      <aside className="w-64 glass dark:glass-dark !bg-blue-900/90 dark:!bg-slate-950/80 text-white flex flex-col h-[calc(100vh-2rem)] fixed top-4 left-4 z-30 rounded-3xl overflow-hidden shadow-2xl border-white/20 dark:border-slate-800/50">
 
         {/* Logo */}
-        <div className="p-5 border-b border-blue-800 dark:border-gray-800">
+        <div className="p-6 border-b border-white/10 dark:border-slate-800/50">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">💰</span>
+            <motion.span 
+              initial={{ rotate: -20, scale: 0.8 }}
+              animate={{ rotate: 0, scale: 1 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+              className="text-3xl filter drop-shadow-md"
+            >
+              💰
+            </motion.span>
             <div>
-              <div className="font-bold text-base">Família Fischer</div>
-              <div className="text-blue-300 dark:text-gray-500 text-xs">Finanças {ano}</div>
+              <div className="font-bold text-base tracking-tight">Família Fischer</div>
+              <div className="text-blue-200/60 dark:text-slate-500 text-[10px] font-bold uppercase tracking-widest">Finanças {ano}</div>
             </div>
           </div>
         </div>
@@ -134,12 +142,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={href}
                 href={`${href}?mes=${mes}&ano=${ano}`}
-                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${active
-                    ? 'bg-blue-700 dark:bg-blue-900 text-white shadow-inner'
-                    : 'hover:bg-blue-800 dark:hover:bg-gray-800 text-blue-100 dark:text-gray-300'
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-300 group ${active
+                    ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-lg shadow-blue-500/20 active:scale-95'
+                    : 'hover:bg-white/10 dark:hover:bg-slate-800/50 text-blue-100/80 dark:text-slate-400 hover:text-white dark:hover:text-slate-200'
                   }`}
               >
-                <span className="text-base">{icon}</span>
+                <span className={`text-lg transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-125'}`}>{icon}</span>
                 {label}
               </Link>
             )
@@ -157,12 +165,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={href}
                 href={`${href}?mes=${mes}&ano=${ano}`}
-                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${active
-                    ? 'bg-blue-700 dark:bg-blue-900 text-white shadow-inner'
-                    : 'hover:bg-blue-800 dark:hover:bg-gray-800 text-blue-100 dark:text-gray-300'
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-300 group ${active
+                    ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-lg shadow-blue-500/20 active:scale-95'
+                    : 'hover:bg-white/10 dark:hover:bg-slate-800/50 text-blue-100/80 dark:text-slate-400 hover:text-white dark:hover:text-slate-200'
                   }`}
               >
-                <span className="text-base">{icon}</span>
+                <span className={`text-lg transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-125'}`}>{icon}</span>
                 {label}
               </Link>
             )
@@ -182,13 +190,13 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                   {/* Cabeçalho do ano */}
                   <button
                     onClick={() => setAnoExpandido(isExpandido ? 0 : a)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${isAnoAtivo
-                        ? 'bg-blue-700 dark:bg-blue-900 text-white'
-                        : 'hover:bg-blue-800 dark:hover:bg-gray-800 text-blue-100 dark:text-gray-300'
+                    className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${isAnoAtivo
+                        ? 'bg-blue-600/20 dark:bg-blue-500/10 text-white border border-white/10'
+                        : 'hover:bg-white/5 dark:hover:bg-slate-800/30 text-blue-100/60 dark:text-slate-500 hover:text-white'
                       }`}
                   >
-                    <span>📅 {a}</span>
-                    <span className="text-xs opacity-70">{isExpandido ? '▲' : '▼'}</span>
+                    <span className="flex items-center gap-2.5">📅 {a}</span>
+                    <span className={`text-[10px] transition-transform duration-300 ${isExpandido ? 'rotate-180' : ''}`}>▼</span>
                   </button>
 
                   {/* Meses do ano expandido */}
@@ -201,9 +209,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                           <button
                             key={m}
                             onClick={() => { setAno(a); setMes(m) }}
-                            className={`w-full text-left px-2 py-1.5 rounded text-xs font-medium transition-colors ${ativo
-                                ? 'bg-blue-500 dark:bg-blue-700 text-white'
-                                : 'text-blue-200 dark:text-gray-400 hover:bg-blue-800 dark:hover:bg-gray-800 hover:text-white'
+                            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-all duration-300 ${ativo
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'text-blue-100/40 dark:text-slate-600 hover:bg-white/10 dark:hover:bg-slate-800/10 hover:text-white dark:hover:text-slate-300'
                               }`}
                           >
                             {nome}
@@ -228,10 +236,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* ── ÁREA PRINCIPAL ───────────────────────────────────── */}
-      <div className="ml-64 flex-1 flex flex-col min-h-screen">
+      <div className="ml-[18rem] flex-1 flex flex-col min-h-screen p-4 pr-6">
 
         {/* ── TOPBAR ────────────────────────────────────────── */}
-        <header className="sticky top-0 z-20 h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-6 shadow-sm transition-colors">
+        <header className="sticky top-4 z-20 h-16 glass dark:glass-dark !bg-white/80 dark:!bg-slate-900/60 rounded-2xl flex items-center justify-between px-8 shadow-xl border-white/40 dark:border-slate-800/50 mb-6 mx-2 transition-all duration-500">
 
           {/* Relógio + Mês ativo */}
           <div className="flex items-center gap-4">
@@ -247,10 +255,14 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
             {/* Indicador do mês ativo */}
-            <div className="hidden md:flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 px-2.5 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900">
+            <motion.div 
+              initial={{ x: 20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              className="hidden md:flex items-center gap-2 text-[10px] font-bold uppercase tracking-tighter text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full border border-blue-100 dark:border-blue-800"
+            >
               <span>📅</span>
               <span>{MESES[mes - 1]} {ano}</span>
-            </div>
+            </motion.div>
           </div>
 
           {/* Ações */}
@@ -290,9 +302,18 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* ── CONTEÚDO ─────────────────────────────────────── */}
-        <main className="flex-1 p-6 bg-gray-50 dark:bg-gray-950 transition-colors">
-          {children}
-        </main>
+        <AnimatePresence mode="wait">
+          <motion.main 
+            key={pathname}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            className="flex-1 p-2"
+          >
+            {children}
+          </motion.main>
+        </AnimatePresence>
       </div>
     </div>
   )

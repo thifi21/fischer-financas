@@ -1,6 +1,12 @@
-import type { Metadata } from 'next'
 import { Toaster } from 'sonner'
+import { Outfit } from 'next/font/google'
 import '../styles/globals.css'
+
+const mainFont = Outfit({
+  subsets: ['latin'],
+  display: 'swap',
+  weight: ['300', '400', '500', '600', '700', '800'],
+})
 
 export const metadata: Metadata = {
   title: 'Família Fischer — Finanças 2026',
@@ -28,7 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body>
+      <body className={mainFont.className}>
         {children}
         <Toaster position="bottom-right" richColors />
       </body>
