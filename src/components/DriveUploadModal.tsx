@@ -183,11 +183,14 @@ export default function DriveUploadModal({ mes, descricao, valor, onFechar, onSu
                   <div>
                     {/* Preview de imagem */}
                     {preview && (
-                      <img
-                        src={preview}
-                        alt="Preview"
-                        className="max-h-32 mx-auto mb-3 rounded-lg object-contain shadow"
-                      />
+                      <div className="relative h-32 w-full mb-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={preview}
+                          alt="Preview"
+                          className="max-h-32 mx-auto rounded-lg object-contain shadow"
+                        />
+                      </div>
                     )}
                     {!preview && (
                       <div className="text-4xl mb-2">📄</div>
