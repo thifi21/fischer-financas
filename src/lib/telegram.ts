@@ -2,12 +2,12 @@
  * Utilitário para envio de mensagens via Telegram Bot API.
  */
 export async function sendTelegramMessage(text: string) {
-  const token = process.env.TELEGRAM_BOT_TOKEN
-  const chatId = process.env.TELEGRAM_CHAT_ID
+  const token = process.env.TELEGRAM_BOT_TOKEN?.trim()
+  const chatId = process.env.TELEGRAM_CHAT_ID?.trim().replace(/^@/, '')
 
   if (!token || !chatId) {
     console.error('Telegram: TELEGRAM_BOT_TOKEN ou TELEGRAM_CHAT_ID não configurados.')
-    return { success: false, error: 'Configuração ausente' }
+    return { success: false, error: 'Configuração ausente no Vercel' }
   }
 
   const url = `https://api.telegram.org/bot${token}/sendMessage`

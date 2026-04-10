@@ -17,10 +17,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error }, { status: 500 })
     }
   } catch (error) {
-    console.error('Crash na API de Telegram:', error)
-    return NextResponse.json({ 
-      error: 'Erro interno', 
-      details: (error as Error).message 
-    }, { status: 500 })
+    return NextResponse.json({ error: 'Erro interno ao processar notificação' }, { status: 500 })
   }
 }
