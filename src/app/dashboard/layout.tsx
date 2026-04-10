@@ -1,4 +1,5 @@
 'use client'
+export const dynamic = 'force-dynamic'
 /**
  * Fischer Finanças 2026 — Layout Principal
  * Desenvolvido por Thiago Fischer
