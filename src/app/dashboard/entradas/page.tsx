@@ -42,6 +42,7 @@ interface ExtratoItem {
   valor: number
   tipo: 'entrada' | 'saida'
   tabelaOrigem: string
+  conferido?: boolean
 }
 
 export default function EntradasPage() {
@@ -69,6 +70,11 @@ export default function EntradasPage() {
   const [modalManual, setModalManual] = useState(false)
   const [formManual, setFormManual] = useState<Partial<Entrada & { tipo: 'entrada' | 'saida' }>>({})
   const [savingManual, setSavingManual] = useState(false)
+  
+  // Estados de Edição Unificada do Extrato
+  const [modalEdicao, setModalEdicao] = useState<ExtratoItem | null>(null)
+  const [formEdicao, setFormEdicao]   = useState<any>({})
+  const [savingEdicao, setSavingEdicao] = useState(false)
 
   const userIdRef = useRef<string | null>(cachedUserId)
 
@@ -178,7 +184,6 @@ export default function EntradasPage() {
 
     // 1. Entradas normais
     resEntradas.data?.filter(e => e.categoria !== 'saldo_inicial').forEach(e => {
-       // Pega o YYYY-MM-DD do banco
        const ts = e.data_entrada || (e.created_at ? e.created_at.split('T')[0] : get5thBusinessDayFormatado(ano, mes))
        const isSaida = e.categoria === 'extrato_saida'
        items.push({
@@ -188,7 +193,8 @@ export default function EntradasPage() {
          categoria: e.categoria,
          valor: e.valor,
          tipo: isSaida ? 'saida' : 'entrada',
-         tabelaOrigem: 'entradas'
+         tabelaOrigem: 'entradas',
+         conferido: !!e.conferido
        })
     })
 
@@ -202,7 +208,8 @@ export default function EntradasPage() {
         categoria: e.categoria,
         valor: e.valor,
         tipo: 'saida',
-        tabelaOrigem: 'contas_fixas'
+        tabelaOrigem: 'contas_fixas',
+        conferido: !!e.conferido
       })
     })
 
@@ -216,7 +223,8 @@ export default function EntradasPage() {
         categoria: 'cartao',
         valor: e.valor,
         tipo: 'saida',
-        tabelaOrigem: 'cartoes'
+        tabelaOrigem: 'cartoes',
+        conferido: !!e.conferido
       })
     })
 
@@ -230,7 +238,8 @@ export default function EntradasPage() {
         categoria: 'combustivel',
         valor: e.valor,
         tipo: 'saida',
-        tabelaOrigem: 'combustivel'
+        tabelaOrigem: 'combustivel',
+        conferido: !!e.conferido
       })
     })
 
@@ -316,11 +325,40 @@ export default function EntradasPage() {
   }
 
   // ==========================================
+  // LÓGICA DE CONCILIAÇÃO E EDIÇÃO UNIFICADA
+  // ==========================================
+  async function toggleConferidoExtrato(item: ExtratoItem) {
+    const novoStatus = !item.conferido
+    setExtrato(prev => prev.map(x => x.id === item.id && x.tabelaOrigem === item.tabelaOrigem ? { ...x, conferido: novoStatus } : x))
+    await supabase.from(item.tabelaOrigem).update({ conferido: novoStatus }).eq('id', item.id)
+  }
+
+  function abrirEdicaoExtrato(item: ExtratoItem) {
+    setFormEdicao({ ...item })
+    setModalEdicao(item)
+  }
+
+  async function salvarEdicaoExtrato() {
+    if (!modalEdicao) return
+    setSavingEdicao(true)
+    const { tabelaOrigem, id } = modalEdicao
+    let payload: any = {
+      descricao: formEdicao.descricao,
+      valor: Number(formEdicao.valor || 0)
+    }
+    if (tabelaOrigem === 'entradas') payload.data_entrada = formEdicao.data
+    else if (tabelaOrigem === 'contas_fixas') payload.data_vencimento = formEdicao.data
+    else if (tabelaOrigem === 'combustivel') payload.data_abastecimento = formEdicao.data
+    await supabase.from(tabelaOrigem).update(payload).eq('id', id)
+    await carregarExtrato()
+    setModalEdicao(null)
+    setSavingEdicao(false)
+  }
+
+  // ==========================================
   // RENDERIZAÇÃO
   // ==========================================
-
   const totalEntradas = entradas.reduce((s, e) => s + Number(e.valor), 0)
-  
   const saldoFinalCalculado = extrato.reduce((acc, item) => acc + (item.tipo === 'entrada' ? item.valor : -item.valor), Number(saldoInicial.valor || 0))
 
   const CATEGORIAS = [
@@ -337,31 +375,20 @@ export default function EntradasPage() {
 
   return (
     <div>
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">💵 Receitas & Extrato</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm">{MESES[mes - 1]} {ano}</p>
         </div>
-        
-        {/* Toggle Abas */}
         <div className="flex bg-gray-200 dark:bg-gray-800 p-1 rounded-lg">
           <button
-            className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${
-              activeTab === 'entradas' 
-                ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm' 
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${activeTab === 'entradas' ? 'bg-white dark:bg-gray-900 shadow-sm' : 'text-gray-600'}`}
             onClick={() => setActiveTab('entradas')}
           >
             Salários (Lançamentos)
           </button>
           <button
-            className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${
-              activeTab === 'extrato' 
-                ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm' 
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${activeTab === 'extrato' ? 'bg-white dark:bg-gray-900 shadow-sm' : 'text-gray-600'}`}
             onClick={() => setActiveTab('extrato')}
           >
             Extrato da Conta
@@ -369,47 +396,27 @@ export default function EntradasPage() {
         </div>
       </div>
 
-      {/* --- CONTEÚDO ABA ENTRADAS --- */}
       {activeTab === 'entradas' && (
         <>
           <div className="flex justify-end mb-4">
-            <button className="btn-primary" onClick={abrirModalNova}>
-              + Nova Entrada
-            </button>
+            <button className="btn-primary" onClick={abrirModalNova}>+ Nova Entrada</button>
           </div>
-
-          <div className="card mb-5 bg-green-50 dark:bg-green-950/30 border border-green-100 dark:border-green-900">
+          <div className="card mb-5 bg-green-50 dark:bg-green-950/30 border border-green-100">
             <div className="flex justify-between items-center">
-              <div>
-                <span className="text-gray-600 dark:text-gray-300 font-semibold">
-                  Total Previsto/Recebido em {MESES[mes - 1]}
-                </span>
-              </div>
-              <span className="text-2xl font-bold text-green-700 dark:text-green-400">{formatBRL(totalEntradas)}</span>
+              <span className="text-gray-600 font-semibold">Total em {MESES[mes - 1]}</span>
+              <span className="text-2xl font-bold text-green-700">{formatBRL(totalEntradas)}</span>
             </div>
           </div>
-
           {loading ? (
             <div className="card animate-pulse space-y-3">
-               {[1,2,3].map(i => (
-                <div key={i} className="flex justify-between py-2">
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-40" />
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24" />
-                </div>
-              ))}
-            </div>
-          ) : entradas.length === 0 ? (
-            <div className="card text-center py-16 text-gray-400 dark:text-gray-500">
-              <div className="text-4xl mb-3">💵</div>
-              <p>Nenhuma entrada cadastrada para {MESES[mes - 1]}.</p>
-              <button className="btn-primary mt-4" onClick={abrirModalNova}>Adicionar Entrada</button>
+               {[1,2,3].map(i => <div key={i} className="h-4 bg-gray-200 rounded w-full" />)}
             </div>
           ) : (
             <div className="card">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-xs text-gray-400 dark:text-gray-500 uppercase border-b border-gray-100 dark:border-gray-800">
+                    <tr className="text-xs uppercase border-b">
                       <th className="text-left py-3 px-2">Data</th>
                       <th className="text-left py-3 px-2">Descrição</th>
                       <th className="text-left py-3 px-2">Categoria</th>
@@ -417,26 +424,16 @@ export default function EntradasPage() {
                       <th className="py-3 px-2 w-20"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                  <tbody>
                     {entradas.map(e => (
-                      <tr key={e.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group">
-                        <td className="py-3 px-2 text-gray-600 dark:text-gray-400">
-                          {formatDateBr(e.data_entrada ?? '')}
-                        </td>
-                        <td className="py-3 px-2 font-semibold text-gray-800 dark:text-gray-200">{e.descricao}</td>
+                      <tr key={e.id} className="hover:bg-gray-50 transition-colors group">
+                        <td className="py-3 px-2">{formatDateBr(e.data_entrada ?? '')}</td>
+                        <td className="py-3 px-2 font-semibold">{e.descricao}</td>
+                        <td className="py-3 px-2">{catLabel(e.categoria)}</td>
+                        <td className="py-3 px-2 text-right text-green-700 font-bold">{formatBRL(e.valor)}</td>
                         <td className="py-3 px-2">
-                          <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 text-xs px-2 py-0.5 rounded-full">
-                            {catLabel(e.categoria)}
-                          </span>
-                        </td>
-                        <td className="py-3 px-2 text-right font-bold text-green-700 dark:text-green-400">
-                          {formatBRL(e.valor)}
-                        </td>
-                        <td className="py-3 px-2">
-                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => { setForm(e); setModal(true) }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-blue-100 dark:hover:bg-blue-900/40 text-gray-400 hover:text-blue-600 transition-colors">✏️</button>
-                            <button onClick={() => excluir(e.id)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-100 dark:hover:bg-red-900/40 text-gray-300 hover:text-red-500 transition-colors">🗑️</button>
-                          </div>
+                           <button onClick={() => { setForm(e); setModal(true) }} className="p-1">✏️</button>
+                           <button onClick={() => excluir(e.id)} className="p-1">🗑️</button>
                         </td>
                       </tr>
                     ))}
@@ -448,252 +445,155 @@ export default function EntradasPage() {
         </>
       )}
 
-      {/* --- CONTEÚDO ABA EXTRATO --- */}
       {activeTab === 'extrato' && (
         <>
-          <div className="card mb-5 flex items-end gap-4 bg-gray-50 dark:bg-gray-900/50">
+          <div className="card mb-5 flex items-end gap-4 bg-gray-50">
             <div className="flex-1 max-w-sm">
               <label className="label">Saldo em Conta no Dia 01 / {String(mes).padStart(2,'0')}</label>
-              <input
-                type="number" step="0.01"
-                className="input text-lg font-bold"
-                value={saldoInicial.valor || ''}
-                onChange={e => setSaldoInicial({ ...saldoInicial, valor: Number(e.target.value) })}
-                placeholder="R$ 0,00"
-              />
+              <input type="number" step="0.01" className="input font-bold" value={saldoInicial.valor || ''} onChange={e => setSaldoInicial({ ...saldoInicial, valor: Number(e.target.value) })} />
             </div>
-            <button 
-              className="btn-primary" 
-              onClick={salvarSaldoInicial}
-              disabled={savingSaldo}
-            >
-              {savingSaldo ? 'Salvando...' : 'Salvar Saldo'}
-            </button>
+            <button className="btn-primary" onClick={salvarSaldoInicial} disabled={savingSaldo}>{savingSaldo ? 'Salvando...' : 'Salvar Saldo'}</button>
           </div>
 
           <div className="card">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-              <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">Movimentações do Mês (Realizadas)</h2>
-              <button className="btn-primary text-sm py-1.5" onClick={abrirModalManual}>
-                + Movimentação Avulsa
-              </button>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-bold">Movimentações do Mês (Realizadas)</h2>
+              <button className="btn-primary text-sm" onClick={abrirModalManual}>+ Movimentação Avulsa</button>
             </div>
-            
             {loadingExtrato ? (
                <div className="animate-pulse space-y-3">
-                 {[1,2,3,4].map(i => <div key={i} className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-full" />)}
+                 {[1,2,3,4].map(i => <div key={i} className="h-8 bg-gray-200 rounded w-full" />)}
                </div>
             ) : (
                <div className="overflow-x-auto">
                  <table className="w-full text-sm">
                    <thead>
-                     <tr className="text-xs text-gray-400 dark:text-gray-500 uppercase border-b border-gray-100 dark:border-gray-800">
+                     <tr className="text-xs uppercase border-b">
                        <th className="text-left py-3 px-2">Data</th>
                        <th className="text-left py-3 px-2">Descrição</th>
                        <th className="text-center py-3 px-2">Tipo</th>
                        <th className="text-right py-3 px-2">Valor</th>
                        <th className="text-right py-3 px-2">Saldo Progressivo</th>
-                       <th className="py-3 px-2 w-16"></th>
+                       <th className="py-3 px-2 w-10">✓</th>
+                       <th className="py-3 px-2 w-10"></th>
                      </tr>
                    </thead>
-                   <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-                     {/* Linha inicial */}
-                     <tr className="bg-gray-50 dark:bg-gray-900/50">
-                        <td className="py-3 px-2 text-gray-500 font-medium font-mono text-xs">01/{String(mes).padStart(2,'0')}</td>
-                        <td className="py-3 px-2 font-semibold text-gray-600 dark:text-gray-400">Saldo Inicial</td>
-                        <td className="py-3 px-2 text-center">-</td>
-                        <td className="py-3 px-2 text-right"></td>
-                        <td className="py-3 px-2 text-right font-bold text-gray-800 dark:text-gray-200">{formatBRL(saldoInicial.valor || 0)}</td>
-                        <td className="py-3 px-2"></td>
+                   <tbody>
+                     <tr className="bg-gray-50 font-medium">
+                        <td className="py-3 px-2">01/{String(mes).padStart(2,'0')}</td>
+                        <td>Saldo Inicial</td>
+                        <td className="text-center">-</td>
+                        <td className="text-right"></td>
+                        <td className="text-right font-bold">{formatBRL(saldoInicial.valor || 0)}</td>
+                        <td colSpan={2}></td>
                      </tr>
-                     
-                     {/* Linhas dinâmicas com reduce de saldo */}
                      {(() => {
-                       let runningBalance = Number(saldoInicial.valor || 0)
-                       return extrato.map((item, index) => {
-                         runningBalance += (item.tipo === 'entrada' ? item.valor : -item.valor)
-                         return (
-                           <tr key={`${item.tabelaOrigem}-${item.id}-${index}`} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                            <td className="py-3 px-2 text-gray-600 dark:text-gray-400 font-mono text-xs">
-                              {formatDateBr(item.data)}
-                            </td>
-                            <td className="py-3 px-2 font-semibold text-gray-800 dark:text-gray-200">
-                              {item.descricao}
-                            </td>
-                            <td className="py-3 px-2 text-center">
-                              {item.tipo === 'entrada' 
-                                ? <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">Depósito</span>
-                                : <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400">Pagamento</span>
-                              }
-                            </td>
-                            <td className={`py-3 px-2 text-right font-bold ${item.tipo === 'entrada' ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
-                              {item.tipo === 'entrada' ? '+' : '-'} {formatBRL(item.valor)}
-                            </td>
-                            <td className={`py-3 px-2 text-right font-bold ${runningBalance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
-                              {formatBRL(runningBalance)}
-                            </td>
-                           </tr>
-                         )
-                       })
+                        let runningBalance = Number(saldoInicial.valor || 0)
+                        return extrato.map((item, index) => {
+                          runningBalance += (item.tipo === 'entrada' ? item.valor : -item.valor)
+                          return (
+                            <tr key={`${item.tabelaOrigem}-${item.id}-${index}`} className="hover:bg-gray-50 transition-colors">
+                              <td className="py-3 px-2">{formatDateBr(item.data)}</td>
+                              <td className="py-3 px-2 font-semibold">{item.descricao}</td>
+                              <td className="py-3 px-2 text-center text-xs">{item.tipo === 'entrada' ? 'Depósito' : 'Pagamento'}</td>
+                              <td className={`py-3 px-2 text-right font-bold ${item.tipo === 'entrada' ? 'text-green-600' : 'text-red-500'}`}>
+                                {item.tipo === 'entrada' ? '+' : '-'} {formatBRL(item.valor)}
+                              </td>
+                              <td className="py-3 px-2 text-right font-bold">{formatBRL(runningBalance)}</td>
+                              <td className="py-3 px-2">
+                                <button 
+                                  onClick={() => toggleConferidoExtrato(item)}
+                                  className={`w-6 h-6 rounded border-2 ${item.conferido ? 'bg-green-500 border-green-500 text-white' : 'border-gray-200 text-transparent hover:border-green-400'}`}
+                                >✓</button>
+                              </td>
+                              <td className="py-3 px-2 text-right">
+                                <button onClick={() => abrirEdicaoExtrato(item)} className="text-gray-400 p-1">✏️</button>
+                              </td>
+                            </tr>
+                          )
+                        })
                      })()}
                    </tbody>
                  </table>
                </div>
             )}
-
-            {/* SALDO FINAL FOOTER */}
             {!loadingExtrato && (
-              <div className="mt-6 p-5 rounded-xl border border-gray-100 dark:border-gray-800 bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 flex flex-col sm:flex-row justify-between items-center text-lg font-bold shadow-sm">
-                <span className="text-gray-600 dark:text-gray-300 mb-1 sm:mb-0">Saldo Atual da Conta</span>
-                <span className={`text-2xl ${saldoFinalCalculado >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {formatBRL(saldoFinalCalculado)}
-                </span>
+              <div className="mt-6 p-5 rounded-xl border bg-gray-50 flex justify-between items-center text-lg font-bold">
+                <span>Saldo Atual da Conta</span>
+                <span className={saldoFinalCalculado >= 0 ? 'text-blue-600' : 'text-red-600'}>{formatBRL(saldoFinalCalculado)}</span>
               </div>
             )}
           </div>
         </>
       )}
 
-      {/* Modal de Entradas */}
       {modal && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={e => e.target === e.currentTarget && fecharModal()}
-        >
-          <div className="bg-white dark:bg-gray-900 dark:border dark:border-gray-700 rounded-xl shadow-xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-lg text-gray-900 dark:text-gray-100">
-                {form.id ? 'Editar Entrada' : 'Nova Entrada'}
-              </h2>
-              <button onClick={fecharModal} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400">✕</button>
-            </div>
-
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md p-6">
+            <h2 className="font-bold text-lg mb-4">{form.id ? 'Editar Entrada' : 'Nova Entrada'}</h2>
             <div className="space-y-3">
-              <div>
-                <label className="label">Data de Lançamento / Recebimento</label>
-                <input
-                  type="date"
-                  className="input"
-                  value={form.data_entrada || ''}
-                  onChange={e => setForm({ ...form, data_entrada: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="label">Descrição</label>
-                <input
-                  className="input"
-                  value={form.descricao || ''}
-                  onChange={e => setForm({ ...form, descricao: e.target.value })}
-                  placeholder="Ex: Salário Thiago"
-                />
-              </div>
-              <div>
-                <label className="label">Categoria</label>
-                <select
-                  className="input"
-                  value={form.categoria || 'salario'}
-                  onChange={e => setForm({ ...form, categoria: e.target.value })}
-                >
-                  {CATEGORIAS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="label">Valor (R$)</label>
-                <input
-                  type="number" step="0.01" min="0"
-                  className="input text-lg font-semibold"
-                  value={form.valor || ''}
-                  onChange={e => setForm({ ...form, valor: Number(e.target.value) })}
-                  placeholder="0,00"
-                />
-              </div>
+              <label className="label">Data</label>
+              <input type="date" className="input" value={form.data_entrada || ''} onChange={e => setForm({ ...form, data_entrada: e.target.value })} />
+              <label className="label">Descrição</label>
+              <input className="input" value={form.descricao || ''} onChange={e => setForm({ ...form, descricao: e.target.value })} />
+              <label className="label">Categoria</label>
+              <select className="input" value={form.categoria || 'salario'} onChange={e => setForm({ ...form, categoria: e.target.value })}>
+                {CATEGORIAS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
+              <label className="label">Valor</label>
+              <input type="number" step="0.01" className="input" value={form.valor || ''} onChange={e => setForm({ ...form, valor: Number(e.target.value) })} />
             </div>
-
             <div className="flex gap-3 mt-5">
               <button className="btn-secondary flex-1" onClick={fecharModal}>Cancelar</button>
-              <button
-                className="btn-primary flex-1"
-                onClick={salvarEntrada}
-                disabled={saving || !form.descricao || !form.valor}
-              >
-                {saving ? 'Salvando...' : form.id ? 'Salvar Alterações' : 'Adicionar'}
-              </button>
+              <button className="btn-primary flex-1" onClick={salvarEntrada} disabled={saving || !form.descricao || !form.valor}>{saving ? 'Salvando...' : 'Salvar'}</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal de Movimentação Avulsa (Extrato) */}
       {modalManual && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={e => e.target === e.currentTarget && setModalManual(false)}
-        >
-          <div className="bg-white dark:bg-gray-900 dark:border dark:border-gray-700 rounded-xl shadow-xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-lg text-gray-900 dark:text-gray-100">
-                {formManual.id ? 'Editar Movimentação' : 'Nova Movimentação Avulsa'}
-              </h2>
-              <button onClick={() => setModalManual(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400">✕</button>
-            </div>
-
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md p-6">
+            <h2 className="font-bold text-lg mb-4">Nova Movimentação Avulsa</h2>
             <div className="space-y-4">
-              <div>
-                <label className="label">Tipo de Movimentação</label>
-                <div className="flex gap-4 mt-2">
-                  <label className="flex items-center gap-2 cursor-pointer p-3 border dark:border-gray-700 rounded-lg flex-1 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                    <input type="radio" name="tipo" value="entrada" checked={formManual.tipo === 'entrada'} onChange={() => setFormManual({ ...formManual, tipo: 'entrada' })} />
-                    <span className="text-sm font-medium text-green-600 dark:text-green-400">Crédito (+)</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer p-3 border dark:border-gray-700 rounded-lg flex-1 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                    <input type="radio" name="tipo" value="saida" checked={formManual.tipo === 'saida'} onChange={() => setFormManual({ ...formManual, tipo: 'saida' })} />
-                    <span className="text-sm font-medium text-red-600 dark:text-red-400">Débito (-)</span>
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <label className="label">Data</label>
-                <input
-                  type="date"
-                  className="input"
-                  value={formManual.data_entrada || ''}
-                  onChange={e => setFormManual({ ...formManual, data_entrada: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="label">Descrição</label>
-                <input
-                  className="input"
-                  value={formManual.descricao || ''}
-                  onChange={e => setFormManual({ ...formManual, descricao: e.target.value })}
-                  placeholder="Ex: Pagamento extra, Transferência..."
-                />
-              </div>
-              
-              <div>
-                <label className="label">Valor (R$)</label>
-                <input
-                  type="number" step="0.01" min="0"
-                  className="input text-lg font-semibold"
-                  value={formManual.valor || ''}
-                  onChange={e => setFormManual({ ...formManual, valor: Number(e.target.value) })}
-                  placeholder="0,00"
-                />
-              </div>
+               <div className="flex gap-4">
+                  <button className={`flex-1 p-2 border rounded ${formManual.tipo === 'entrada' ? 'bg-green-100 border-green-500' : ''}`} onClick={() => setFormManual({...formManual, tipo: 'entrada'})}>Crédito</button>
+                  <button className={`flex-1 p-2 border rounded ${formManual.tipo === 'saida' ? 'bg-red-100 border-red-500' : ''}`} onClick={() => setFormManual({...formManual, tipo: 'saida'})}>Débito</button>
+               </div>
+               <label className="label">Data</label>
+               <input type="date" className="input" value={formManual.data_entrada || ''} onChange={e => setFormManual({ ...formManual, data_entrada: e.target.value })} />
+               <label className="label">Descrição</label>
+               <input className="input" value={formManual.descricao || ''} onChange={e => setFormManual({ ...formManual, descricao: e.target.value })} />
+               <label className="label">Valor</label>
+               <input type="number" step="0.01" className="input" value={formManual.valor || ''} onChange={e => setFormManual({ ...formManual, valor: Number(e.target.value) })} />
             </div>
-
             <div className="flex gap-3 mt-6">
-              <button className="btn-secondary flex-1" onClick={() => setModalManual(false)}>Cancelar</button>
-              <button
-                className="btn-primary flex-1"
-                onClick={salvarManual}
-                disabled={savingManual || !formManual.descricao || !formManual.valor}
-              >
-                {savingManual ? 'Salvando...' : formManual.id ? 'Salvar Alterações' : 'Adicionar'}
-              </button>
+               <button className="btn-secondary flex-1" onClick={() => setModalManual(false)}>Cancelar</button>
+               <button className="btn-primary flex-1" onClick={salvarManual} disabled={savingManual || !formManual.descricao || !formManual.valor}>{savingManual ? 'Salvando...' : 'Adicionar'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalEdicao && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md p-6">
+            <h2 className="font-bold text-lg mb-4">Editar Lançamento</h2>
+            <div className="space-y-4">
+              <label className="label">Descrição</label>
+              <input className="input" value={formEdicao.descricao || ''} onChange={e => setFormEdicao({ ...formEdicao, descricao: e.target.value })} />
+              {modalEdicao.tabelaOrigem !== 'cartoes' && (
+                <>
+                  <label className="label">Data</label>
+                  <input type="date" className="input" value={formEdicao.data || ''} onChange={e => setFormEdicao({ ...formEdicao, data: e.target.value })} />
+                </>
+              )}
+              <label className="label">Valor</label>
+              <input type="number" step="0.01" className="input" value={formEdicao.valor || ''} onChange={e => setFormEdicao({ ...formEdicao, valor: Number(e.target.value) })} />
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button className="btn-secondary flex-1" onClick={() => setModalEdicao(null)}>Cancelar</button>
+              <button className="btn-primary flex-1" onClick={salvarEdicaoExtrato} disabled={savingEdicao || !formEdicao.descricao || !formEdicao.valor}>{savingEdicao ? 'Salvando...' : 'Salvar'}</button>
             </div>
           </div>
         </div>
