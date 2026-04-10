@@ -8,6 +8,7 @@ import { type Sonho } from '@/types'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useCallback } from 'react'
 
 const ICONS = ['🎯', '🚀', '✨', '🏠', '🚗', '✈️', '🏝️', '💍', '💻', '🎓', '🏥', '💰']
 const COLORS = [
@@ -30,16 +31,7 @@ export default function SonhosPage() {
   const [saving, setSaving] = useState(false)
   const userIdRef = useRef<string | null>(null)
 
-  useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser()
-      userIdRef.current = user?.id ?? null
-      carregarSonhos()
-    }
-    init()
-  }, [])
-
-  async function carregarSonhos() {
+  const carregarSonhos = useCallback(async () => {
     if (!userIdRef.current) return
     setLoading(true)
     const { data, error } = await supabase
@@ -51,7 +43,16 @@ export default function SonhosPage() {
 
     if (!error) setSonhos(data || [])
     setLoading(false)
-  }
+  }, [supabase])
+
+  useEffect(() => {
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser()
+      userIdRef.current = user?.id ?? null
+      carregarSonhos()
+    }
+    init()
+  }, [supabase, carregarSonhos])
 
   function abrirModal(sonho?: Sonho) {
     if (sonho) {

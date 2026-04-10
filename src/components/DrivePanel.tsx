@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { MESES } from '@/types'
 
 type ArquivoDrive = {
@@ -21,11 +21,7 @@ export default function DrivePanel({ mes }: Props) {
   const [loading, setLoading]         = useState(false)
   const [configurado, setConfigurado] = useState(true)
 
-  useEffect(() => {
-    if (aberto) carregarArquivos()
-  }, [aberto, mes])
-
-  async function carregarArquivos() {
+  const carregarArquivos = useCallback(async () => {
     setLoading(true)
     try {
       const res  = await fetch(`/api/drive/upload?mes=${mes}`)
@@ -41,7 +37,11 @@ export default function DrivePanel({ mes }: Props) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [mes])
+
+  useEffect(() => {
+    if (aberto) carregarArquivos()
+  }, [aberto, carregarArquivos])
 
   function iconeArquivo(mime: string) {
     if (mime === 'application/pdf') return '📄'

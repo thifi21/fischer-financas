@@ -320,6 +320,10 @@ export default function NotificacoesPage() {
     }
   }
 
+  function marcarNotificacaoLida(id: string) {
+    setNotificacoes(prev => prev.map(n => n.id === id ? { ...n, lida: true } : n))
+  }
+
   const notificacoesNaoLidas = notificacoes.filter(n => !n.lida).length
   const lembretesAtivos = lembretes.filter(l => l.ativo && !l.lido).length
 
