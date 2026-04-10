@@ -291,30 +291,31 @@ export default function NotificacoesPage() {
     setLembretes(prev => prev.map(l => l.id === lembrete.id ? { ...l, ativo: novoAtivo } : l))
   }
 
-  async function enviarParaWhatsApp() {
+  async function enviarParaTelegram() {
     if (notificacoes.length === 0) {
       toast.info('Nenhuma notificação para enviar')
       return
     }
 
     const texto = `🛎️ *Resumo Fischer Finanças - ${MESES[mes - 1]}/${ano}*\n\n` + 
-      notificacoes.filter(n => !n.lida).map(n => `- ${n.titulo}: ${n.mensagem}`).join('\n\n')
+      notificacoes.filter(n => !n.lida).map(n => `• *${n.titulo}*: ${n.mensagem}`).join('\n\n')
 
     setSaving(true)
     try {
-      const res = await fetch('/api/whatsapp', {
+      const res = await fetch('/api/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: texto })
       })
       
       if (res.ok) {
-        toast.success('Resumo enviado para o WhatsApp!')
+        toast.success('Resumo enviado para o Telegram!')
       } else {
-        toast.error('Erro ao enviar para o WhatsApp. Verifique as chaves API.')
+        const data = await res.json()
+        toast.error(`Erro ao enviar: ${data.error || 'Verifique as chaves'}`)
       }
     } catch (e) {
-      toast.error('Erro de conexão ao enviar WhatsApp')
+      toast.error('Erro de conexão ao enviar Telegram')
     } finally {
       setSaving(false)
     }
@@ -346,11 +347,11 @@ export default function NotificacoesPage() {
         </div>
         <div className="flex gap-2">
           <button 
-            onClick={enviarParaWhatsApp} 
+            onClick={enviarParaTelegram} 
             disabled={saving || notificacoesNaoLidas === 0}
-            className="btn-secondary flex items-center gap-2"
+            className="btn-secondary flex items-center gap-2 bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-400 border-sky-200 dark:border-sky-800"
           >
-            {saving ? '⏳...' : '🟢 Zap Resumo'}
+            {saving ? '⏳...' : '✈️ Telegram'}
           </button>
           <button onClick={() => abrirModal()} className="btn-primary">
             + Novo Lembrete

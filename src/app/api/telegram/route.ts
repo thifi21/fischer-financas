@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server'
-import { sendWhatsAppMessage } from '@/lib/whatsapp'
+import { sendTelegramMessage } from '@/lib/telegram'
 
 export async function POST(request: Request) {
   try {
     const { message } = await request.json()
-    
+
     if (!message) {
       return NextResponse.json({ error: 'Mensagem é obrigatória' }, { status: 400 })
     }
 
-    const result = await sendWhatsAppMessage(message)
-    
+    const result = await sendTelegramMessage(message)
+
     if (result.success) {
       return NextResponse.json({ success: true, message: 'Enviado com sucesso' })
     } else {
