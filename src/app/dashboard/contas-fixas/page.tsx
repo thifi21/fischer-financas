@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
 import { formatBRL, formatDate, formatVencimento } from '@/lib/utils'
+import { notificarPagamento } from '@/lib/notifications'
 import { MESES, ORDEM_CARTOES, LOGOS_CARTOES, type ContaFixa, type Cartao } from '@/types'
 import DriveUploadModal from '@/components/DriveUploadModal'
 
@@ -99,11 +100,21 @@ export default function ContasFixasPage() {
     if (form.id) {
       const { data, error } = await supabase.from('contas_fixas').update(payload).eq('id', form.id).select().single()
       if (error) { toast.error('Erro ao atualizar conta'); console.error(error); }
-      if (data) { setContas(prev => prev.map(c => c.id === form.id ? data : c)); toast.success('Conta atualizada!'); }
+      if (data) { 
+        setContas(prev => prev.map(c => c.id === form.id ? data : c)); 
+        toast.success('Conta atualizada!');
+        if (data.pago && !contas.find(c => c.id === data.id)?.pago) {
+          notificarPagamento(data.descricao, data.valor)
+        }
+      }
     } else {
       const { data, error } = await supabase.from('contas_fixas').insert(payload).select().single()
       if (error) { toast.error('Erro ao adicionar conta'); console.error(error); }
-      if (data) { setContas(prev => [...prev, data]); toast.success('Conta adicionada!'); }
+      if (data) { 
+        setContas(prev => [...prev, data]); 
+        toast.success('Conta adicionada!'); 
+        if (data.pago) notificarPagamento(data.descricao, data.valor)
+      }
     }
     fecharModal()
     setSaving(false)
@@ -113,12 +124,14 @@ export default function ContasFixasPage() {
     const novo = !conta.pago
     setContas(prev => prev.map(c => c.id === conta.id ? { ...c, pago: novo } : c))
     await supabase.from('contas_fixas').update({ pago: novo }).eq('id', conta.id)
+    if (novo) notificarPagamento(conta.descricao, conta.valor)
   }
 
   async function togglePagoCartao(cartao: Cartao) {
     const novo = !cartao.pago
     setCartoes(prev => prev.map(c => c.id === cartao.id ? { ...c, pago: novo } : c))
     await supabase.from('cartoes').update({ pago: novo }).eq('id', cartao.id)
+    if (novo) notificarPagamento(cartao.nome, cartao.valor, '💳')
   }
 
   async function excluir(id: string) {

@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
 import { formatBRL, formatDate, formatVencimento } from '@/lib/utils'
+import { notificarPagamento } from '@/lib/notifications'
 import { MESES, NOMES_CARTOES, ORDEM_CARTOES, LOGOS_CARTOES, type Cartao, type LancamentoCartao } from '@/types'
 import DriveUploadModal from '@/components/DriveUploadModal'
 
@@ -184,11 +185,19 @@ export default function CartoesPage() {
     }
     if (form.id) {
       const { data } = await supabase.from('cartoes').update(payload).eq('id', form.id).select().single()
-      if (data) setCartoes(prev => prev.map(c => c.id === form.id ? data : c))
+      if (data) {
+        setCartoes(prev => prev.map(c => c.id === form.id ? data : c))
+        if (data.pago && !cartoes.find(c => c.id === data.id)?.pago) {
+          notificarPagamento(data.nome, data.valor, '💳')
+        }
+      }
     } else {
       const { data } = await supabase.from('cartoes').insert(payload).select().single()
-      if (data) setCartoes(prev => [...prev, data].sort((a, b) =>
-        (ORDEM_CARTOES[a.nome] ?? 99) - (ORDEM_CARTOES[b.nome] ?? 99)))
+      if (data) {
+        setCartoes(prev => [...prev, data].sort((a, b) =>
+          (ORDEM_CARTOES[a.nome] ?? 99) - (ORDEM_CARTOES[b.nome] ?? 99)))
+        if (data.pago) notificarPagamento(data.nome, data.valor, '💳')
+      }
     }
     fecharModal()
     setSaving(false)
@@ -354,6 +363,7 @@ export default function CartoesPage() {
     const novoPago = !cartao.pago
     setCartoes(prev => prev.map(c => c.id === cartao.id ? { ...c, pago: novoPago } : c))
     await supabase.from('cartoes').update({ pago: novoPago }).eq('id', cartao.id)
+    if (novoPago) notificarPagamento(cartao.nome, cartao.valor, '💳')
   }
 
   async function toggleConferido(lancamento: LancamentoCartao) {
