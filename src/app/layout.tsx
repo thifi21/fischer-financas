@@ -12,7 +12,14 @@ const mainFont = Outfit({
 
 export const metadata: Metadata = {
   title: 'Família Fischer — Finanças 2026',
-  description: 'Controle financeiro familiar',
+  description: 'Controle financeiro familiar inteligente',
+  manifest: '/manifest.json',
+  themeColor: '#1e3a8a',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Fischer Finanças',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

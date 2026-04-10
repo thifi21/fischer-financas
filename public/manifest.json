@@ -1,0 +1,21 @@
+{
+  "name": "Fischer Finanças",
+  "short_name": "Fischer Fin",
+  "description": "Controle financeiro inteligente para a família Fischer",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#1e3a8a",
+  "icons": [
+    {
+      "src": "/logos/Caixa.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logos/Caixa.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -132,3 +132,18 @@ export const ORDEM_CARTOES: Record<string, number> = {
   'Mercado Pago':         7,
   'DM Card Koch':         8,
 }
+
+export type Sonho = {
+  id: string
+  user_id: string
+  titulo: string
+  valor_alvo: number
+  valor_atual: number
+  data_limite: string | null
+  icone: string
+  cor: string
+  prioridade: 1 | 2 | 3
+  status: 'em_andamento' | 'concluido' | 'pausado'
+  created_at: string
+  updated_at: string
+}

@@ -9,6 +9,7 @@ import { MESES } from '@/types'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { motion, AnimatePresence } from 'framer-motion'
+import SankeyFlow from '@/components/SankeyFlow'
 
 export default function IAAnalisePage() {
   const supabase = createClient()
@@ -29,6 +30,21 @@ export default function IAAnalisePage() {
       return data
     },
     staleTime: 1000 * 60 * 5,
+  })
+
+  // 1.1 Buscar contas fixas pendentes do mês atual
+  const { data: pendentes } = useQuery({
+    queryKey: ['contas-pendentes', mes, ano],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('contas_fixas')
+        .select('descricao, valor, data_vencimento')
+        .eq('mes', mes)
+        .eq('ano', ano)
+        .eq('pago', false)
+      if (error) throw error
+      return data
+    }
   })
 
   // 2. Preparar os dados para a IA
@@ -53,9 +69,10 @@ export default function IAAnalisePage() {
       cartoes: Number(atual.cartoes),
       fixas: Number(atual.fixas),
       combustivel: Number(atual.combustivel),
+      pendentes: pendentes || [],
       historico
     }
-  }, [summary, mes, ano])
+  }, [summary, mes, ano, pendentes])
 
   // 3. Chamar API de IA
   const executarAnalise = async (customPrompt?: string) => {
@@ -146,6 +163,25 @@ export default function IAAnalisePage() {
                       {resultado?.resposta}
                     </div>
                   </Card>
+
+                  {/* Gráfico de Fluxo de Caixa (Sankey) */}
+                  {dadosAnalise && (
+                    <Card className="p-8 bg-white dark:bg-slate-900 border-none shadow-xl border-t-4 border-t-blue-500">
+                      <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-6 flex items-center gap-2">
+                        <span>🌊</span> Fluxo de Caixa do Período
+                      </h3>
+                      <SankeyFlow data={{
+                        receitas: dadosAnalise.entradas,
+                        cartoes: dadosAnalise.cartoes,
+                        fixas: dadosAnalise.fixas,
+                        combustivel: dadosAnalise.combustivel,
+                        sobra: Math.max(0, dadosAnalise.entradas - (dadosAnalise.cartoes + dadosAnalise.fixas + dadosAnalise.combustivel))
+                      }} />
+                      <p className="text-[10px] text-center text-gray-400 mt-4 italic">
+                         Visualização da jornada do seu dinheiro das Entradas para as Saídas e Reservas.
+                      </p>
+                    </Card>
+                  )}
 
                   {/* Chat Interativo */}
                   <Card className="p-6 bg-blue-50 dark:bg-slate-800/50 border-blue-100 dark:border-slate-700">

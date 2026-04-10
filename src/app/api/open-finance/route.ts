@@ -36,6 +36,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Nenhum lançamento encontrado no arquivo.' }, { status: 422 })
     }
 
+    // --- NOVO: Categorização Inteligente via IA ---
+    // Filtramos apenas o que caiu em "outros" para economizar tokens/tempo
+    const lancamentosSemCategoria = lancamentos.filter(l => l.categoria === 'outros')
+    
+    if (lancamentosSemCategoria.length > 0 && process.env.GOOGLE_AI_KEY) {
+      try {
+        const { categorizarTransacoesAI } = await import('@/lib/ai-analise')
+        const sugestoes = await categorizarTransacoesAI(
+          lancamentosSemCategoria.map(l => ({ descricao: l.descricao, valor: l.valor }))
+        )
+        
+        // Aplica as sugestões da IA
+        lancamentos.forEach(l => {
+          if (l.categoria === 'outros' && sugestoes[l.descricao]) {
+            l.categoria = sugestoes[l.descricao]
+          }
+        })
+      } catch (err) {
+        console.error('Erro na categorização IA:', err)
+      }
+    }
+    // ----------------------------------------------
+
     // Salvar importação
     const { data: importacao, error: impErr } = await supabase
       .from('importacoes_ofx')

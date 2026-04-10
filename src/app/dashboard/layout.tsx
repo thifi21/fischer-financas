@@ -26,6 +26,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/open-finance', icon: '🏦', label: 'Open Finance', grupo: 'avancado' },
   { href: '/dashboard/ia-analise', icon: '🤖', label: 'IA Financeira', grupo: 'avancado' },
   { href: '/dashboard/investimentos', icon: '📈', label: 'Investimentos', grupo: 'avancado' },
+  { href: '/dashboard/sonhos', icon: '🎯', label: 'Meus Sonhos', grupo: 'planejamento' },
 ]
 
 function useClock() {
@@ -213,6 +214,29 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           {NAV_ITEMS.filter(n => n.grupo === 'avancado').map(({ href, icon, label }) => {
+            const active = pathname === href
+            return (
+              <Link
+                key={href}
+                href={`${href}?mes=${mes}&ano=${ano}`}
+                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-300 group ${active
+                    ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-lg shadow-blue-500/20 active:scale-95'
+                    : 'hover:bg-white/10 dark:hover:bg-slate-800/50 text-blue-100/80 dark:text-slate-400 hover:text-white dark:hover:text-slate-200'
+                  }`}
+              >
+                <span className={`text-base transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-125'}`}>{icon}</span>
+                {label}
+              </Link>
+            )
+          })}
+
+          {/* Seção Fase 4 — Planejamento */}
+          <div className="pt-3 pb-1">
+            <div className="text-blue-300/60 dark:text-gray-500 text-[10px] uppercase tracking-[0.2em] px-3 font-black">
+              Planejamento Futuro
+            </div>
+          </div>
+          {NAV_ITEMS.filter(n => n.grupo === 'planejamento').map(({ href, icon, label }) => {
             const active = pathname === href
             return (
               <Link

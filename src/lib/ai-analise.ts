@@ -19,6 +19,7 @@ export interface DadosParaAnalise {
   cartoes: number
   fixas: number
   combustivel: number
+  pendentes?: { descricao: string; valor: number; data_vencimento: string | null }[]
   historico?: { mes: number; entradas: number; saidas: number }[]
   lancamentosCartao?: { local: string; valor: number }[]
 }
@@ -149,8 +150,14 @@ Dados financeiros de ${MESES_PT[dados.mes - 1]} ${dados.ano}:
 - Gastos com Cartões: R$ ${dados.cartoes.toFixed(2)}
 - Contas Fixas: R$ ${dados.fixas.toFixed(2)}
 - Combustível: R$ ${dados.combustivel.toFixed(2)}
-- Total de Saídas: R$ ${totalSaidas.toFixed(2)}
-- Saldo do Mês: R$ ${saldo.toFixed(2)} (${saldo >= 0 ? 'POSITIVO' : 'NEGATIVO'})
+- Total de Saídas (Pagas): R$ ${totalSaidas.toFixed(2)}
+- Saldo do Mês (Realizado): R$ ${saldo.toFixed(2)} (${saldo >= 0 ? 'POSITIVO' : 'NEGATIVO'})
+${dados.pendentes && dados.pendentes.length > 0 ? `
+Contas PENDENTES (A vencer este mês):
+${dados.pendentes.map(p => `- ${p.descricao}: R$ ${p.valor.toFixed(2)} (Vence: ${p.data_vencimento || 'N/A'})`).join('\n')}
+Total Pendente: R$ ${dados.pendentes.reduce((s, p) => s + p.valor, 0).toFixed(2)}
+Projeção de Saldo Final: R$ ${(saldo - dados.pendentes.reduce((s, p) => s + p.valor, 0)).toFixed(2)}
+` : ''}
 ${dados.historico && dados.historico.length > 0 ? `
 Histórico dos últimos meses (Entrada / Saída):
 ${dados.historico.map(h => `- ${MESES_PT[h.mes - 1]}: Entradas R$ ${h.entradas.toFixed(2)} | Saídas R$ ${h.saidas.toFixed(2)}`).join('\n')}
@@ -166,6 +173,34 @@ ${pergunta ? `Pergunta do usuário: ${pergunta}` : 'Forneça uma análise financ
 
   const result = await model.generateContent(contexto)
   return result.response.text()
+}
+
+// ── Categorização Inteligente via Gemini AI ─────────────────────
+export async function categorizarTransacoesAI(transacoes: { descricao: string; valor: number }[]): Promise<Record<string, string>> {
+  const apiKey = process.env.GOOGLE_AI_KEY
+  if (!apiKey) return {}
+
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+
+  const prompt = `
+Categorize os seguintes lançamentos financeiros nas categorias: alimentacao, transporte, saude, educacao, lazer, moradia, vestuario, outros.
+Retorne APENAS um objeto JSON onde a chave é a descrição exata e o valor é a categoria.
+
+Lançamentos:
+${transacoes.map(t => `- ${t.descricao} (R$ ${t.valor})`).join('\n')}
+`
+
+  try {
+    const result = await model.generateContent(prompt)
+    const text = result.response.text()
+    // Limpa possível formatação markdown do Gemini
+    const cleanJson = text.replace(/```json|```/gi, '').trim()
+    return JSON.parse(cleanJson)
+  } catch (e) {
+    console.error('Erro ao categorizar com IA:', e)
+    return {}
+  }
 }
 
 // ── Exportações públicas ──────────────────────────────────────
