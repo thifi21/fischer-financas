@@ -1,7 +1,7 @@
 # 📚 Documentação Completa — Fischer Finanças
-## Versão 2.0 — Fase 3 Implementada
+## Versão 3.0 — Fases 4, 5 e 6 Implementadas
 
-> Desenvolvido por Thiago Fischer | Atualizado em 27/03/2026
+> Desenvolvido por Thiago Fischer | Atualizado em 10/04/2026
 
 ---
 
@@ -14,11 +14,12 @@
    - [Dashboard Principal](#dashboard)
    - [Cartões de Crédito](#cartões)
    - [Contas Fixas](#contas-fixas)
-   - [Entradas / Salários](#entradas)
+   - [Entradas / Extrato](#entradas)
    - [Combustível](#combustível)
    - [Metas e Orçamento](#metas)
    - [Relatórios](#relatórios)
-   - [Notificações](#notificações)
+   - [Notificações (Telegram)](#notificações)
+   - [🆕 Sonhos e Objetivos](#sonhos)
    - [🆕 Open Finance](#open-finance)
    - [🆕 IA Financeira](#ia-financeira)
    - [🆕 Modo Família](#modo-família)
@@ -136,11 +137,18 @@ Visão geral do mês selecionado com:
 
 ---
 
-### Entradas / Salários
+### Entradas / Extrato da Conta
 **Rota:** `/dashboard/entradas`
 
-- Registro de rendas por categoria (Salário, Freelance, Aluguel, etc.)
-- Múltiplas entradas por mês
+Este módulo foi modernizado na Fase 5 para atuar como um console de **Conciliação Bancária**:
+
+- **Aba Salários:** Registro de rendas por categoria (Salário, Freelance, Aluguel, etc.).
+- **Aba Extrato:** Visão consolidada de todas as movimentações do mês (entradas, fixas, cartões, combustível).
+- **🆕 Conciliação (Check):** Botão de check para marcar transações já conferidas no seu extrato real.
+- **🆕 Edição Unificada:** Permite editar qualquer lançamento (mesmo uma conta fixa ou abastecimento) diretamente do extrato.
+- **🆕 Saldo Progressivo:** Cálculo do saldo real rodando linha a linha.
+- **🆕 Movimentação Avulsa:** Adição rápida de itens que só existem no extrato (tarifas, pix rápido).
+- **Formatação Brasileira:** Todas as datas seguem o padrão `DD/MM/YYYY`.
 
 ---
 
@@ -173,11 +181,22 @@ Atualizado na Fase 3:
 
 ---
 
-### Notificações
+### Notificações (Telegram)
 **Rota:** `/dashboard/notificacoes`
 
-- Lembretes de vencimentos
-- Alertas de metas atingidas
+O sistema possui um sistema de notificações híbrido:
+- **Lembretes Internos:** Vencimentos e metas exibidos no dashboard.
+- **Bot do Telegram:** Notificações em tempo real enviadas para seu celular.
+
+**Recursos do Bot:**
+- Notificação automática toda vez que uma Conta Fixa ou Fatura de Cartão é marcada como **"Paga"**.
+- Mensagens formatadas com descrição, valor e data do pagamento.
+- Evita envios duplicados em caso de edições.
+
+**Como configurar o Telegram:**
+1. Crie um Bot via `@BotFather` no Telegram e obtenha o `API TOKEN`.
+2. Obtenha seu `CHAT ID` (usando bots como `@userinfobot`).
+3. Adicione as chaves no arquivo `.env.local`.
 
 ---
 
@@ -259,6 +278,19 @@ Gerenciamento de orçamento compartilhado:
 
 ---
 
+### 🆕 Sonhos e Objetivos
+**Rota:** `/dashboard/sonhos`
+
+Planejamento financeiro de longo prazo com acompanhamento visual:
+
+- **Metas de Poupança:** Define um valor alvo e o valor já economizado.
+- **Priorização:** Classifica sonhos por prioridade (Baixa, Média, Alta).
+- **Personalização:** Escolha de ícones e cores para cada objetivo.
+- **Progresso:** Barra de progresso automática baseada no valor atual vs. alvo.
+- **Status:** Controle de objetivos "Em andamento", "Pausado" ou "Concluído".
+
+---
+
 ### 🆕 Simulador de Investimentos
 **Rota:** `/dashboard/investimentos`
 
@@ -301,14 +333,17 @@ Calculadora de juros compostos com 3 modos:
 | `metas` | Limites de orçamento por categoria |
 | `lembretes` | Notificações e lembretes |
 
-### Tabelas Novas (Fase 3)
+### Tabelas Novas (Fase 4 e 5)
 
 | Tabela | Descrição |
 |--------|-----------|
+| `sonhos` | Planejamento de objetivos de longo prazo |
 | `grupos_familia` | Grupos familiares com código de convite |
 | `membros_familia` | Relação usuário-grupo com papéis |
 | `importacoes_ofx` | Registro de arquivos OFX/CSV importados |
 | `lancamentos_importados` | Lançamentos individuais das importações |
+
+> **Nota:** As tabelas `entradas`, `contas_fixas`, `cartoes` e `combustivel` agora possuem a coluna `conferido (boolean)` para suporte a conciliação bancária.
 
 Todas as tabelas possuem **Row Level Security (RLS)** habilitado — cada usuário vê apenas seus próprios dados.
 
@@ -334,6 +369,10 @@ GOOGLE_DRIVE_PASTA_CONTAS_2026_ID=1AbCdEfGhIjKlMnOpQrStUvWx
 # Google Gemini AI (Fase 3 — opcional)
 # Obtenha gratuitamente em: https://aistudio.google.com/app/apikey
 GOOGLE_AI_KEY=SUA_CHAVE_GEMINI_AQUI
+
+# Telegram Bot (Fase 6)
+TELEGRAM_BOT_TOKEN=seu_token_do_bot_aqui
+TELEGRAM_CHAT_ID=seu_chat_id_aqui
 ```
 
 > **Nota:** O sistema funciona sem `GOOGLE_AI_KEY`, usando análise heurística local automaticamente.
@@ -372,12 +411,12 @@ Execute este arquivo primeiro. Contém:
 - View `vw_resumo_mensal`
 - RLS policies
 
-### Fase 3 — `MIGRATIONS_FASE3.sql`
-Execute após o MIGRATIONS.sql. Contém:
-- Tabela `grupos_familia` + trigger + RLS
-- Tabela `membros_familia` + RLS
-- Tabela `importacoes_ofx` + RLS
-- Tabela `lancamentos_importados` + RLS
+### Fase 4 — `MIGRATIONS_FASE4.sql`
+- Tabela `sonhos` + RLS + Índices.
+
+### Fase 5 — `MIGRATIONS_FASE5_EXTRATO.sql`
+- Coluna `conferido` em todas as tabelas de movimentação.
+- Índices de performance para conciliação bancária.
 
 > **Como executar:** Supabase Dashboard → SQL Editor → cole o conteúdo → Run
 

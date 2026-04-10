@@ -3,9 +3,9 @@
 > Sistema de controle financeiro familiar desenvolvido para a **Família Fischer**.
 
 **Desenvolvido por:** Thiago Fischer  
-**Versão:** 1.3.0  
+**Versão:** 3.0.0  
 **Ano:** 2026  
-**Stack:** Next.js 14 · TypeScript · Supabase · Tailwind CSS · Vercel
+**Stack:** Next.js 14 · TypeScript · Supabase · Tailwind CSS · Telegram API · Vercel
 
 ---
 
@@ -14,12 +14,14 @@
 | Módulo | Descrição |
 |---|---|
 | 📊 **Dashboard** | Visão geral com gráficos de pizza, barras, saldo e barras de progresso por categoria |
+| 💰 **Extrato & Conciliação** | Novo módulo de extrato com **check de conferido**, edição unificada e saldo progressivo |
+| 🎯 **Sonhos e Objetivos** | Planejamento de metas de longo prazo com barras de progresso e priorização |
+| 🤖 **Telegram Bot** | Notificações automáticas via bot toda vez que uma conta ou cartão é pago |
 | 💳 **Cartões de Crédito** | Faturas com lançamentos detalhados. Parcelas criadas automaticamente nos meses futuros |
 | 🏠 **Contas Fixas** | Contas por categoria com seção de cartões integrada e resumo completo do mês |
-| 💵 **Entradas / Salários** | Receitas mensais com categorias (Salário, Freelance, Extra, Investimento) |
 | ⛽ **Combustível** | Abastecimentos com mês/ano derivados da data — suporte a lançamentos retroativos |
 | 📱 **App Mobile** | Aplicativo nativo (iOS/Android) com Expo consumindo a mesma API |
-| ☁️ **Google Drive** | Upload de comprovantes direto para `Contas 2026/[Mês]/Pagas` via Service Account |
+| ☁️ **Google Drive** | Upload de comprovantes direto para `/Contas 2026` via Service Account |
 | 📈 **Cotações** | Dólar, Euro, PETR4 e CDI em tempo real na sidebar (atualiza a cada 5 min) |
 
 ---
@@ -54,6 +56,10 @@ GOOGLE_PRIVATE_KEY=
 GOOGLE_CLIENT_EMAIL=
 GOOGLE_CLIENT_ID=
 GOOGLE_DRIVE_PASTA_CONTAS_2026_ID=
+
+# Telegram Bot (Fase 6)
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
 ```
 
 ---
@@ -65,10 +71,11 @@ GOOGLE_DRIVE_PASTA_CONTAS_2026_ID=
 | `cartoes` | Faturas de cartão por mês |
 | `lancamentos_cartao` | Itens detalhados de cada fatura |
 | `contas_fixas` | Contas fixas mensais por categoria |
-| `entradas` | Receitas e salários mensais |
-| `combustivel` | Registros de abastecimento |
+| `entradas` | Receitas e salários mensais (suporta conciliação) |
+| `combustivel` | Registros de abastecimento (suporta conciliação) |
+| `sonhos` | Planejamento de objetivos de longo prazo |
 
-Todas as tabelas usam **Row Level Security (RLS)** — cada usuário acessa apenas seus próprios dados.
+Todas as tabelas usam **Row Level Security (RLS)** — cada usuário acessa apenas seus próprios dados. As movimentações agora possuem a coluna `conferido` para conciliação bancária.
 
 ---
 
