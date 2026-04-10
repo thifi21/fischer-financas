@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
 import { formatBRL, formatDate } from '@/lib/utils'
 import { MESES } from '@/types'
+import { toast } from 'sonner'
 
 let cachedUserId: string | null = null
 
@@ -290,8 +291,33 @@ export default function NotificacoesPage() {
     setLembretes(prev => prev.map(l => l.id === lembrete.id ? { ...l, ativo: novoAtivo } : l))
   }
 
-  function marcarNotificacaoLida(id: string) {
-    setNotificacoes(prev => prev.map(n => n.id === id ? { ...n, lida: true } : n))
+  async function enviarParaWhatsApp() {
+    if (notificacoes.length === 0) {
+      toast.info('Nenhuma notificação para enviar')
+      return
+    }
+
+    const texto = `🛎️ *Resumo Fischer Finanças - ${MESES[mes - 1]}/${ano}*\n\n` + 
+      notificacoes.filter(n => !n.lida).map(n => `- ${n.titulo}: ${n.mensagem}`).join('\n\n')
+
+    setSaving(true)
+    try {
+      const res = await fetch('/api/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: texto })
+      })
+      
+      if (res.ok) {
+        toast.success('Resumo enviado para o WhatsApp!')
+      } else {
+        toast.error('Erro ao enviar para o WhatsApp. Verifique as chaves API.')
+      }
+    } catch (e) {
+      toast.error('Erro de conexão ao enviar WhatsApp')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const notificacoesNaoLidas = notificacoes.filter(n => !n.lida).length
@@ -314,9 +340,18 @@ export default function NotificacoesPage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">🔔 Notificações e Lembretes</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm">{MESES[mes - 1]} {ano}</p>
         </div>
-        <button onClick={() => abrirModal()} className="btn-primary">
-          + Novo Lembrete
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={enviarParaWhatsApp} 
+            disabled={saving || notificacoesNaoLidas === 0}
+            className="btn-secondary flex items-center gap-2"
+          >
+            {saving ? '⏳...' : '🟢 Zap Resumo'}
+          </button>
+          <button onClick={() => abrirModal()} className="btn-primary">
+            + Novo Lembrete
+          </button>
+        </div>
       </div>
 
       {/* Resumo */}
