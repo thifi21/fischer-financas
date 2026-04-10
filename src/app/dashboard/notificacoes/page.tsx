@@ -297,8 +297,8 @@ export default function NotificacoesPage() {
       return
     }
 
-    const texto = `🛎️ *Resumo Fischer Finanças - ${MESES[mes - 1]}/${ano}*\n\n` + 
-      notificacoes.filter(n => !n.lida).map(n => `• *${n.titulo}*: ${n.mensagem}`).join('\n\n')
+    const texto = `<b>🛎️ Resumo Fischer Finanças - ${MESES[mes - 1]}/${ano}</b>\n\n` + 
+      notificacoes.filter(n => !n.lida).map(n => `• <b>${n.titulo}</b>: ${n.mensagem}`).join('\n\n')
 
     setSaving(true)
     try {
@@ -311,8 +311,8 @@ export default function NotificacoesPage() {
       if (res.ok) {
         toast.success('Resumo enviado para o Telegram!')
       } else {
-        const data = await res.json()
-        toast.error(`Erro ao enviar: ${data.error || 'Verifique as chaves'}`)
+        const data = await res.json().catch(() => ({ error: 'Resposta inválida do servidor' }))
+        toast.error(`Erro: ${data.error || 'Verifique se você deu /start no seu bot'}`)
       }
     } catch (e) {
       toast.error('Erro de conexão ao enviar Telegram')
