@@ -75,6 +75,7 @@ Localizado no Dashboard, o gráfico de Sankey (`src/components/SankeyFlow.tsx`) 
 - Interface unificada para todas as movimentações.
 - **Sistema de Check:** Marcação visual de itens conferidos.
 - **Saldo Dinâmico:** Atualizado em tempo real conforme filtros e conferências.
+- **Novo: Exclusão Local (Ocultar):** Permite remover lançamentos apenas da visão de extrato (sem deletar o registro original), facilitando a conferência bancária. (Disponível em Mobile e Web).
 
 ### Notificações (Telegram)
 **Integração Fase 6:**
@@ -98,6 +99,7 @@ O banco de dados deve ser atualizado seguindo a ordem das migrations na pasta `s
 2. `MIGRATIONS_FASE3.sql`: Família, Open Finance e IA.
 3. `MIGRATIONS_FASE4.sql`: Módulo de Sonhos.
 4. `MIGRATIONS_FASE5_EXTRATO.sql`: Suporte a Conciliação (Coluna `conferido`).
+5. `005_add_oculto_extrato.sql`: Coluna `oculto_extrato` para exclusão local.
 
 ---
 

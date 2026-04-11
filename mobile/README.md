@@ -2,10 +2,13 @@
 
 Este é o aplicativo móvel companheiro do projeto **Fischer Finanças**, construído com [React Native](https://reactnative.dev) e [Expo](https://expo.dev). Ele permite que os usuários acessem seus painéis financeiros de qualquer lugar através do celular, consumindo a mesma base de dados do sistema web.
 
-## Estrutura Atual
-* **`App.tsx`**: Ponto central responsável por verificar se o usuário está logado usando a sessão do Supabase, roteando para a **DashboardScreen** ou a **LoginScreen**.
-* **`LoginScreen`**: Interface otimizada com inputs nativos que se conectam ao método `signInWithPassword` do Supabase.
-* **`DashboardScreen`**: Um placar gerencial financeiro que faz buscas das tabelas `entradas`, `cartoes`, `contas_fixas` e `combustivel` exibindo somatórias e saldo líquido em tempo real.
+## Estrutura e Funcionalidades
+* **`AppNavigator`**: Navegação moderna via abas com ícones **Lucide**, gerenciando o acesso a todas as áreas do sistema.
+* **`DashboardScreen`**: Painel gerencial premium com gradientes, resumo de entradas/saídas e seletor de período (`MonthSelector`).
+* **`ExtratoScreen`**: Visão unificada de todas as movimentações com sistema de conciliação (check) e **exclusão local** (ocultar lançamentos apenas desta tela).
+* **`SonhosScreen`**: Gestão de objetivos financeiros com status de prioridade e barras de progresso visual.
+* **`Cartoes & Contas`**: Listagem detalhada de faturas de crédito e despesas fixas sincronizadas com o banco de dados.
+* **`LoginScreen`**: Interface de autenticação redesenhada com estética premium e feedback visual.
 
 ## Como Executar
 1. Instale o aplicativo **Expo Go** no seu Android ou dispositivo iOS.
