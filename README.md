@@ -1,133 +1,87 @@
 # 💰 Fischer Finanças 2026
 
-> Sistema de controle financeiro familiar desenvolvido para a **Família Fischer**.
+> Sistema de controle financeiro familiar completo desenvolvido para a **Família Fischer**.
 
-**Desenvolvido por:** Thiago Fischer  
-**Versão:** 3.0.0  
+**Desenvoldido por:** Thiago Fischer  
+**Versão:** 3.5.0 — PWA, IA & Fase 6 (Telegram) Implementada 🚀  
 **Ano:** 2026  
-**Stack:** Next.js 14 · TypeScript · Supabase · Tailwind CSS · Telegram API · Vercel
+**Stack:** Next.js 14 · TypeScript · Supabase · Tailwind CSS · Gemini AI · Telegram API
 
 ---
 
-## ✨ Funcionalidades
+## ✨ Funcionalidades Premium
 
 | Módulo | Descrição |
 |---|---|
-| 📊 **Dashboard** | Visão geral com gráficos de pizza, barras, saldo e barras de progresso por categoria |
-| 💰 **Extrato & Conciliação** | Novo módulo de extrato com **check de conferido**, edição unificada e saldo progressivo |
-| 🎯 **Sonhos e Objetivos** | Planejamento de metas de longo prazo com barras de progresso e priorização |
-| 🤖 **Telegram Bot** | Notificações automáticas via bot toda vez que uma conta ou cartão é pago |
-| 💳 **Cartões de Crédito** | Faturas com lançamentos detalhados. Parcelas criadas automaticamente nos meses futuros |
-| 🏠 **Contas Fixas** | Contas por categoria com seção de cartões integrada e resumo completo do mês |
-| ⛽ **Combustível** | Abastecimentos com mês/ano derivados da data — suporte a lançamentos retroativos |
-| 📱 **App Mobile** | Aplicativo nativo (iOS/Android) com Expo consumindo a mesma API |
-| ☁️ **Google Drive** | Upload de comprovantes direto para `/Contas 2026` via Service Account |
-| 📈 **Cotações** | Dólar, Euro, PETR4 e CDI em tempo real na sidebar (atualiza a cada 5 min) |
+| 📊 **Dashboard 2.0** | Gráficos dinâmicos com **Sankey Flow** para visualização do fluxo de caixa. |
+| 💰 **Extrato & Conciliação** | Controle total de lançamentos com status de conferência (OK/Pendente). |
+| 🤖 **Telegram Bot** | Notificações automáticas em tempo real para pagamentos e vencimentos. |
+| 🎯 **Sonhos & Objetivos** | Gestão de metas de longo prazo com priorização e progresso visual. |
+| 📱 **Ecosystem (PWA & Mobile)** | Aplicativo nativo (Expo) e **PWA Offline-First** de alta performance. |
+| 🆕 **IA Financeira** | Análise narrativa de gastos e chat inteligente via **Google Gemini AI**. |
+| 🆕 **Open Finance** | Importação inteligente de arquivos **OFX** e **CSV**. |
+| 🆕 **Modo Família** | Orçamento compartilhado com gestão de membros e convites. |
+| 🆕 **Investimentos** | Simulador avançado de juros compostos e independência financeira. |
 
 ---
 
-## 🛠️ Tecnologias
+## ⚡ Otimização & Performance
 
-- **[Next.js 14](https://nextjs.org)** — Framework React com App Router
-- **[TypeScript](https://www.typescriptlang.org)** — Tipagem estática
-- **[Supabase](https://supabase.com)** — Banco de dados PostgreSQL + Autenticação
-- **[Tailwind CSS](https://tailwindcss.com)** — Estilização com dark mode
-- **[Recharts](https://recharts.org)** — Gráficos interativos
-- **[Google Drive API](https://developers.google.com/drive)** — Upload via Service Account
-- **[Vercel](https://vercel.com)** — Deploy e hospedagem
+- **Lazy Loading**: Gráficos e componentes pesados carregados sob demanda.
+- **Sankey Flow**: Visualização SVG animada via Framer Motion para entender para onde vai cada centavo.
+- **Conciliação Bancária**: Campo `conferido` em todos os lançamentos para match perfeito com o extrato.
 
 ---
 
-## 🚀 Deploy
+## 📱 Suporte PWA (Progressive Web App)
 
-Sistema hospedado na Vercel com deploy automático via GitHub.
-
-### Variáveis de ambiente necessárias
-
-```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-
-# Google Drive (Service Account)
-GOOGLE_PROJECT_ID=
-GOOGLE_PRIVATE_KEY_ID=
-GOOGLE_PRIVATE_KEY=
-GOOGLE_CLIENT_EMAIL=
-GOOGLE_CLIENT_ID=
-GOOGLE_DRIVE_PASTA_CONTAS_2026_ID=
-
-# Telegram Bot (Fase 6)
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_CHAT_ID=
-```
+- **Offline Support**: Cache de assets críticos para funcionamento sem internet.
+- **Instalação**: Ícones premium configurados para Android e iOS.
+- **Splash Screen**: Experiência de app nativo desde o carregamento.
 
 ---
 
-## 🗄️ Banco de Dados
+## 🤖 Integração Telegram Bot
 
-| Tabela | Descrição |
-|---|---|
-| `cartoes` | Faturas de cartão por mês |
-| `lancamentos_cartao` | Itens detalhados de cada fatura |
-| `contas_fixas` | Contas fixas mensais por categoria |
-| `entradas` | Receitas e salários mensais (suporta conciliação) |
-| `combustivel` | Registros de abastecimento (suporta conciliação) |
-| `sonhos` | Planejamento de objetivos de longo prazo |
-
-Todas as tabelas usam **Row Level Security (RLS)** — cada usuário acessa apenas seus próprios dados. As movimentações agora possuem a coluna `conferido` para conciliação bancária.
+Configure as variáveis para receber notificações automáticas:
+- `TELEGRAM_BOT_TOKEN`: Token gerado pelo BotFather.
+- `TELEGRAM_CHAT_ID`: ID do chat/grupo para notificações.
 
 ---
 
-## 📁 Estrutura do Projeto
+## 📁 Estrutura do Projeto (v3.5)
 
 ```
 fischer-financas/
-├── mobile/                        ← Aplicativo nativo em React Native (Expo)
-├── docs/
-│   ├── CHANGELOG.md               ← Histórico completo de versões
-│   └── GOOGLE_DRIVE.md            ← Tutorial integração Drive
-├── scripts/
-│   └── importar-dados.ts          ← Importação da planilha original
+├── mobile/                        ← App React Native (Expo)
 ├── src/
 │   ├── app/
-│   │   ├── api/drive/upload/      ← API upload Google Drive
+│   │   ├── api/telegram/          ← Webhook de notificações
 │   │   ├── dashboard/
-│   │   │   ├── cartoes/           ← Cartões + lançamentos + parcelas automáticas
-│   │   │   ├── combustivel/       ← Abastecimentos com data retroativa
-│   │   │   ├── contas-fixas/      ← Contas + cartões integrados
-│   │   │   ├── entradas/          ← Receitas e salários
-│   │   │   ├── layout.tsx         ← Sidebar, topbar, contexto de mês
-│   │   │   └── page.tsx           ← Dashboard principal
-│   │   ├── layout.tsx             ← Root layout (tema claro/escuro)
-│   │   └── page.tsx               ← Tela de login
+│   │   │   ├── extrato/           ← Central de conciliação unificada
+│   │   │   ├── sonhos/            ← Metas de longo prazo [NEW]
+│   │   │   ├── ia-analise/        ← IA Gemini
+│   │   │   └── ...
 │   ├── components/
-│   │   ├── CotacoesPanel.tsx      ← Dólar, Euro, PETR4, CDI ao vivo
-│   │   ├── DrivePanel.tsx         ← Painel de comprovantes na sidebar
-│   │   └── DriveUploadModal.tsx   ← Modal de upload de comprovantes
-│   ├── context/
-│   │   └── MesContext.tsx         ← Contexto global do mês ativo
+│   │   ├── SankeyFlow.tsx         ← Fluxo de caixa visual [NEW]
+│   │   └── DashboardClientView    ← Core do dashboard
 │   ├── lib/
-│   │   ├── supabase.ts            ← Cliente Supabase
-│   │   └── utils.ts               ← formatBRL, formatDate, formatVencimento
-│   ├── styles/
-│   │   └── globals.css            ← Estilos globais + dark mode
-│   └── types/
-│       └── index.ts               ← Tipos TypeScript + constantes
+│   │   ├── telegram.ts            ← Integração de alertas [NEW]
+│   │   └── notifications.ts       ← Engine de notificações
 └── supabase/
     └── migrations/
-        ├── 001_schema.sql         ← Criação das tabelas + RLS
-        ├── 002_seed_dados.sql     ← Dados importados da planilha
-        └── 003_tricard_seed.sql   ← Dados do cartão Tricard
+        ├── MIGRATIONS_FASE4.sql   ← Cleanup e correções
+        ├── MIGRATIONS_FASE5.sql   ← Extrato e Conciliação
+        └── MIGRATIONS_FASE6.sql   ← Telegram e Notificações
 ```
 
 ---
 
-## 📖 Documentação
+## 📖 Documentação Completa
 
-- [Histórico de Versões](./docs/CHANGELOG.md)
+- [Manual Detalhado (Wiki)](./DOCUMENTACAO.md)
+- [Histórico de Mudanças](./docs/CHANGELOG.md)
 - [Tutorial Google Drive](./docs/GOOGLE_DRIVE.md)
-- [Documentação do App Mobile](./mobile/README.md)
 
 ---
 
