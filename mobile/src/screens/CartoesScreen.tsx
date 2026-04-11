@@ -1,57 +1,15 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
-import { useMes } from '../context/MesContext';
+import { useDados } from '../context/DadosContext';
 import { MonthSelector } from '../components/MonthSelector';
 import { CreditCard, CheckCircle2, AlertCircle } from 'lucide-react-native';
 
-const formatBRL = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-};
-
-interface Cartao {
-  id: string;
-  nome: string;
-  valor: number;
-  pago: boolean;
-  vencimento: string | null;
-}
+const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const formatBRL = (value: number) => currencyFormatter.format(value);
 
 export function CartoesScreen({ session }: { session: Session }) {
-  const { mes, ano } = useMes();
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [cartoes, setCartoes] = useState<Cartao[]>([]);
-
-  const fetchCartoes = useCallback(async () => {
-    try {
-      setLoading(true);
-      const { data } = await supabase
-        .from('cartoes')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .eq('mes', mes)
-        .eq('ano', ano)
-        .order('nome');
-
-      setCartoes(data || []);
-    } catch (error) {
-      console.error('Erro ao buscar cartões:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [mes, ano, session.user.id]);
-
-  useEffect(() => {
-    fetchCartoes();
-  }, [fetchCartoes]);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchCartoes();
-  };
+  const { cartoes, loading, refreshDados } = useDados();
 
   return (
     <View style={styles.container}>
@@ -64,14 +22,14 @@ export function CartoesScreen({ session }: { session: Session }) {
         <MonthSelector />
       </View>
 
-      {loading && !refreshing ? (
+      {loading ? (
         <ActivityIndicator size="large" color="#10b981" style={{ marginTop: 40 }} />
       ) : (
         <FlatList
           data={cartoes}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#10b981']} />}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshDados} colors={['#10b981']} />}
           renderItem={({ item }) => (
             <View style={styles.card}>
               <View style={styles.cardInfo}>

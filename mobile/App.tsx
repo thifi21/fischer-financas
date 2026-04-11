@@ -7,6 +7,7 @@ import { AppNavigator } from './src/navigation/AppNavigator';
 import { NavigationContainer } from '@react-navigation/native';
 
 import { MesProvider } from './src/context/MesContext';
+import { DadosProvider } from './src/context/DadosContext';
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -33,12 +34,18 @@ export default function App() {
     );
   }
 
-  return (
+   return (
     <>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       <MesProvider>
         <NavigationContainer>
-          {session && session.user ? <AppNavigator session={session} /> : <LoginScreen />}
+          {session && session.user ? (
+            <DadosProvider userId={session.user.id}>
+              <AppNavigator session={session} />
+            </DadosProvider>
+          ) : (
+            <LoginScreen />
+          )}
         </NavigationContainer>
       </MesProvider>
     </>

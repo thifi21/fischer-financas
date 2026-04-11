@@ -1,13 +1,20 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useMemo, memo } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { useMes } from '../context/MesContext';
+import { useDados } from '../context/DadosContext';
 import { MonthSelector } from '../components/MonthSelector';
-import { CheckCircle2, Circle, TrendingUp, TrendingDown, CreditCard, Fuel, Home, Trash2 } from 'lucide-react-native';
+import { CheckCircle2, Circle, TrendingUp, TrendingDown, CreditCard, Fuel, Home, Trash2, Receipt as ReceiptIcon } from 'lucide-react-native';
 
-const formatBRL = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const formatBRL = (value: number) => currencyFormatter.format(value);
+
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length < 3) return dateStr;
+  return `${parts[2]}/${parts[1]}`;
 };
 
 interface ExtratoItem {
@@ -21,128 +28,136 @@ interface ExtratoItem {
   conferido: boolean;
 }
 
-export function ExtratoScreen({ session }: { session: Session }) {
-  const { mes, ano } = useMes();
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [extrato, setExtrato] = useState<ExtratoItem[]>([]);
-  const [saldoTotal, setSaldoTotal] = useState(0);
-
-  const fetchExtrato = useCallback(async () => {
-    try {
-      setLoading(true);
-      const uid = session.user.id;
-
-      const [resEntradas, resFixas, resCartoes, resComb] = await Promise.all([
-        supabase.from('entradas').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).eq('oculto_extrato', false),
-        supabase.from('contas_fixas').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).eq('pago', true).eq('oculto_extrato', false),
-        supabase.from('cartoes').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).eq('pago', true).eq('oculto_extrato', false),
-        supabase.from('combustivel').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).eq('oculto_extrato', false)
-      ]);
-
-      let items: ExtratoItem[] = [];
-// ... (lógica de mapeamento simplificada para o diff)
-      // 1. Entradas
-      resEntradas.data?.filter(e => e.categoria !== 'saldo_inicial').forEach(e => {
-        items.push({
-          id: e.id,
-          data: e.data_entrada || e.created_at.split('T')[0],
-          descricao: e.descricao,
-          categoria: e.categoria,
-          valor: e.valor,
-          tipo: e.categoria === 'extrato_saida' ? 'saida' : 'entrada',
-          tabelaOrigem: 'entradas',
-          conferido: !!e.conferido
-        });
-      });
-
-      // 2. Fixas
-      resFixas.data?.forEach(e => {
-        items.push({
-          id: e.id,
-          data: e.data_vencimento || e.created_at.split('T')[0],
-          descricao: e.descricao,
-          categoria: e.categoria,
-          valor: e.valor,
-          tipo: 'saida',
-          tabelaOrigem: 'contas_fixas',
-          conferido: !!e.conferido
-        });
-      });
-
-      // 3. Cartões
-      resCartoes.data?.forEach(e => {
-        const diaVenc = e.vencimento ? e.vencimento.split('/')[0] : '01';
-        items.push({
-          id: e.id,
-          data: `${ano}-${String(mes).padStart(2,'0')}-${diaVenc.padStart(2,'0')}`,
-          descricao: `Cartão: ${e.nome}`,
-          categoria: 'cartao',
-          valor: e.valor,
-          tipo: 'saida',
-          tabelaOrigem: 'cartoes',
-          conferido: !!e.conferido
-        });
-      });
-
-      // 4. Combustível
-      resComb.data?.forEach(e => {
-        items.push({
-          id: e.id,
-          data: e.data_abastecimento || e.created_at.split('T')[0],
-          descricao: 'Abastecimento',
-          categoria: 'combustivel',
-          valor: e.valor,
-          tipo: 'saida',
-          tabelaOrigem: 'combustivel',
-          conferido: !!e.conferido
-        });
-      });
-
-      items.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
-      const total = items.reduce((acc, item) => acc + (item.tipo === 'entrada' ? item.valor : -item.valor), 0);
-      setExtrato(items);
-      setSaldoTotal(total);
-    } catch (error) {
-      console.error('Erro ao buscar extrato:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [mes, ano, session.user.id]);
-
-  useEffect(() => { fetchExtrato(); }, [fetchExtrato]);
-
-  const onRefresh = () => { setRefreshing(true); fetchExtrato(); };
-
-  const toggleConferido = async (item: ExtratoItem) => {
-    const novoStatus = !item.conferido;
-    setExtrato(prev => prev.map(x => (x.id === item.id && x.tabelaOrigem === item.tabelaOrigem) ? { ...x, conferido: novoStatus } : x));
-    await supabase.from(item.tabelaOrigem).update({ conferido: novoStatus }).eq('id', item.id);
-  };
-
-  const ocultarDoExtrato = async (item: ExtratoItem) => {
-    // Confirmação simples em mobile normalmente via Alert, aqui faremos direto para agilizar o port
-    setExtrato(prev => prev.filter(x => !(x.id === item.id && x.tabelaOrigem === item.tabelaOrigem)));
-    const { error } = await supabase.from(item.tabelaOrigem).update({ oculto_extrato: true }).eq('id', item.id);
-    if (error) console.error('Erro ao ocultar:', error);
-    // Recalcular saldo localmente
-    const total = extrato.filter(x => !(x.id === item.id && x.tabelaOrigem === item.tabelaOrigem)).reduce((acc, x) => acc + (x.tipo === 'entrada' ? x.valor : -x.valor), 0);
-    setSaldoTotal(total);
-  };
-
-  const renderIcon = (item: ExtratoItem) => {
+const ExtratoItemRow = memo(({ item, onToggle, onHide }: { 
+  item: ExtratoItem, 
+  onToggle: (item: ExtratoItem) => void,
+  onHide: (item: ExtratoItem) => void 
+}) => {
+  const renderIcon = () => {
     if (item.tipo === 'entrada') return <TrendingUp size={20} color="#10b981" />;
     if (item.categoria === 'cartao') return <CreditCard size={20} color="#3b82f6" />;
     if (item.categoria === 'combustivel') return <Fuel size={20} color="#f97316" />;
     return <Home size={20} color="#6b7280" />;
   };
 
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return '';
-    const parts = dateStr.split('-');
-    if (parts.length < 3) return dateStr;
-    return `${parts[2]}/${parts[1]}`;
+  return (
+    <View style={[styles.itemCard, item.conferido && styles.itemConferido]}>
+      <View style={styles.iconContainer}>
+        {renderIcon()}
+      </View>
+      <View style={styles.infoContainer}>
+        <Text style={styles.itemDesc} numberOfLines={1}>{item.descricao}</Text>
+        <Text style={styles.itemDate}>{formatDate(item.data)}</Text>
+      </View>
+      <View style={styles.actionContainer}>
+        <Text style={[styles.itemValue, { color: item.tipo === 'entrada' ? '#10b981' : '#ef4444' }]}>
+          {item.tipo === 'entrada' ? '+' : '-'} {formatBRL(item.valor)}
+        </Text>
+        <View style={styles.actionButtons}>
+          <TouchableOpacity onPress={() => onHide(item)} style={styles.actionBtn}>
+            <Trash2 size={20} color="#9ca3af" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => onToggle(item)} style={styles.actionBtn}>
+            {item.conferido ? (
+              <CheckCircle2 size={22} color="#10b981" />
+            ) : (
+              <Circle size={22} color="#d1d5db" />
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+});
+
+export function ExtratoScreen({ session }: { session: Session }) {
+  const { ano, mes } = useMes();
+  const { entradas, contas, cartoes, combustivel, loading, refreshDados } = useDados();
+
+  const items = useMemo(() => {
+    let list: ExtratoItem[] = [];
+
+    // 1. Entradas
+    entradas.filter(e => e.categoria !== 'saldo_inicial').forEach(e => {
+      list.push({
+        id: e.id,
+        data: e.data_entrada || e.created_at.split('T')[0],
+        descricao: e.descricao,
+        categoria: e.categoria,
+        valor: e.valor,
+        tipo: e.categoria === 'extrato_saida' ? 'saida' : 'entrada',
+        tabelaOrigem: 'entradas',
+        conferido: !!e.conferido
+      });
+    });
+
+    // 2. Fixas
+    contas.forEach(e => {
+        // No mobile mostramos apenas o que está pago no extrato para ser Premium (conciliado)
+        // Mas o DadosContext já filtra isso? Vamos confiar no que vem de lá.
+        // Na verdade o DadosContext busca TUDO. Vamos filtrar aqui se necessário.
+        if (!e.pago) return; 
+        list.push({
+            id: e.id,
+            data: e.data_vencimento || e.created_at.split('T')[0],
+            descricao: e.descricao,
+            categoria: e.categoria,
+            valor: e.valor,
+            tipo: 'saida',
+            tabelaOrigem: 'contas_fixas',
+            conferido: !!e.conferido
+        });
+    });
+
+    // 3. Cartões
+    cartoes.forEach(e => {
+      if (!e.pago) return;
+      const diaVenc = e.vencimento ? e.vencimento.split('/')[0] : '01';
+      list.push({
+        id: e.id,
+        data: `${ano}-${String(mes).padStart(2,'0')}-${diaVenc.padStart(2,'0')}`,
+        descricao: `Cartão: ${e.nome}`,
+        categoria: 'cartao',
+        valor: e.valor,
+        tipo: 'saida',
+        tabelaOrigem: 'cartoes',
+        conferido: !!e.conferido
+      });
+    });
+
+    // 4. Combustível
+    combustivel.forEach(e => {
+      list.push({
+        id: e.id,
+        data: e.data_abastecimento || e.created_at.split('T')[0],
+        descricao: 'Abastecimento',
+        categoria: 'combustivel',
+        valor: e.valor,
+        tipo: 'saida',
+        tabelaOrigem: 'combustivel',
+        conferido: !!e.conferido
+      });
+    });
+
+    return list.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
+  }, [entradas, contas, cartoes, combustivel, ano, mes]);
+
+  const saldoTotal = useMemo(() => {
+    return items.reduce((acc, item) => acc + (item.tipo === 'entrada' ? item.valor : -item.valor), 0);
+  }, [items]);
+
+  const toggleConferido = async (item: ExtratoItem) => {
+    const novoStatus = !item.conferido;
+    // Update no banco via context provider ou direto? Context provider é mais limpo.
+    // Mas para performance imediata, fazemos update local no context se possível.
+    // Por simplicidade agora, fazemos o update e pedimos refresh ou confiamos na re-renderização do context se ele for reativo.
+    await supabase.from(item.tabelaOrigem).update({ conferido: novoStatus }).eq('id', item.id);
+    refreshDados(); // Força atualização global
+  };
+
+  const ocultarDoExtrato = async (item: ExtratoItem) => {
+    await supabase.from(item.tabelaOrigem).update({ oculto_extrato: true }).eq('id', item.id);
+    refreshDados();
   };
 
   return (
@@ -156,41 +171,20 @@ export function ExtratoScreen({ session }: { session: Session }) {
         <MonthSelector />
       </View>
 
-      {loading && !refreshing ? (
+      {loading ? (
         <ActivityIndicator size="large" color="#10b981" style={{ marginTop: 40 }} />
       ) : (
         <FlatList
-          data={extrato}
-          keyExtractor={(item, index) => `${item.tabelaOrigem}-${item.id}-${index}`}
+          data={items}
+          keyExtractor={(item) => `${item.tabelaOrigem}-${item.id}`}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#10b981']} />}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshDados} colors={['#10b981']} />}
           renderItem={({ item }) => (
-            <View style={[styles.itemCard, item.conferido && styles.itemConferido]}>
-                <View style={styles.iconContainer}>
-                    {renderIcon(item)}
-                </View>
-                <View style={styles.infoContainer}>
-                    <Text style={styles.itemDesc} numberOfLines={1}>{item.descricao}</Text>
-                    <Text style={styles.itemDate}>{formatDate(item.data)}</Text>
-                </View>
-                <View style={styles.actionContainer}>
-                    <Text style={[styles.itemValue, { color: item.tipo === 'entrada' ? '#10b981' : '#ef4444' }]}>
-                        {item.tipo === 'entrada' ? '+' : '-'} {formatBRL(item.valor)}
-                    </Text>
-                    <View style={styles.actionButtons}>
-                        <TouchableOpacity onPress={() => ocultarDoExtrato(item)} style={styles.actionBtn}>
-                            <Trash2 size={20} color="#9ca3af" />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => toggleConferido(item)} style={styles.actionBtn}>
-                            {item.conferido ? (
-                                <CheckCircle2 size={22} color="#10b981" />
-                            ) : (
-                                <Circle size={22} color="#d1d5db" />
-                            )}
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </View>
+            <ExtratoItemRow 
+              item={item} 
+              onToggle={toggleConferido} 
+              onHide={ocultarDoExtrato} 
+            />
           )}
           ListEmptyComponent={
             <View style={styles.placeholder}>

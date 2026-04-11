@@ -1,77 +1,41 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
-import { useMes } from '../context/MesContext';
+import { useDados } from '../context/DadosContext';
 import { MonthSelector } from '../components/MonthSelector';
-import { Home, Lightbulb, Zap, Shield, BookOpen, Utensils, Heart, Plus, CheckCircle2, AlertCircle } from 'lucide-react-native';
+import { Home, Lightbulb, Zap, Shield, BookOpen, Utensils, Heart, CheckCircle2, AlertCircle } from 'lucide-react-native';
 
-const formatBRL = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const formatBRL = (value: number) => currencyFormatter.format(value);
+
+const getIcon = (cat: string) => {
+  const c = cat ? cat.toLowerCase() : '';
+  if (c.includes('moradia') || c.includes('aluguel')) return <Home size={22} color="#6366f1" />;
+  if (c.includes('energia') || c.includes('luz')) return <Zap size={22} color="#eab308" />;
+  if (c.includes('água') || c.includes('serviços')) return <Lightbulb size={22} color="#06b6d4" />;
+  if (c.includes('saúde')) return <Heart size={22} color="#ec4899" />;
+  if (c.includes('educação')) return <BookOpen size={22} color="#8b5cf6" />;
+  if (c.includes('alimentação')) return <Utensils size={22} color="#f97316" />;
+  return <Shield size={22} color="#6b7280" />;
 };
 
-interface ContaFixa {
-  id: string;
-  descricao: string;
-  categoria: string;
-  valor: number;
-  pago: boolean;
-  data_vencimento: string | null;
-  parcela: string | null;
-}
+const formatDate = (dateStr: string | null) => {
+  if (!dateStr) return 'N/A';
+  const parts = dateStr.split('-');
+  if (parts.length < 3) return dateStr;
+  return `${parts[2]}/${parts[1]}`;
+};
 
 export function ContasScreen({ session }: { session: Session }) {
-  const { mes, ano } = useMes();
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [contas, setContas] = useState<ContaFixa[]>([]);
+  const { contas, loading, refreshDados } = useDados();
 
-  const fetchContas = useCallback(async () => {
-    try {
-      setLoading(true);
-      const { data } = await supabase
-        .from('contas_fixas')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .eq('mes', mes)
-        .eq('ano', ano)
-        .order('data_vencimento');
-
-      setContas(data || []);
-    } catch (error) {
-      console.error('Erro ao buscar contas fixas:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [mes, ano, session.user.id]);
-
-  useEffect(() => {
-    fetchContas();
-  }, [fetchContas]);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchContas();
-  };
-
-  const getIcon = (cat: string) => {
-    const c = cat.toLowerCase();
-    if (c.includes('moradia') || c.includes('aluguel')) return <Home size={22} color="#6366f1" />;
-    if (c.includes('energia') || c.includes('luz')) return <Zap size={22} color="#eab308" />;
-    if (c.includes('água') || c.includes('serviços')) return <Lightbulb size={22} color="#06b6d4" />;
-    if (c.includes('saúde')) return <Heart size={22} color="#ec4899" />;
-    if (c.includes('educação')) return <BookOpen size={22} color="#8b5cf6" />;
-    if (c.includes('alimentação')) return <Utensils size={22} color="#f97316" />;
-    return <Shield size={22} color="#6b7280" />;
-  };
-
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return 'N/A';
-    const parts = dateStr.split('-');
-    if (parts.length < 3) return dateStr;
-    return `${parts[2]}/${parts[1]}`;
-  };
+  const sortedContas = useMemo(() => {
+    return [...contas].sort((a, b) => {
+      if (!a.data_vencimento) return 1;
+      if (!b.data_vencimento) return -1;
+      return a.data_vencimento.localeCompare(b.data_vencimento);
+    });
+  }, [contas]);
 
   return (
     <View style={styles.container}>
@@ -84,14 +48,14 @@ export function ContasScreen({ session }: { session: Session }) {
         <MonthSelector />
       </View>
 
-      {loading && !refreshing ? (
+      {loading ? (
         <ActivityIndicator size="large" color="#10b981" style={{ marginTop: 40 }} />
       ) : (
         <FlatList
-          data={contas}
+          data={sortedContas}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#10b981']} />}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshDados} colors={['#10b981']} />}
           renderItem={({ item }) => (
             <View style={styles.itemCard}>
               <View style={styles.itemHeader}>

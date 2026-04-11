@@ -1,59 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMes } from '../context/MesContext';
+import { useDados } from '../context/DadosContext';
 import { MonthSelector } from '../components/MonthSelector';
 import { LogOut, TrendingUp, TrendingDown, Wallet } from 'lucide-react-native';
 
-const formatBRL = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-};
+const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const formatBRL = (value: number) => currencyFormatter.format(value);
 
 export function DashboardScreen({ session }: { session: Session }) {
-  const { mes, ano } = useMes();
-  const [resumo, setResumo] = useState({ entradas: 0, saidas: 0 });
-  const [loading, setLoading] = useState(true);
+  const { entradas, contas, cartoes, combustivel, loading } = useDados();
 
-  useEffect(() => {
-    fetchDados();
-  }, [mes, ano]);
-
-  async function fetchDados() {
-    try {
-      setLoading(true);
-      const user = session.user;
-
-      // Buscando entradas
-      const { data: entradas } = await supabase
-        .from('entradas')
-        .select('valor')
-        .eq('user_id', user.id)
-        .eq('mes', mes)
-        .eq('ano', ano);
-
-      // Buscando saídas (cartões, fixas, combustivel)
-      const [resCartoes, resFixas, resComb] = await Promise.all([
-        supabase.from('cartoes').select('valor').eq('user_id', user.id).eq('mes', mes).eq('ano', ano),
-        supabase.from('contas_fixas').select('valor').eq('user_id', user.id).eq('mes', mes).eq('ano', ano),
-        supabase.from('combustivel').select('valor').eq('user_id', user.id).eq('mes', mes).eq('ano', ano)
-      ]);
-
-      const soma = (rows: any[]) => (rows || []).reduce((acc, r) => acc + Number(r.valor), 0);
-      
-      const totalEntradas = soma(entradas || []);
-      const totalSaidas = soma(resCartoes.data || []) + soma(resFixas.data || []) + soma(resComb.data || []);
-
-      setResumo({ entradas: totalEntradas, saidas: totalSaidas });
-    } catch (error) {
-      console.log('Erro ao buscar dados:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const saldo = resumo.entradas - resumo.saidas;
+  const resumo = useMemo(() => {
+    const soma = (rows: any[]) => (rows || []).reduce((acc, r) => acc + Number(r.valor), 0);
+    const totalEntradas = soma(entradas);
+    const totalSaidas = soma(contas) + soma(cartoes) + soma(combustivel);
+    return { entradas: totalEntradas, saidas: totalSaidas, saldo: totalEntradas - totalSaidas };
+  }, [entradas, contas, cartoes, combustivel]);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
@@ -78,7 +44,7 @@ export function DashboardScreen({ session }: { session: Session }) {
           <View>
             <View style={styles.mainCard}>
                 <Text style={styles.cardLabel}>Saldo Disponível</Text>
-                <Text style={styles.mainBalance}>{formatBRL(saldo)}</Text>
+                <Text style={styles.mainBalance}>{formatBRL(resumo.saldo)}</Text>
                 <View style={styles.divider} />
                 <View style={styles.row}>
                     <View style={styles.stat}>
