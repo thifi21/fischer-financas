@@ -1,105 +1,182 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { supabase } from '../lib/supabase';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Lock, Mail, ChevronRight } from 'lucide-react-native';
 
 export function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  async function signInWithEmail() {
+  async function handleLogin() {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
+      email,
+      password,
     });
-
-    if (error) Alert.alert('Erro ao entrar', error.message);
+    if (error) alert(error.message);
     setLoading(false);
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Fischer Finanças</Text>
-      <Text style={styles.subtitle}>Faça login para continuar</Text>
-
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="E-mail"
-          placeholderTextColor="#9ca3af"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Senha"
-          placeholderTextColor="#9ca3af"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-      </View>
-
-      <TouchableOpacity 
-        style={styles.button} 
-        onPress={signInWithEmail} 
-        disabled={loading}
+    <LinearGradient colors={['#10b981', '#059669']} style={styles.container}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
       >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Entrar</Text>
-        )}
-      </TouchableOpacity>
-    </View>
+        <View style={styles.card}>
+          <View style={styles.header}>
+            <View style={styles.logoBox}>
+               <Text style={styles.logoText}>F</Text>
+            </View>
+            <Text style={styles.title}>Fischer Finanças</Text>
+            <Text style={styles.subtitle}>Sua gestão familiar premium</Text>
+          </View>
+
+          <View style={styles.form}>
+            <View style={styles.inputGroup}>
+              <Mail size={20} color="#9ca3af" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="E-mail"
+                placeholderTextColor="#9ca3af"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Lock size={20} color="#9ca3af" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Senha"
+                placeholderTextColor="#9ca3af"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+            </View>
+
+            <TouchableOpacity 
+              style={styles.button} 
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              <LinearGradient 
+                colors={['#111827', '#1f2937']} 
+                style={styles.buttonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <>
+                    <Text style={styles.buttonText}>Entrar</Text>
+                    <ChevronRight size={20} color="#ffffff" />
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.footerText}>© 2026 Thiago Fischer</Text>
+        </View>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
+  },
+  keyboardView: {
+    flex: 1,
     justifyContent: 'center',
-    backgroundColor: '#f3f4f6', // gray-100
+    padding: 24,
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 32,
+    padding: 32,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 30,
+    elevation: 10,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  logoBox: {
+    width: 64,
+    height: 64,
+    backgroundColor: '#10b981',
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  logoText: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#ffffff',
   },
   title: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#111827', // gray-900
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6b7280', // gray-500
-    marginBottom: 32,
-    textAlign: 'center',
-  },
-  inputContainer: {
-    marginBottom: 24,
-  },
-  input: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#e5e7eb', // gray-200
     color: '#111827',
   },
-  button: {
-    backgroundColor: '#10b981', // emerald-500
-    borderRadius: 8,
-    padding: 16,
+  subtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  form: {
+    gap: 16,
+  },
+  inputGroup: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#f9fafb',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#f3f4f6',
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  input: {
+    flex: 1,
+    height: 56,
+    color: '#111827',
+    fontSize: 16,
+  },
+  button: {
+    marginTop: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  buttonGradient: {
+    flexDirection: 'row',
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   buttonText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: 'bold',
   },
+  footerText: {
+    textAlign: 'center',
+    color: '#9ca3af',
+    fontSize: 12,
+    marginTop: 40,
+  }
 });

@@ -1,12 +1,130 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { Session } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
+import { useMes } from '../context/MesContext';
+import { MonthSelector } from '../components/MonthSelector';
+import { Home, Lightbulb, Zap, Shield, BookOpen, Utensils, Heart, Plus, CheckCircle2, AlertCircle } from 'lucide-react-native';
+
+const formatBRL = (value: number) => {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+};
+
+interface ContaFixa {
+  id: string;
+  descricao: string;
+  categoria: string;
+  valor: number;
+  pago: boolean;
+  data_vencimento: string | null;
+  parcela: string | null;
+}
 
 export function ContasScreen({ session }: { session: Session }) {
+  const { mes, ano } = useMes();
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [contas, setContas] = useState<ContaFixa[]>([]);
+
+  const fetchContas = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data } = await supabase
+        .from('contas_fixas')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('mes', mes)
+        .eq('ano', ano)
+        .order('data_vencimento');
+
+      setContas(data || []);
+    } catch (error) {
+      console.error('Erro ao buscar contas fixas:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [mes, ano, session.user.id]);
+
+  useEffect(() => {
+    fetchContas();
+  }, [fetchContas]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchContas();
+  };
+
+  const getIcon = (cat: string) => {
+    const c = cat.toLowerCase();
+    if (c.includes('moradia') || c.includes('aluguel')) return <Home size={22} color="#6366f1" />;
+    if (c.includes('energia') || c.includes('luz')) return <Zap size={22} color="#eab308" />;
+    if (c.includes('água') || c.includes('serviços')) return <Lightbulb size={22} color="#06b6d4" />;
+    if (c.includes('saúde')) return <Heart size={22} color="#ec4899" />;
+    if (c.includes('educação')) return <BookOpen size={22} color="#8b5cf6" />;
+    if (c.includes('alimentação')) return <Utensils size={22} color="#f97316" />;
+    return <Shield size={22} color="#6b7280" />;
+  };
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return 'N/A';
+    const parts = dateStr.split('-');
+    if (parts.length < 3) return dateStr;
+    return `${parts[2]}/${parts[1]}`;
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>🏠 Contas Fixas</Text>
-      <Text style={styles.subtitle}>Gerenciamento de boletos mensais.</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Contas Fixas</Text>
+        <Text style={styles.subtitle}>Boletos e Despesas Mensais</Text>
+      </View>
+
+      <View style={styles.periodContainer}>
+        <MonthSelector />
+      </View>
+
+      {loading && !refreshing ? (
+        <ActivityIndicator size="large" color="#10b981" style={{ marginTop: 40 }} />
+      ) : (
+        <FlatList
+          data={contas}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#10b981']} />}
+          renderItem={({ item }) => (
+            <View style={styles.itemCard}>
+              <View style={styles.itemHeader}>
+                  <View style={styles.iconBox}>
+                      {getIcon(item.categoria)}
+                  </View>
+                  <View style={styles.infoBox}>
+                      <Text style={styles.itemDesc}>{item.descricao}</Text>
+                      <View style={styles.metaRow}>
+                          <Text style={styles.itemMeta}>Vence {formatDate(item.data_vencimento)}</Text>
+                          {item.parcela && <Text style={styles.parcelaBadge}>{item.parcela}</Text>}
+                      </View>
+                  </View>
+                  <View style={styles.valueBox}>
+                      <Text style={styles.itemValue}>{formatBRL(item.valor)}</Text>
+                      <View style={[styles.statusBadge, { backgroundColor: item.pago ? '#ecfdf5' : '#fff7ed' }]}>
+                          {item.pago ? <CheckCircle2 size={12} color="#10b981" /> : <AlertCircle size={12} color="#f97316" />}
+                          <Text style={[styles.statusText, { color: item.pago ? '#059669' : '#c2410c' }]}>
+                              {item.pago ? 'Pago' : 'Pendente'}
+                          </Text>
+                      </View>
+                  </View>
+              </View>
+            </View>
+          )}
+          ListEmptyComponent={
+            <View style={styles.placeholder}>
+              <Shield size={64} color="#d1d5db" />
+              <Text style={styles.placeholderText}>Nenhuma conta fixa este mês.</Text>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 }
@@ -14,9 +132,12 @@ export function ContasScreen({ session }: { session: Session }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f3f4f6', 
-    padding: 24,
+    backgroundColor: '#f9fafb',
+  },
+  header: {
     paddingTop: 60,
+    paddingHorizontal: 24,
+    marginBottom: 10,
   },
   title: {
     fontSize: 28,
@@ -24,8 +145,100 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#6b7280',
-    marginTop: 8,
+    marginTop: 2,
+  },
+  periodContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  listContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+  },
+  itemCard: {
+    backgroundColor: '#ffffff',
+    padding: 20,
+    borderRadius: 24,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  itemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  infoBox: {
+    flex: 1,
+  },
+  itemDesc: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 2,
+  },
+  itemMeta: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  parcelaBadge: {
+    fontSize: 10,
+    backgroundColor: '#f3f4f6',
+    color: '#374151',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: 'hidden',
+    fontWeight: '600',
+  },
+  valueBox: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  itemValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1f2937',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  placeholder: {
+    alignItems: 'center',
+    marginTop: 100,
+    opacity: 0.5,
+  },
+  placeholderText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#374151',
+    marginTop: 16,
   }
 });

@@ -2,44 +2,48 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useMes } from '../context/MesContext';
+import { MonthSelector } from '../components/MonthSelector';
+import { LogOut, TrendingUp, TrendingDown, Wallet } from 'lucide-react-native';
 
-// Helper de moeda (bruto para simular o que existe no next.js)
 const formatBRL = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
 export function DashboardScreen({ session }: { session: Session }) {
+  const { mes, ano } = useMes();
   const [resumo, setResumo] = useState({ entradas: 0, saidas: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchDados();
-  }, []);
+  }, [mes, ano]);
 
   async function fetchDados() {
     try {
       setLoading(true);
       const user = session.user;
-      const mesAtual = new Date().getMonth() + 1;
-      const anoAtual = new Date().getFullYear();
 
       // Buscando entradas
       const { data: entradas } = await supabase
         .from('entradas')
         .select('valor')
         .eq('user_id', user.id)
-        .eq('mes', mesAtual)
-        .eq('ano', anoAtual);
+        .eq('mes', mes)
+        .eq('ano', ano);
 
       // Buscando saídas (cartões, fixas, combustivel)
-      const { data: cartoes } = await supabase.from('cartoes').select('valor').eq('user_id', user.id).eq('mes', mesAtual).eq('ano', anoAtual);
-      const { data: fixas } = await supabase.from('contas_fixas').select('valor').eq('user_id', user.id).eq('mes', mesAtual).eq('ano', anoAtual);
-      const { data: comb } = await supabase.from('combustivel').select('valor').eq('user_id', user.id).eq('mes', mesAtual).eq('ano', anoAtual);
+      const [resCartoes, resFixas, resComb] = await Promise.all([
+        supabase.from('cartoes').select('valor').eq('user_id', user.id).eq('mes', mes).eq('ano', ano),
+        supabase.from('contas_fixas').select('valor').eq('user_id', user.id).eq('mes', mes).eq('ano', ano),
+        supabase.from('combustivel').select('valor').eq('user_id', user.id).eq('mes', mes).eq('ano', ano)
+      ]);
 
       const soma = (rows: any[]) => (rows || []).reduce((acc, r) => acc + Number(r.valor), 0);
       
       const totalEntradas = soma(entradas || []);
-      const totalSaidas = soma(cartoes || []) + soma(fixas || []) + soma(comb || []);
+      const totalSaidas = soma(resCartoes.data || []) + soma(resFixas.data || []) + soma(resComb.data || []);
 
       setResumo({ entradas: totalEntradas, saidas: totalSaidas });
     } catch (error) {
@@ -52,38 +56,73 @@ export function DashboardScreen({ session }: { session: Session }) {
   const saldo = resumo.entradas - resumo.saidas;
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.greeting}>Olá, {session.user.email}</Text>
-        <TouchableOpacity onPress={() => supabase.auth.signOut()} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Sair</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Text style={styles.title}>Painel Principal</Text>
-
-      {loading ? (
-        <ActivityIndicator size="large" color="#10b981" style={{ marginTop: 40 }} />
-      ) : (
-        <View>
-          <View style={styles.card}>
-            <Text style={styles.cardLabel}>Entradas do Mês</Text>
-            <Text style={[styles.cardValue, { color: '#10b981' }]}>{formatBRL(resumo.entradas)}</Text>
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.cardLabel}>Saídas do Mês</Text>
-            <Text style={[styles.cardValue, { color: '#ef4444' }]}>{formatBRL(resumo.saidas)}</Text>
-          </View>
-
-          <View style={[styles.card, { borderLeftWidth: 4, borderLeftColor: saldo >= 0 ? '#10b981' : '#ef4444' }]}>
-            <Text style={styles.cardLabel}>Saldo Atual</Text>
-            <Text style={[styles.cardValue, { color: saldo >= 0 ? '#10b981' : '#ef4444' }]}>
-              {formatBRL(saldo)}
-            </Text>
-          </View>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+      <LinearGradient colors={['#10b981', '#059669']} style={styles.topBar}>
+        <View style={styles.header}>
+            <View>
+                <Text style={styles.greeting}>Olá, {session.user.email?.split('@')[0]}</Text>
+                <Text style={styles.subtitle}>Seu controle de hoje</Text>
+            </View>
+            <TouchableOpacity onPress={() => supabase.auth.signOut()} style={styles.logoutButton}>
+                <LogOut size={20} color="#ffffff" />
+            </TouchableOpacity>
         </View>
-      )}
+      </LinearGradient>
+
+      <View style={styles.content}>
+        <MonthSelector />
+
+        {loading ? (
+          <ActivityIndicator size="large" color="#10b981" style={{ marginTop: 40 }} />
+        ) : (
+          <View>
+            <View style={styles.mainCard}>
+                <Text style={styles.cardLabel}>Saldo Disponível</Text>
+                <Text style={styles.mainBalance}>{formatBRL(saldo)}</Text>
+                <View style={styles.divider} />
+                <View style={styles.row}>
+                    <View style={styles.stat}>
+                        <View style={[styles.iconBox, { backgroundColor: '#ecfdf5' }]}>
+                            <TrendingUp size={20} color="#10b981" />
+                        </View>
+                        <View>
+                            <Text style={styles.statLabel}>Entradas</Text>
+                            <Text style={[styles.statValue, { color: '#059669' }]}>{formatBRL(resumo.entradas)}</Text>
+                        </View>
+                    </View>
+                    <View style={styles.stat}>
+                        <View style={[styles.iconBox, { backgroundColor: '#fef2f2' }]}>
+                            <TrendingDown size={20} color="#ef4444" />
+                        </View>
+                        <View>
+                            <Text style={styles.statLabel}>Saídas</Text>
+                            <Text style={[styles.statValue, { color: '#dc2626' }]}>{formatBRL(resumo.saidas)}</Text>
+                        </View>
+                    </View>
+                </View>
+            </View>
+
+            <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Acesso Rápido</Text>
+            </View>
+
+            <View style={styles.cardRow}>
+                <TouchableOpacity style={styles.miniCard}>
+                    <Wallet size={24} color="#3b82f6" />
+                    <Text style={styles.miniCardText}>Pagar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.miniCard}>
+                    <TrendingUp size={24} color="#10b981" />
+                    <Text style={styles.miniCardText}>Receber</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.miniCard}>
+                    <TrendingDown size={24} color="#f97316" />
+                    <Text style={styles.miniCardText}>Abastecer</Text>
+                </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -91,54 +130,120 @@ export function DashboardScreen({ session }: { session: Session }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f3f4f6', // gray-100
-    padding: 24,
-    paddingTop: 60, // Safe area manual
+    backgroundColor: '#f9fafb',
+  },
+  topBar: {
+    paddingTop: 60,
+    paddingBottom: 40,
+    paddingHorizontal: 24,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
   },
   greeting: {
-    fontSize: 16,
-    color: '#374151',
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#d1fae5',
+    marginTop: 2,
   },
   logoutButton: {
-    padding: 8,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 8,
+    padding: 10,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 12,
   },
-  logoutText: {
-    color: '#ef4444',
-    fontWeight: 'bold',
+  content: {
+    paddingHorizontal: 24,
+    marginTop: -30,
   },
-  title: {
-    fontSize: 28,
+  mainCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  cardLabel: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  mainBalance: {
+    fontSize: 36,
+    fontWeight: '900',
+    color: '#111827',
+    marginTop: 4,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#f3f4f6',
+    marginVertical: 20,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  stat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  statValue: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  sectionHeader: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#111827',
-    marginBottom: 24,
   },
-  card: {
+  cardRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  miniCard: {
+    flex: 1,
     backgroundColor: '#ffffff',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 16,
+    padding: 16,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 2,
   },
-  cardLabel: {
-    fontSize: 14,
-    color: '#6b7280',
-    textTransform: 'uppercase',
+  miniCardText: {
+    fontSize: 12,
     fontWeight: '600',
-    marginBottom: 8,
-  },
-  cardValue: {
-    fontSize: 32,
-    fontWeight: 'bold',
-  },
+    color: '#374151',
+    marginTop: 8,
+  }
 });

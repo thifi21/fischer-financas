@@ -6,6 +6,8 @@ import { LoginScreen } from './src/screens/LoginScreen';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { NavigationContainer } from '@react-navigation/native';
 
+import { MesProvider } from './src/context/MesContext';
+
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,9 +36,11 @@ export default function App() {
   return (
     <>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      <NavigationContainer>
-        {session && session.user ? <AppNavigator session={session} /> : <LoginScreen />}
-      </NavigationContainer>
+      <MesProvider>
+        <NavigationContainer>
+          {session && session.user ? <AppNavigator session={session} /> : <LoginScreen />}
+        </NavigationContainer>
+      </MesProvider>
     </>
   );
 }
