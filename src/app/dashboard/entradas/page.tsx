@@ -174,10 +174,10 @@ export default function EntradasPage() {
     setLoadingExtrato(true)
     
     const [resEntradas, resFixas, resCartoes, resComb] = await Promise.all([
-      supabase.from('entradas').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano),
-      supabase.from('contas_fixas').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).eq('pago', true),
-      supabase.from('cartoes').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).eq('pago', true),
-      supabase.from('combustivel').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano)
+      supabase.from('entradas').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).eq('oculto_extrato', false),
+      supabase.from('contas_fixas').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).eq('pago', true).eq('oculto_extrato', false),
+      supabase.from('cartoes').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).eq('pago', true).eq('oculto_extrato', false),
+      supabase.from('combustivel').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).eq('oculto_extrato', false)
     ])
 
     let items: ExtratoItem[] = []
@@ -355,6 +355,12 @@ export default function EntradasPage() {
     setSavingEdicao(false)
   }
 
+  async function ocultarEdicaoExtrato(item: ExtratoItem) {
+    if (!confirm('Deseja ocultar este lançamento apenas do extrato? Ele continuará visível em suas respectivas abas.')) return
+    await supabase.from(item.tabelaOrigem).update({ oculto_extrato: true }).eq('id', item.id)
+    await carregarExtrato()
+  }
+
   // ==========================================
   // RENDERIZAÇÃO
   // ==========================================
@@ -506,8 +512,9 @@ export default function EntradasPage() {
                                   className={`w-6 h-6 rounded border-2 ${item.conferido ? 'bg-green-500 border-green-500 text-white' : 'border-gray-200 text-transparent hover:border-green-400'}`}
                                 >✓</button>
                               </td>
-                              <td className="py-3 px-2 text-right">
-                                <button onClick={() => abrirEdicaoExtrato(item)} className="text-gray-400 p-1">✏️</button>
+                              <td className="py-3 px-2 text-right flex items-center justify-end gap-1">
+                                <button onClick={() => abrirEdicaoExtrato(item)} className="text-gray-400 hover:text-blue-500 p-1">✏️</button>
+                                <button onClick={() => ocultarEdicaoExtrato(item)} className="text-gray-400 hover:text-red-500 p-1">🗑️</button>
                               </td>
                             </tr>
                           )

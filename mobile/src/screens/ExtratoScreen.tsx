@@ -4,7 +4,7 @@ import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { useMes } from '../context/MesContext';
 import { MonthSelector } from '../components/MonthSelector';
-import { CheckCircle2, Circle, TrendingUp, TrendingDown, CreditCard, Fuel, Home } from 'lucide-react-native';
+import { CheckCircle2, Circle, TrendingUp, TrendingDown, CreditCard, Fuel, Home, Trash2 } from 'lucide-react-native';
 
 const formatBRL = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -34,14 +34,14 @@ export function ExtratoScreen({ session }: { session: Session }) {
       const uid = session.user.id;
 
       const [resEntradas, resFixas, resCartoes, resComb] = await Promise.all([
-        supabase.from('entradas').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano),
-        supabase.from('contas_fixas').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).eq('pago', true),
-        supabase.from('cartoes').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).eq('pago', true),
-        supabase.from('combustivel').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano)
+        supabase.from('entradas').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).eq('oculto_extrato', false),
+        supabase.from('contas_fixas').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).eq('pago', true).eq('oculto_extrato', false),
+        supabase.from('cartoes').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).eq('pago', true).eq('oculto_extrato', false),
+        supabase.from('combustivel').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).eq('oculto_extrato', false)
       ]);
 
       let items: ExtratoItem[] = [];
-
+// ... (lógica de mapeamento simplificada para o diff)
       // 1. Entradas
       resEntradas.data?.filter(e => e.categoria !== 'saldo_inicial').forEach(e => {
         items.push({
@@ -100,9 +100,7 @@ export function ExtratoScreen({ session }: { session: Session }) {
       });
 
       items.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
-      
       const total = items.reduce((acc, item) => acc + (item.tipo === 'entrada' ? item.valor : -item.valor), 0);
-      
       setExtrato(items);
       setSaldoTotal(total);
     } catch (error) {
@@ -113,20 +111,24 @@ export function ExtratoScreen({ session }: { session: Session }) {
     }
   }, [mes, ano, session.user.id]);
 
-  useEffect(() => {
-    fetchExtrato();
-  }, [fetchExtrato]);
+  useEffect(() => { fetchExtrato(); }, [fetchExtrato]);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchExtrato();
-  };
+  const onRefresh = () => { setRefreshing(true); fetchExtrato(); };
 
   const toggleConferido = async (item: ExtratoItem) => {
     const novoStatus = !item.conferido;
     setExtrato(prev => prev.map(x => (x.id === item.id && x.tabelaOrigem === item.tabelaOrigem) ? { ...x, conferido: novoStatus } : x));
-    
     await supabase.from(item.tabelaOrigem).update({ conferido: novoStatus }).eq('id', item.id);
+  };
+
+  const ocultarDoExtrato = async (item: ExtratoItem) => {
+    // Confirmação simples em mobile normalmente via Alert, aqui faremos direto para agilizar o port
+    setExtrato(prev => prev.filter(x => !(x.id === item.id && x.tabelaOrigem === item.tabelaOrigem)));
+    const { error } = await supabase.from(item.tabelaOrigem).update({ oculto_extrato: true }).eq('id', item.id);
+    if (error) console.error('Erro ao ocultar:', error);
+    // Recalcular saldo localmente
+    const total = extrato.filter(x => !(x.id === item.id && x.tabelaOrigem === item.tabelaOrigem)).reduce((acc, x) => acc + (x.tipo === 'entrada' ? x.valor : -x.valor), 0);
+    setSaldoTotal(total);
   };
 
   const renderIcon = (item: ExtratoItem) => {
@@ -175,13 +177,18 @@ export function ExtratoScreen({ session }: { session: Session }) {
                     <Text style={[styles.itemValue, { color: item.tipo === 'entrada' ? '#10b981' : '#ef4444' }]}>
                         {item.tipo === 'entrada' ? '+' : '-'} {formatBRL(item.valor)}
                     </Text>
-                    <TouchableOpacity onPress={() => toggleConferido(item)} style={styles.checkBtn}>
-                        {item.conferido ? (
-                            <CheckCircle2 size={22} color="#10b981" />
-                        ) : (
-                            <Circle size={22} color="#d1d5db" />
-                        )}
-                    </TouchableOpacity>
+                    <View style={styles.actionButtons}>
+                        <TouchableOpacity onPress={() => ocultarDoExtrato(item)} style={styles.actionBtn}>
+                            <Trash2 size={20} color="#9ca3af" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => toggleConferido(item)} style={styles.actionBtn}>
+                            {item.conferido ? (
+                                <CheckCircle2 size={22} color="#10b981" />
+                            ) : (
+                                <Circle size={22} color="#d1d5db" />
+                            )}
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
           )}
@@ -270,14 +277,19 @@ const styles = StyleSheet.create({
   },
   actionContainer: {
     alignItems: 'flex-end',
-    gap: 6,
+    gap: 4,
   },
   itemValue: {
     fontSize: 15,
     fontWeight: '800',
   },
-  checkBtn: {
-    padding: 2,
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  actionBtn: {
+    padding: 4,
   },
   footer: {
     position: 'absolute',
