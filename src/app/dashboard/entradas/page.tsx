@@ -449,7 +449,7 @@ export default function EntradasPage() {
         <>
           <div className="card mb-5 flex items-end gap-4 bg-gray-50">
             <div className="flex-1 max-w-sm">
-              <label className="label">Saldo em Conta no Dia 01 / {String(mes).padStart(2,'0')}</label>
+              <label className="label">Saldo em Conta em 01/{String(mes).padStart(2,'0')}/{ano}</label>
               <input type="number" step="0.01" className="input font-bold" value={saldoInicial.valor || ''} onChange={e => setSaldoInicial({ ...saldoInicial, valor: Number(e.target.value) })} />
             </div>
             <button className="btn-primary" onClick={salvarSaldoInicial} disabled={savingSaldo}>{savingSaldo ? 'Salvando...' : 'Salvar Saldo'}</button>
@@ -480,7 +480,7 @@ export default function EntradasPage() {
                    </thead>
                    <tbody>
                      <tr className="bg-gray-50 font-medium">
-                        <td className="py-3 px-2">01/{String(mes).padStart(2,'0')}</td>
+                        <td className="py-3 px-2">01/{String(mes).padStart(2,'0')}/{ano}</td>
                         <td>Saldo Inicial</td>
                         <td className="text-center">-</td>
                         <td className="text-right"></td>
