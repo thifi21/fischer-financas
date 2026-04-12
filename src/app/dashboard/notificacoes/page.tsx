@@ -351,11 +351,23 @@ export default function NotificacoesPage() {
         body: JSON.stringify({ message: texto, targetIndex })
       })
       
+      const data = await res.json().catch(() => ({ error: 'Resposta inválida' }))
+
       if (res.ok) {
         toast.success(targetIndex !== undefined ? 'Resumo enviado!' : 'Resumo enviado para todos!')
       } else {
-        const data = await res.json().catch(() => ({ error: 'Verifique a configuração do CallMeBot' }))
-        toast.error(`Erro: ${data.error || 'Falha ao enviar'}`)
+        // Se houver detalhes de falha por número
+        if (data.details && Array.isArray(data.details)) {
+          const falhas = data.details.filter((r: any) => !r.success)
+          if (falhas.length > 0) {
+            const numFalhas = falhas.map((f: any) => f.phone.slice(-4)).join(', ')
+            toast.error(`Falha no(s) número(s) final ${numFalhas}. Verifique a API Key ou Ativação.`)
+          } else {
+            toast.error(data.error || 'Erro desconhecido no envio')
+          }
+        } else {
+          toast.error(data.error || 'Falha ao enviar')
+        }
       }
     } catch (e) {
       toast.error('Erro de conexão ao enviar WhatsApp')
@@ -404,7 +416,7 @@ export default function NotificacoesPage() {
                   onClick={() => enviarParaWhatsApp(num.index)}
                   disabled={saving || notificacoesNaoLidas === 0}
                   className="btn-secondary flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
-                  title={`Enviar para o final ${num.label}`}
+                  title={`Enviar para ${num.label}`}
                 >
                   {saving ? '⏳' : `💬 WhatsApp ${num.label}`}
                 </button>

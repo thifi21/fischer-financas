@@ -9,11 +9,13 @@ export function getConfiguredWhatsAppNumbers() {
   const configs: { label: string; index: number }[] = []
   
   const defaultPhone = process.env.WHATSAPP_PHONE?.trim()
-  if (defaultPhone) configs.push({ label: defaultPhone.slice(-4), index: 0 })
+  const defaultLabel = process.env.WHATSAPP_LABEL?.trim()
+  if (defaultPhone) configs.push({ label: defaultLabel || defaultPhone.slice(-4), index: 0 })
 
   for (let i = 1; i <= 5; i++) {
     const p = process.env[`WHATSAPP_PHONE_${i}`]?.trim()
-    if (p) configs.push({ label: p.slice(-4), index: i })
+    const l = process.env[`WHATSAPP_LABEL_${i}`]?.trim()
+    if (p) configs.push({ label: l || p.slice(-4), index: i })
   }
   
   return configs
