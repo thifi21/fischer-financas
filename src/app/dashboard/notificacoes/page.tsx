@@ -76,9 +76,13 @@ export default function NotificacoesPage() {
     try {
       const res = await fetch('/api/whatsapp')
       const data = await res.json()
-      if (data.numbers) setWhatsappNumbers(data.numbers)
+      console.log('WhatsApp Numbers API response:', data)
+      if (data.numbers) {
+        setWhatsappNumbers(data.numbers)
+        console.log('WhatsApp Numbers state updated:', data.numbers)
+      }
     } catch (e) {
-      console.error('Erro ao buscar números de WhatsApp')
+      console.error('Erro ao buscar números de WhatsApp', e)
     }
   }
 

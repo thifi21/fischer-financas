@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { sendWhatsAppMessage, getConfiguredWhatsAppNumbers } from '@/lib/whatsapp'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const numbers = getConfiguredWhatsAppNumbers()
