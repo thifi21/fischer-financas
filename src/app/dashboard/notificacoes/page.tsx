@@ -56,6 +56,7 @@ export default function NotificacoesPage() {
   const [form, setForm] = useState<Partial<Lembrete>>({})
   const [saving, setSaving] = useState(false)
   const [abaAtiva, setAbaAtiva] = useState<'lembretes' | 'notificacoes'>('notificacoes')
+  const [whatsappNumbers, setWhatsappNumbers] = useState<{ label: string; index: number }[]>([])
   const userIdRef = useRef<string | null>(cachedUserId)
 
   useEffect(() => {
@@ -66,9 +67,20 @@ export default function NotificacoesPage() {
         cachedUserId = user?.id ?? null
       }
       carregarTudo()
+      buscarNumerosWhatsApp()
     }
     init()
   }, [])
+
+  async function buscarNumerosWhatsApp() {
+    try {
+      const res = await fetch('/api/whatsapp')
+      const data = await res.json()
+      if (data.numbers) setWhatsappNumbers(data.numbers)
+    } catch (e) {
+      console.error('Erro ao buscar números de WhatsApp')
+    }
+  }
 
   useEffect(() => {
     if (userIdRef.current) carregarTudo()
@@ -321,6 +333,37 @@ export default function NotificacoesPage() {
     }
   }
 
+  async function enviarParaWhatsApp(targetIndex?: number) {
+    if (notificacoes.length === 0) {
+      toast.info('Nenhuma notificação para enviar')
+      return
+    }
+
+    // Configurando texto com negritos do WhatsApp (*)
+    const texto = `*🛎️ Resumo Fischer Finanças - ${MESES[mes - 1]}/${ano}*\n\n` + 
+      notificacoes.filter(n => !n.lida).map(n => `• *${n.titulo}*: ${n.mensagem}`).join('\n\n')
+
+    setSaving(true)
+    try {
+      const res = await fetch('/api/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: texto, targetIndex })
+      })
+      
+      if (res.ok) {
+        toast.success(targetIndex !== undefined ? 'Resumo enviado!' : 'Resumo enviado para todos!')
+      } else {
+        const data = await res.json().catch(() => ({ error: 'Verifique a configuração do CallMeBot' }))
+        toast.error(`Erro: ${data.error || 'Falha ao enviar'}`)
+      }
+    } catch (e) {
+      toast.error('Erro de conexão ao enviar WhatsApp')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   function marcarNotificacaoLida(id: string) {
     setNotificacoes(prev => prev.map(n => n.id === id ? { ...n, lida: true } : n))
   }
@@ -353,6 +396,39 @@ export default function NotificacoesPage() {
           >
             {saving ? '⏳...' : '✈️ Telegram'}
           </button>
+          {whatsappNumbers.length > 0 && (
+            <div className="flex gap-2">
+              {whatsappNumbers.map((num) => (
+                <button
+                  key={num.index}
+                  onClick={() => enviarParaWhatsApp(num.index)}
+                  disabled={saving || notificacoesNaoLidas === 0}
+                  className="btn-secondary flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+                  title={`Enviar para o final ${num.label}`}
+                >
+                  {saving ? '⏳' : `💬 WhatsApp ${num.label}`}
+                </button>
+              ))}
+              {whatsappNumbers.length > 1 && (
+                <button
+                  onClick={() => enviarParaWhatsApp()}
+                  disabled={saving || notificacoesNaoLidas === 0}
+                  className="btn-secondary flex items-center gap-2 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700"
+                >
+                  {saving ? '⏳' : '💬 Todos'}
+                </button>
+              )}
+            </div>
+          )}
+          {whatsappNumbers.length === 0 && (
+            <button 
+              onClick={() => enviarParaWhatsApp()} 
+              disabled={saving || notificacoesNaoLidas === 0}
+              className="btn-secondary flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+            >
+              {saving ? '⏳...' : '💬 WhatsApp'}
+            </button>
+          )}
           <button onClick={() => abrirModal()} className="btn-primary">
             + Novo Lembrete
           </button>

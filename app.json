@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "b6819e0d-fd6e-4068-8e62-6eb8d008d87f"
+      }
+    },
+    "android": {
+      "package": "com.lonellywolfguy.fischerfinancas"
+    }
+  }
+}
