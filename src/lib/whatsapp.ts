@@ -22,18 +22,24 @@ export function getConfiguredWhatsAppNumbers() {
 }
 
 export async function sendWhatsAppMessage(text: string, targetIndex?: number) {
-  // Coletar todas as configurações disponíveis
-  const configs: { phone: string; apiKey: string; index: number }[] = []
+  const idInstance = process.env.GREEN_API_ID_INSTANCE?.trim()
+  const apiTokenInstance = process.env.GREEN_API_TOKEN_INSTANCE?.trim()
+
+  if (!idInstance || !apiTokenInstance) {
+    console.error('WhatsApp (GreenAPI): Configurações ausentes.')
+    return { success: false, error: 'Configuração da API incompleta' }
+  }
+
+  // Coletar todos os números disponíveis
+  const configs: { phone: string; index: number }[] = []
 
   const defaultPhone = process.env.WHATSAPP_PHONE?.trim()
-  const defaultKey = process.env.WHATSAPP_API_KEY?.trim()
-  if (defaultPhone && defaultKey) configs.push({ phone: defaultPhone, apiKey: defaultKey, index: 0 })
+  if (defaultPhone) configs.push({ phone: defaultPhone, index: 0 })
 
   for (let i = 1; i <= 5; i++) {
     const p = process.env[`WHATSAPP_PHONE_${i}`]?.trim()
-    const k = process.env[`WHATSAPP_API_KEY_${i}`]?.trim()
-    if (p && k) {
-      configs.push({ phone: p, apiKey: k, index: i })
+    if (p) {
+      configs.push({ phone: p, index: i })
     }
   }
 
@@ -47,19 +53,37 @@ export async function sendWhatsAppMessage(text: string, targetIndex?: number) {
     return { success: false, error: 'Destinatário não encontrado' }
   }
 
-  const encodedText = encodeURIComponent(text)
   const results = []
 
-  for (const { phone, apiKey } of targets) {
-    const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`
-    const url = `https://api.callmebot.com/whatsapp.php?phone=${formattedPhone}&text=${encodedText}&apikey=${apiKey}`
+  for (const { phone } of targets) {
+    // Formatar o número para o padrão Green API: ddd + número + @c.us (sem o + e sem espaços)
+    const cleanPhone = phone.replace(/\D/g, '') // Mantém apenas números
+    const chatId = `${cleanPhone}@c.us`
+    
+    const url = `https://api.green-api.com/waInstance${idInstance}/sendMessage/${apiTokenInstance}`
 
     try {
-      const response = await fetch(url, { cache: 'no-store' })
-      const responseText = await response.text()
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chatId: chatId,
+          message: text
+        }),
+        cache: 'no-store'
+      })
       
-      const isOk = response.ok && (responseText.toLowerCase().includes('queue') || responseText.toLowerCase().includes('sent'))
-      results.push({ phone, success: isOk, errorText: responseText, status: response.status })
+      const data = await response.json()
+      
+      // No Green API, se o envio for bem sucedido ele retorna um idMessage
+      const isOk = response.ok && data.idMessage
+      
+      results.push({ 
+        phone, 
+        success: isOk, 
+        errorText: isOk ? 'Enviado' : (data.message || 'Erro no envio'), 
+        status: response.status 
+      })
     } catch (error: any) {
       results.push({ phone, success: false, error: 'Erro de conexão', errorText: error.message })
     }

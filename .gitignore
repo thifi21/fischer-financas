@@ -34,3 +34,5 @@ next-env.d.ts
 
 # Dados internos
 dados_extraidos.json
+.vercel
+.env*.local
