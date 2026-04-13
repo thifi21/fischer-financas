@@ -25,7 +25,10 @@ export async function POST(request: Request) {
     if (result.success) {
       return NextResponse.json({ success: true, message: 'Enviado com sucesso' })
     } else {
-      return NextResponse.json({ error: 'Falha no envio para um ou mais números', details: result.results }, { status: 500 })
+      return NextResponse.json({ 
+        error: result.error || 'Falha no envio para um ou mais números', 
+        details: result.results 
+      }, { status: 500 })
     }
   } catch (error) {
     return NextResponse.json({ error: 'Erro interno ao processar notificação WhatsApp' }, { status: 500 })
