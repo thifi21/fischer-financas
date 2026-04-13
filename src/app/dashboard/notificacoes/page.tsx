@@ -364,8 +364,8 @@ export default function NotificacoesPage() {
         if (data.details && Array.isArray(data.details)) {
           const falhas = data.details.filter((r: any) => !r.success)
           if (falhas.length > 0) {
-            const numFalhas = falhas.map((f: any) => f.phone.slice(-4)).join(', ')
-            toast.error(`Falha no(s) número(s) final ${numFalhas}. Verifique a API Key ou Ativação.`)
+            const detalhe = falhas.map((f: any) => `${f.phone.slice(-4)}: ${f.errorText || 'Erro'}`).join(' | ')
+            toast.error(`Falha no(s) número(s) final ${falhas.map((f: any) => f.phone.slice(-4)).join(', ')}. Detalhes: ${detalhe}`)
           } else {
             toast.error(data.error || 'Erro desconhecido no envio')
           }

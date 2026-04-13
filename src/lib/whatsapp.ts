@@ -55,13 +55,13 @@ export async function sendWhatsAppMessage(text: string, targetIndex?: number) {
     const url = `https://api.callmebot.com/whatsapp.php?phone=${formattedPhone}&text=${encodedText}&apikey=${apiKey}`
 
     try {
-      const response = await fetch(url)
+      const response = await fetch(url, { cache: 'no-store' })
       const responseText = await response.text()
       
       const isOk = response.ok && (responseText.toLowerCase().includes('queue') || responseText.toLowerCase().includes('sent'))
-      results.push({ phone, success: isOk })
-    } catch (error) {
-      results.push({ phone, success: false, error: 'Erro de conexão' })
+      results.push({ phone, success: isOk, errorText: responseText, status: response.status })
+    } catch (error: any) {
+      results.push({ phone, success: false, error: 'Erro de conexão', errorText: error.message })
     }
   }
 
