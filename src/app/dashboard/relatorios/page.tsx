@@ -43,8 +43,10 @@ export default function RelatoriosPage() {
       carregarDados()
     }
     init()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (userIdRef.current) carregarDados()
   }, [mes, ano, periodo, dataInicio, dataFim])

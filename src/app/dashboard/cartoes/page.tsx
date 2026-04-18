@@ -66,9 +66,11 @@ export default function CartoesPage() {
       carregarTudo()
     }
     init()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => { setExpandidos(new Set()) }, [mes])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (userIdRef.current) carregarTudo() }, [mes])
 
   // ── Atualiza preview de parcelas ao digitar ───────────────────

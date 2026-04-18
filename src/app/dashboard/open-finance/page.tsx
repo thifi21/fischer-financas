@@ -60,6 +60,7 @@ export default function OpenFinancePage() {
 
   useEffect(() => {
     carregarHistorico()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function carregarHistorico() {
