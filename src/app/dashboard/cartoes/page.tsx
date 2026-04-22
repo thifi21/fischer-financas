@@ -697,11 +697,11 @@ export default function CartoesPage() {
             <div className="space-y-3">
               <div>
                 <label className="label">Data da Compra</label>
-                <input type="date" className="input" value={form.data_compra || ''} onChange={e => setForm({ ...form, data_compra: e.target.value })} />
+                <input type="date" className="input" value={form.data_compra || ''} onChange={e => setForm({ ...form, data_compra: e.target.value })} autoFocus />
               </div>
               <div>
                 <label className="label">Local / Estabelecimento</label>
-                <input className="input" value={form.local || ''} onChange={e => setForm({ ...form, local: e.target.value })} placeholder="Ex: Shopee, Netflix, Mercadinho..." autoFocus />
+                <input className="input" value={form.local || ''} onChange={e => setForm({ ...form, local: e.target.value })} placeholder="Ex: Shopee, Netflix, Mercadinho..." />
               </div>
               <div>
                 <label className="label">Parcela</label>
