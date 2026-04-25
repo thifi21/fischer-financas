@@ -333,6 +333,24 @@ export default function EntradasPage() {
     await supabase.from(item.tabelaOrigem).update({ conferido: novoStatus }).eq('id', item.id)
   }
 
+  async function toggleTodosConferidosExtrato() {
+    if (extrato.length === 0) return
+    const todosConferidos = extrato.every(x => x.conferido)
+    const novoStatus = !todosConferidos
+    
+    setExtrato(prev => prev.map(x => ({ ...x, conferido: novoStatus })))
+    
+    const porTabela: Record<string, string[]> = {}
+    extrato.forEach(x => {
+      if (!porTabela[x.tabelaOrigem]) porTabela[x.tabelaOrigem] = []
+      porTabela[x.tabelaOrigem].push(x.id)
+    })
+    
+    for (const tabela in porTabela) {
+      await supabase.from(tabela).update({ conferido: novoStatus }).in('id', porTabela[tabela])
+    }
+  }
+
   function abrirEdicaoExtrato(item: ExtratoItem) {
     setFormEdicao({ ...item })
     setModalEdicao(item)
@@ -480,7 +498,15 @@ export default function EntradasPage() {
                        <th className="text-center py-3 px-2">Tipo</th>
                        <th className="text-right py-3 px-2">Valor</th>
                        <th className="text-right py-3 px-2">Saldo Progressivo</th>
-                       <th className="py-3 px-2 w-10">✓</th>
+                       <th className="py-3 px-2 w-10 text-center">
+                         <button 
+                           onClick={toggleTodosConferidosExtrato}
+                           title="Marcar/Desmarcar todos"
+                           className="hover:text-green-500 transition-colors"
+                         >
+                           ✓✓
+                         </button>
+                       </th>
                        <th className="py-3 px-2 w-10"></th>
                      </tr>
                    </thead>

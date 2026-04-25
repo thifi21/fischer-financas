@@ -52,6 +52,7 @@ export default function CartoesPage() {
   const [form, setForm]                             = useState<any>({})
   const [saving, setSaving]                         = useState(false)
   const [parcelasPreview, setParcelasPreview]       = useState<string[]>([])
+  const [sugestoesLocais, setSugestoesLocais]       = useState<string[]>([])
   const [driveModal, setDriveModal]                 = useState<{ cartao: Cartao } | null>(null)
   const userIdRef = useRef<string | null>(cachedUserId)
 
@@ -104,9 +105,10 @@ export default function CartoesPage() {
     const uid = userIdRef.current
     if (!uid) return
     setLoading(true)
-    const [{ data: cartoesData }, { data: lancsData }] = await Promise.all([
+    const [{ data: cartoesData }, { data: lancsData }, { data: locaisData }] = await Promise.all([
       supabase.from('cartoes').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano),
       supabase.from('lancamentos_cartao').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).order('data_compra'),
+      supabase.from('lancamentos_cartao').select('local').eq('user_id', uid).order('id', { ascending: false }).limit(300),
     ])
     const ordenados = (cartoesData || []).sort((a, b) =>
       (ORDEM_CARTOES[a.nome] ?? 99) - (ORDEM_CARTOES[b.nome] ?? 99)
@@ -118,6 +120,12 @@ export default function CartoesPage() {
       agrupado[l.cartao_id].push(l)
     }
     setTodosLancamentos(agrupado)
+    
+    if (locaisData) {
+      const unicos = Array.from(new Set(locaisData.map(d => d.local))).filter(Boolean)
+      setSugestoesLocais(unicos)
+    }
+
     setLoading(false)
   }
 
@@ -384,6 +392,18 @@ export default function CartoesPage() {
       .eq('id', lancamento.id)
   }
 
+  async function toggleTodosConferidosCartao(cartaoId: string, lancs: LancamentoCartao[]) {
+    if (lancs.length === 0) return
+    const todosConferidos = lancs.every(l => l.conferido)
+    const novoConferido = !todosConferidos
+
+    const novaLista = lancs.map(l => ({ ...l, conferido: novoConferido }))
+    setTodosLancamentos(prev => ({ ...prev, [cartaoId]: novaLista }))
+
+    const ids = lancs.map(l => l.id)
+    await supabase.from('lancamentos_cartao').update({ conferido: novoConferido }).in('id', ids)
+  }
+
   async function excluirCartao(cartao: Cartao) {
     const qtd = (todosLancamentos[cartao.id] || []).length
     if (!confirm(`Excluir "${cartao.nome}" e ${qtd} lançamento(s)?`)) return
@@ -577,7 +597,15 @@ export default function CartoesPage() {
                               <th className="text-left px-3 py-2">Local / Estabelecimento</th>
                               <th className="text-left px-3 py-2">Parcela</th>
                               <th className="text-right px-3 py-2">Valor</th>
-                              <th className="text-center px-3 py-2 w-16">✓</th>
+                              <th className="text-center px-3 py-2 w-16">
+                                <button 
+                                  onClick={() => toggleTodosConferidosCartao(cartao.id, lancs)}
+                                  title="Marcar/Desmarcar todos"
+                                  className="hover:text-green-500 transition-colors"
+                                >
+                                  ✓✓
+                                </button>
+                              </th>
                               <th className="px-3 py-2 w-20">Ações</th>
                             </tr>
                           </thead>
@@ -701,7 +729,18 @@ export default function CartoesPage() {
               </div>
               <div>
                 <label className="label">Local / Estabelecimento</label>
-                <input className="input" value={form.local || ''} onChange={e => setForm({ ...form, local: e.target.value })} placeholder="Ex: Shopee, Netflix, Mercadinho..." />
+                <input 
+                  className="input" 
+                  list="sugestoes-locais"
+                  value={form.local || ''} 
+                  onChange={e => setForm({ ...form, local: e.target.value })} 
+                  placeholder="Ex: Shopee, Netflix, Mercadinho..." 
+                />
+                <datalist id="sugestoes-locais">
+                  {sugestoesLocais.map((local, i) => (
+                    <option key={i} value={local} />
+                  ))}
+                </datalist>
               </div>
               <div>
                 <label className="label">Parcela</label>
