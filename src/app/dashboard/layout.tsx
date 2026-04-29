@@ -13,6 +13,7 @@ import { MESES } from '@/types'
 import DrivePanel from '@/components/DrivePanel'
 import CotacoesPanel from '@/components/CotacoesPanel'
 import { MesProvider, useMes } from '@/context/MesContext'
+import AIChatBot from '@/components/AIChatBot'
 
 const NAV_ITEMS = [
   { href: '/dashboard', icon: '📊', label: 'Dashboard', grupo: 'principal' },
@@ -346,6 +347,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           </motion.main>
         </AnimatePresence>
       </div>
+
+      {/* Assistente IA Flutuante */}
+      <AIChatBot />
     </div>
   )
 }
