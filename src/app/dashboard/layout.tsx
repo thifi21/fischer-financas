@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
  * Fischer Finanças 2026 — Layout Principal
  * Desenvolvido por Thiago Fischer
  */
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
@@ -31,16 +31,23 @@ const NAV_ITEMS = [
   { href: '/dashboard/sonhos', icon: '🎯', label: 'Meus Sonhos', grupo: 'planejamento' },
 ]
 
-function useClock() {
+// Componente isolado para o relógio — evita re-render do layout a cada segundo
+function Clock() {
   const [now, setNow] = useState(new Date())
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
-  return {
-    hora: now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-    data: now.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }),
-  }
+  return (
+    <div className="leading-tight">
+      <div className="text-base font-bold text-gray-800 dark:text-gray-100 tabular-nums tracking-wide">
+        {now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      </div>
+      <div className="text-xs text-gray-400 dark:text-gray-500 capitalize">
+        {now.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}
+      </div>
+    </div>
+  )
 }
 
 function useDarkMode() {
@@ -66,9 +73,8 @@ function useDarkMode() {
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const [loading, setLoading] = useState(true)
-  const { hora, data } = useClock()
   const { dark, toggle: toggleDark } = useDarkMode()
   const checked = useRef(false)
 
@@ -277,14 +283,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3">
               <span className="text-lg select-none">🕐</span>
-              <div className="leading-tight">
-                <div className="text-base font-bold text-gray-800 dark:text-gray-100 tabular-nums tracking-wide">
-                  {hora}
-                </div>
-                <div className="text-xs text-gray-400 dark:text-gray-500 capitalize">
-                  {data}
-                </div>
-              </div>
+              <Clock />
             </div>
             {/* Indicador do mês ativo */}
             <motion.div 

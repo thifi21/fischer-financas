@@ -1,11 +1,11 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
 import { formatBRL } from '@/lib/utils'
 import { MESES, type Entrada } from '@/types'
 
-let cachedUserId: string | null = null
+
 
 // Helper para calcular o 5º dia útil do mês
 function get5thBusinessDayFormatado(ano: number, mes: number) {
@@ -46,7 +46,7 @@ interface ExtratoItem {
 }
 
 export default function EntradasPage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   
   const { mes, ano } = useMes()
   
@@ -76,14 +76,13 @@ export default function EntradasPage() {
   const [formEdicao, setFormEdicao]   = useState<any>({})
   const [savingEdicao, setSavingEdicao] = useState(false)
 
-  const userIdRef = useRef<string | null>(cachedUserId)
+  const userIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     async function init() {
       if (!userIdRef.current) {
         const { data: { user } } = await supabase.auth.getUser()
         userIdRef.current = user?.id ?? null
-        cachedUserId = user?.id ?? null
       }
       if (activeTab === 'entradas') carregarEntradas()
       else carregarExtrato()

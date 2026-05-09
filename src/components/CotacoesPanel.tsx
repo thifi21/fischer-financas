@@ -33,7 +33,7 @@ async function buscarCotacoes(): Promise<DadosCotacao> {
     // ── DÓLAR + EURO (AwesomeAPI) ─────────────────────────────────
     // Busca as duas moedas numa única requisição para ser eficiente
     fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL', {
-      cache: 'no-store',
+      cache: 'default',
     })
       .then(r => {
         if (!r.ok) throw new Error(`${r.status}`)
@@ -90,7 +90,7 @@ async function buscarCotacoes(): Promise<DadosCotacao> {
 
     // ── PETR4 (brapi.dev — gratuito sem chave) ────────────────────
     fetch('https://brapi.dev/api/quote/PETR4?range=1d&interval=1d&fundamental=false', {
-      cache: 'no-store',
+      cache: 'default',
     })
       .then(r => {
         if (!r.ok) throw new Error(`${r.status}`)
@@ -116,7 +116,7 @@ async function buscarCotacoes(): Promise<DadosCotacao> {
     // ── CDI (Banco Central do Brasil — série 4391) ────────────────
     fetch(
       'https://api.bcb.gov.br/dados/serie/bcdata.sgs.4391/dados/ultimos/1?formato=json',
-      { cache: 'no-store' }
+      { cache: 'default' }
     )
       .then(r => {
         if (!r.ok) throw new Error(`${r.status}`)

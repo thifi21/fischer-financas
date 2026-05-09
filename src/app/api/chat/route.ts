@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
+// Singleton — reutilizado entre requisições na mesma instância serverless (warm start)
+// A instância é criada de forma lazy na primeira requisição para suportar ambientes
+// onde as variáveis de ambiente só ficam disponíveis em runtime.
+let genAI: GoogleGenerativeAI | null = null
+
+function getModel() {
+  const apiKey = process.env.GOOGLE_AI_KEY
+  if (!apiKey) return null
+  if (!genAI) genAI = new GoogleGenerativeAI(apiKey)
+  return genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { messages } = await req.json()
@@ -9,14 +21,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Mensagens inválidas ou ausentes.' }, { status: 400 })
     }
 
-    const apiKey = process.env.GOOGLE_AI_KEY
+    const model = getModel()
 
-    if (!apiKey) {
+    if (!model) {
       return NextResponse.json({ error: 'A chave GOOGLE_AI_KEY não está configurada no .env.local.' }, { status: 500 })
     }
-
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
     // O prompt de sistema instrui a IA sobre como ela deve se comportar
     const systemPrompt = `Você é o "Fischer AI", um assistente virtual financeiro projetado para ajudar a família Fischer a organizar e entender suas finanças no aplicativo Fischer Finanças.

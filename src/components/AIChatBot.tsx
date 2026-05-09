@@ -57,6 +57,15 @@ export default function AIChatBot() {
         }
 
         recognitionRef.current = recognition
+
+        // Cleanup: aborta o reconhecimento ao desmontar o componente
+        return () => {
+          recognition.abort()
+          recognition.onstart = null
+          recognition.onresult = null
+          recognition.onerror = null
+          recognition.onend = null
+        }
       }
     }
   }, [])
@@ -178,11 +187,11 @@ export default function AIChatBot() {
                           : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm'
                       }`}
                     >
-                      {/* Simples formatação de quebras de linha. Para um projeto maior, use react-markdown */}
-                      {msg.content.split('\n').map((line, i) => (
+                      {/* Formata quebras de linha sem recalcular o split duas vezes */}
+                      {msg.content.split('\n').map((line, i, arr) => (
                         <span key={i}>
                           {line}
-                          {i !== msg.content.split('\n').length - 1 && <br />}
+                          {i !== arr.length - 1 && <br />}
                         </span>
                       ))}
                     </div>

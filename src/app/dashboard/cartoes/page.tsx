@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
 import { formatBRL, formatDate, formatVencimento } from '@/lib/utils'
@@ -12,7 +12,7 @@ type ModalState =
   | { tipo: 'lancamento'; cartaoId: string; cartaoNome: string; dados?: LancamentoCartao }
   | null
 
-let cachedUserId: string | null = null
+
 
 // ── Analisa campo parcela e extrai atual/total ────────────────────
 // Aceita formatos: "01/12", "1/12", "01 de 12", "1 de 12"
@@ -40,7 +40,7 @@ function formatParcela(atual: number, total: number): string {
 }
 
 export default function CartoesPage() {
-  const supabase  = createClient()
+  const supabase = useMemo(() => createClient(), [])
   
   const { mes, ano } = useMes()
 
@@ -54,7 +54,9 @@ export default function CartoesPage() {
   const [parcelasPreview, setParcelasPreview]       = useState<string[]>([])
   const [sugestoesLocais, setSugestoesLocais]       = useState<string[]>([])
   const [driveModal, setDriveModal]                 = useState<{ cartao: Cartao } | null>(null)
-  const userIdRef = useRef<string | null>(cachedUserId)
+  const userIdRef   = useRef<string | null>(null)
+  // Contador de geração para evitar race condition na troca de mês/ano
+  const loadGenRef  = useRef(0)
 
   // ── Init ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -62,7 +64,6 @@ export default function CartoesPage() {
       if (!userIdRef.current) {
         const { data: { user } } = await supabase.auth.getUser()
         userIdRef.current = user?.id ?? null
-        cachedUserId      = user?.id ?? null
       }
       carregarTudo()
     }
@@ -70,9 +71,8 @@ export default function CartoesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useEffect(() => { setExpandidos(new Set()) }, [mes])
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (userIdRef.current) carregarTudo() }, [mes])
+  useEffect(() => { setExpandidos(new Set()) }, [mes, ano])
+  useEffect(() => { if (userIdRef.current) carregarTudo() }, [mes, ano]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Atualiza preview de parcelas ao digitar ───────────────────
   useEffect(() => {
@@ -104,12 +104,17 @@ export default function CartoesPage() {
   async function carregarTudo() {
     const uid = userIdRef.current
     if (!uid) return
+    // Guarda a geração atual para descartar respostas de cargas obsoletas
+    const gen = ++loadGenRef.current
     setLoading(true)
     const [{ data: cartoesData }, { data: lancsData }, { data: locaisData }] = await Promise.all([
       supabase.from('cartoes').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano),
       supabase.from('lancamentos_cartao').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).order('data_compra'),
-      supabase.from('lancamentos_cartao').select('local').eq('user_id', uid).order('id', { ascending: false }).limit(300),
+      // Busca apenas o campo local (sem dados desnecessários) dos últimos 200 lançamentos
+      supabase.from('lancamentos_cartao').select('local').eq('user_id', uid).order('id', { ascending: false }).limit(200),
     ])
+    // Se uma carga mais recente já foi iniciada, ignora esta resposta (race condition)
+    if (gen !== loadGenRef.current) return
     const ordenados = (cartoesData || []).sort((a, b) =>
       (ORDEM_CARTOES[a.nome] ?? 99) - (ORDEM_CARTOES[b.nome] ?? 99)
     )
@@ -164,7 +169,7 @@ export default function CartoesPage() {
     if (existente) return existente.id
 
     // Cria cartão novo naquele mês se não existir
-    const { data: novo } = await supabase
+    const { data: novo, error: errInsert } = await supabase
       .from('cartoes')
       .insert({
         user_id: uid,
@@ -178,7 +183,12 @@ export default function CartoesPage() {
       .select('id')
       .single()
 
-    return novo!.id
+    if (errInsert || !novo) {
+      console.error('Erro ao criar cartão futuro:', errInsert)
+      throw new Error(`Não foi possível criar o cartão de ${nomeCartao} para ${mesFuturo}/${anoFuturo}`)
+    }
+
+    return novo.id
   }
 
   // ── CRUD Cartão ───────────────────────────────────────────────
@@ -326,10 +336,11 @@ export default function CartoesPage() {
       )
 
       if (excluirTodas) {
-        // Exclui todos os lançamentos com mesmo local e mesmo cartão (todos os meses)
+        // Exclui todos os lançamentos com mesmo local, valor e total de parcelas (mais preciso)
         const uid = userIdRef.current
+        const totalParcelas = parsed!.total
         if (uid) {
-          // Busca cartões do mesmo nome em todos os meses
+          // Busca cartões do mesmo nome em todos os meses do ano
           const { data: cartoesDoNome } = await supabase
             .from('cartoes')
             .select('id')
@@ -339,13 +350,30 @@ export default function CartoesPage() {
 
           if (cartoesDoNome) {
             for (const c of cartoesDoNome) {
-              // Remove lançamentos com mesmo local neste cartão
-              await supabase
+              // Busca lançamentos correspondentes com mesmo local E mesmo valor E mesmo total de parcelas
+              // (evita excluir compras diferentes no mesmo estabelecimento)
+              const { data: lancsParaExcluir } = await supabase
                 .from('lancamentos_cartao')
-                .delete()
+                .select('id, parcela')
                 .eq('cartao_id', c.id)
                 .eq('local', l.local)
+                .eq('valor', l.valor)
                 .eq('ano', l.ano)
+
+              // Filtra apenas os que têm o mesmo total de parcelas (ex: /12)
+              const idsParaExcluir = (lancsParaExcluir || [])
+                .filter(x => {
+                  const p = parseParcela(x.parcela || '')
+                  return p ? p.total === totalParcelas : totalParcelas === 1
+                })
+                .map(x => x.id)
+
+              if (idsParaExcluir.length > 0) {
+                await supabase
+                  .from('lancamentos_cartao')
+                  .delete()
+                  .in('id', idsParaExcluir)
+              }
 
               // Recalcula total
               const { data: lancsR } = await supabase

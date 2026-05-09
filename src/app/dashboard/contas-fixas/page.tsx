@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
@@ -32,10 +32,10 @@ const ICONES_GRUPO: Record<string, string> = {
   'Outros':               '📌',
 }
 
-let cachedUserId: string | null = null
+
 
 export default function ContasFixasPage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const { mes, ano } = useMes()
   // ── State ───────────────────────────────────────────────────
   const [contas, setContas]             = useState<ContaFixa[]>([])
@@ -49,7 +49,9 @@ export default function ContasFixasPage() {
   const [conferidosContas, setConferidosContas]   = useState<Set<string>>(new Set())
   const [conferidosCartoes, setConferidosCartoes] = useState<Set<string>>(new Set())
   const [totalEntradas, setTotalEntradas] = useState(0)
-  const userIdRef = useRef<string | null>(cachedUserId)
+  const userIdRef  = useRef<string | null>(null)
+  // Contador de geração para evitar race condition na troca de mês/ano
+  const loadGenRef = useRef(0)
 
   // ── Init ────────────────────────────────────────────────────
   useEffect(() => {
@@ -57,7 +59,6 @@ export default function ContasFixasPage() {
       if (!userIdRef.current) {
         const { data: { user } } = await supabase.auth.getUser()
         userIdRef.current = user?.id ?? null
-        cachedUserId      = user?.id ?? null
       }
       carregarTudo()
     }
@@ -67,12 +68,14 @@ export default function ContasFixasPage() {
 
   useEffect(() => {
     if (userIdRef.current) carregarTudo()
-  }, [mes])
+  }, [mes, ano]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Carrega contas fixas + cartões em paralelo ──────────────
   async function carregarTudo() {
     const uid = userIdRef.current
     if (!uid) return
+    // Guarda a geração atual para descartar respostas de cargas obsoletas
+    const gen = ++loadGenRef.current
     setLoading(true)
 
     const [{ data: contasData }, { data: cartoesData }, { data: entradasData }] = await Promise.all([
@@ -80,6 +83,9 @@ export default function ContasFixasPage() {
       supabase.from('cartoes').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano),
       supabase.from('entradas').select('valor').eq('user_id', uid).eq('mes', mes).eq('ano', ano),
     ])
+
+    // Se uma carga mais recente já foi iniciada, ignora esta resposta
+    if (gen !== loadGenRef.current) return
 
     setContas(contasData || [])
     // Ordena cartões pela sequência personalizada
