@@ -2,8 +2,8 @@
 
 > Sistema de controle financeiro familiar completo desenvolvido para a **Família Fischer**.
 
-**Desenvoldido por:** Thiago Fischer  
-**Versão:** 3.5.0 — PWA, IA & Fase 6 (Telegram) Implementada 🚀  
+**Desenvolvido por:** Thiago Fischer  
+**Versão:** 3.6.0 — Auditoria de Bugs, Performance & UX 🛡️  
 **Ano:** 2026  
 **Stack:** Next.js 14 · TypeScript · Supabase · Tailwind CSS · Gemini AI · Telegram API
 
@@ -18,18 +18,37 @@
 | 🤖 **Telegram Bot** | Notificações automáticas em tempo real para pagamentos e vencimentos. |
 | 🎯 **Sonhos & Objetivos** | Gestão de metas de longo prazo com priorização e progresso visual. |
 | 📱 **Ecosystem (PWA & Mobile)** | Aplicativo nativo (Expo) e **PWA Offline-First** de alta performance. |
-| 🆕 **IA Financeira** | Análise narrativa de gastos e chat inteligente via **Google Gemini AI**. |
+| 🆕 **IA Financeira** | Chat inteligente via **Google Gemini AI** com rate limiting e proteção de custo. |
 | 🆕 **Open Finance** | Importação inteligente de arquivos **OFX** e **CSV**. |
 | 🆕 **Modo Família** | Orçamento compartilhado com gestão de membros e convites. |
 | 🆕 **Investimentos** | Simulador avançado de juros compostos e independência financeira. |
 
 ---
 
-## ⚡ Otimização & Performance
+## ⚡ Otimização & Performance (v3.6)
 
+- **Supabase Singleton**: Cliente instanciado via `useMemo` — zero re-conexões desnecessárias.
+- **UserContext Centralizado**: `userId` resolvido uma única vez por sessão no layout, eliminando chamadas redundantes ao Supabase Auth em todas as páginas.
+- **Race Condition Guard**: Contador de geração (`loadGenRef`) descarta respostas de fetches obsoletos ao navegar rapidamente entre meses.
+- **Clock Isolado**: Componente `<Clock />` extraído do layout — apenas o relógio re-renderiza por segundo, não o layout inteiro.
+- **Formatter Singleton**: `Intl.NumberFormat` instanciado uma única vez em `formatBRL` — sem alocação nova por chamada.
 - **Lazy Loading**: Gráficos e componentes pesados carregados sob demanda.
 - **Sankey Flow**: Visualização SVG animada via Framer Motion para entender para onde vai cada centavo.
-- **Conciliação Bancária**: Campo `conferido` em todos os lançamentos para match perfeito com o extrato.
+
+---
+
+## 🔐 Segurança (v3.6)
+
+- **Rate Limiting**: Máximo de 20 requisições/minuto por IP na rota `/api/chat` (proteção de custo da API Gemini).
+- **HTTP Security Headers**: `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` e `Permissions-Policy` configurados em `next.config.js`.
+- **Isolamento de Sessão**: Variáveis globais `cachedUserId` removidas — sem vazamento de dados entre sessões.
+
+---
+
+## 🧑‍💻 UX (v3.6)
+
+- **Atalhos de Teclado**: `←` / `→` navega entre meses, `Alt+←` / `Alt+→` navega entre anos (ignorado em campos de texto).
+- **Badge "Hoje"**: Sidebar destaca o mês atual com badge verde para navegação rápida.
 
 ---
 
@@ -49,24 +68,37 @@ Configure as variáveis para receber notificações automáticas:
 
 ---
 
-## 📁 Estrutura do Projeto (v3.5)
+## 📁 Estrutura do Projeto (v3.6)
 
 ```
 fischer-financas/
 ├── mobile/                        ← App React Native (Expo)
 ├── src/
 │   ├── app/
-│   │   ├── api/telegram/          ← Webhook de notificações
+│   │   ├── api/
+│   │   │   ├── chat/              ← Gemini AI (com rate limiting)
+│   │   │   └── telegram/          ← Webhook de notificações
 │   │   ├── dashboard/
-│   │   │   ├── extrato/           ← Central de conciliação unificada
-│   │   │   ├── sonhos/            ← Metas de longo prazo [NEW]
-│   │   │   ├── ia-analise/        ← IA Gemini
-│   │   │   └── ...
+│   │   │   ├── layout.tsx         ← Atalhos de teclado + UserProvider + Clock isolado
+│   │   │   ├── cartoes/           ← Race condition guard + exclusão precisa de parcelas
+│   │   │   ├── contas-fixas/      ← Race condition guard + useMemo supabase
+│   │   │   ├── entradas/          ← useMemo supabase
+│   │   │   ├── metas/             ← MetaCard externo + useMemo supabase
+│   │   │   ├── relatorios/        ← useMemo supabase
+│   │   │   ├── combustivel/       ← useMemo + dep array com ano
+│   │   │   ├── sonhos/            ← Metas de longo prazo
+│   │   │   └── ia-analise/        ← IA Gemini
 │   ├── components/
-│   │   ├── SankeyFlow.tsx         ← Fluxo de caixa visual [NEW]
+│   │   ├── AIChatBot.tsx          ← Speech cleanup + split otimizado
+│   │   ├── CotacoesPanel.tsx      ← Cache HTTP otimizado
+│   │   ├── SankeyFlow.tsx         ← Fluxo de caixa visual
 │   │   └── DashboardClientView    ← Core do dashboard
+│   ├── context/
+│   │   ├── MesContext.tsx         ← Fonte única de verdade para mês/ano
+│   │   └── UserContext.tsx        ← [NOVO] userId centralizado para todo o dashboard
 │   ├── lib/
-│   │   ├── telegram.ts            ← Integração de alertas [NEW]
+│   │   ├── utils.ts               ← formatBRL com Intl singleton
+│   │   ├── telegram.ts            ← Integração de alertas
 │   │   └── notifications.ts       ← Engine de notificações
 └── supabase/
     └── migrations/

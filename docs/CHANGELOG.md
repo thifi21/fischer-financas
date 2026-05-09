@@ -5,6 +5,99 @@
 
 ---
 
+## [3.6.0] — Maio 2026
+
+### 🏗️ Arquitetura
+
+#### UserContext centralizado
+- Criado `src/context/UserContext.tsx` com `UserProvider` e hook `useUser()`
+- `DashboardLayout` agora envolve toda a aplicação com `UserProvider`
+- `userId` resolvido **uma única vez** por sessão de navegação no nível do layout
+- Elimina chamadas redundantes a `supabase.auth.getUser()` em cada página
+
+#### MetaCard extraído como componente top-level
+- `MetaCard` em `metas/page.tsx` movido para fora do componente pai `MetasPage`
+- Funções puras `getCategoriaInfo`, `getPercentual` e `getCorStatus` também movidas para escopo de módulo
+- Evita recriação do componente e das funções a cada render do pai
+
+### ⚡ Performance
+
+#### Formatter Singleton
+- `formatBRL` em `utils.ts` usa instância única de `Intl.NumberFormat`
+- Elimina alocação de nova instância a cada chamada
+
+### 🔐 Segurança
+
+#### Rate Limiting na API de Chat
+- Máximo de **20 requisições por minuto por IP** na rota `/api/chat`
+- Responde com HTTP 429 ao exceder o limite
+- Protege contra uso excessivo e custos inesperados com a API Gemini
+
+#### HTTP Security Headers
+- Adicionados cabeçalhos em `next.config.js`:
+  - `X-Frame-Options: DENY` — proteção contra clickjacking
+  - `X-Content-Type-Options: nosniff` — evita MIME sniffing
+  - `Referrer-Policy: strict-origin-when-cross-origin` — privacidade de referência
+  - `Permissions-Policy` — desabilita câmera e geolocalização desnecessárias
+
+### 🧑‍💻 UX
+
+#### Atalhos de teclado
+- `←` / `→` — navega entre meses
+- `Alt+←` / `Alt+→` — navega entre anos
+- Ignorado quando o foco está em campos de texto, textarea ou select
+
+#### Badge "Hoje" na sidebar
+- Mês atual destacado com badge verde na árvore de período da sidebar
+- Quando selecionado, badge fica branco sobre o fundo azul
+
+---
+
+## [3.5.1] — Maio 2026
+
+### 🔴 Correções críticas de bugs
+
+#### BUG 1 — Supabase re-instanciado a cada render
+- `createClient()` movido para `useMemo(() => createClient(), [])` em 6 arquivos
+- Evita múltiplas conexões WebSocket desnecessárias
+
+#### BUG 2 — Variável global `cachedUserId` vazando entre sessões
+- Removida de `cartoes`, `contas-fixas`, `entradas`, `metas`, `relatorios` e `combustivel`
+- `useRef(null)` isolado por componente — sem risco de acesso a dados de outro usuário
+
+#### BUG 3/4 — Troca de ano não recarregava dados
+- `[mes]` → `[mes, ano]` na dep array dos `useEffect` de recarga em `cartoes`, `contas-fixas` e `combustivel`
+- Navegar de 2026 para 2027 agora recarrega corretamente
+
+#### BUG 6 — Crash silencioso ao criar parcelas futuras
+- `novo!.id` substituído por verificação explícita com `throw new Error()`
+- Evita `TypeError: Cannot read properties of undefined` em caso de falha do Supabase
+
+#### BUG 7 — Race condition ao trocar mês rapidamente
+- Contador `loadGenRef` implementado em `cartoes` e `contas-fixas`
+- Respostas de cargas obsoletas são descartadas
+
+#### BUG 8 — `.split('\n')` calculado duas vezes no AIChatBot
+- `.map((line, i, arr) => ...)` usa o 3º argumento do map — sem recalcular
+
+#### BUG 9 — SpeechRecognition sem cleanup no AIChatBot
+- Cleanup adicionado no `useEffect`: `recognition.abort()` + nullify de todos os handlers
+- Evita memory leak ao desmontar o componente
+
+#### BUG 10 — `cache: 'no-store'` em 3 APIs externas no CotacoesPanel
+- Alterado para `cache: 'default'` — evita requisições desnecessárias na reabertura do painel
+
+#### BUG 11 — `GoogleGenerativeAI` criado a cada requisição na API chat
+- Singleton lazy com `getModel()` — instância reutilizada entre warm starts do serverless
+
+#### BUG 12 — Exclusão de parcelas apagava compras erradas
+- Filtro de exclusão agora usa `local + valor + total de parcelas` em vez de apenas `local`
+
+#### PERF 5 — Clock re-renderizava o layout inteiro a cada segundo
+- `useClock()` → componente `<Clock />` isolado — apenas o relógio re-renderiza
+
+---
+
 ## [1.3.0] — Março 2026
 
 ### 🔧 Correções
