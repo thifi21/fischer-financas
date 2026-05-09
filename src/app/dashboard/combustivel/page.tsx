@@ -1,11 +1,11 @@
 'use client'
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
 import { formatBRL, formatDate } from '@/lib/utils'
 import { MESES, type Combustivel } from '@/types'
 
-let cachedUserId: string | null = null
+
 
 // ── Extrai mês e ano de uma string de data (AAAA-MM-DD) ──────────
 function mesAnoDeData(dataStr: string): { mes: number; ano: number } {
@@ -14,7 +14,7 @@ function mesAnoDeData(dataStr: string): { mes: number; ano: number } {
 }
 
 export default function CombustivelPage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const { mes, ano: anoAtual }  = useMes()
 
   const [registros, setRegistros] = useState<Combustivel[]>([])
@@ -23,7 +23,7 @@ export default function CombustivelPage() {
   const [form, setForm]           = useState<Partial<Combustivel>>({})
   const [saving, setSaving]       = useState(false)
   const [erro, setErro]           = useState('')
-  const userIdRef = useRef<string | null>(cachedUserId)
+  const userIdRef = useRef<string | null>(null)
 
   // ── Init: resolve userId uma única vez ───────────────────────
   useEffect(() => {
@@ -31,17 +31,16 @@ export default function CombustivelPage() {
       if (!userIdRef.current) {
         const { data: { user } } = await supabase.auth.getUser()
         userIdRef.current = user?.id ?? null
-        cachedUserId      = user?.id ?? null
       }
       carregar(mes)
     }
     init()
   }, [])
 
-  // ── Recarrega sempre que o mês mudar ─────────────────────────
+  // ── Recarrega sempre que o mês ou ano mudarem ───────────────
   useEffect(() => {
     if (userIdRef.current) carregar(mes)
-  }, [mes])
+  }, [mes, anoAtual]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Carregar — recebe mes como parâmetro para evitar closure ─
   const carregar = useCallback(async (mesBusca: number) => {

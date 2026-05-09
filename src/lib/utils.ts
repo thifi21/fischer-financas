@@ -1,8 +1,8 @@
+// Singleton reutilizado a cada chamada — evita alocar nova instância por render
+const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+
 export function formatBRL(value: number): string {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(value)
+  return BRL.format(value)
 }
 
 export function formatDate(dateStr: string | null): string {

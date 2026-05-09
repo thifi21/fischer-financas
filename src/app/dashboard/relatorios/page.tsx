@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
 import { formatBRL, formatDate } from '@/lib/utils'
@@ -9,14 +9,14 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts'
 
-let cachedUserId: string | null = null
+
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
 
 type Periodo = 'mes' | 'trimestre' | 'semestre' | 'ano' | 'personalizado'
 
 export default function RelatoriosPage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const { mes, ano } = useMes()
   
   const [loading, setLoading] = useState(true)
@@ -31,14 +31,13 @@ export default function RelatoriosPage() {
     porCategoria: [],
     porCartao: []
   })
-  const userIdRef = useRef<string | null>(cachedUserId)
+  const userIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     async function init() {
       if (!userIdRef.current) {
         const { data: { user } } = await supabase.auth.getUser()
         userIdRef.current = user?.id ?? null
-        cachedUserId = user?.id ?? null
       }
       carregarDados()
     }

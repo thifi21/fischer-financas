@@ -13,8 +13,34 @@ function getModel() {
   return genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 }
 
+// ── Rate Limiting (20 req/min por IP) ─────────────────────────────
+const rateMap = new Map<string, { count: number; reset: number }>()
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const entry = rateMap.get(ip)
+  if (!entry || now > entry.reset) {
+    rateMap.set(ip, { count: 1, reset: now + 60_000 })
+    return false
+  }
+  if (entry.count >= 20) return true
+  entry.count++
+  return false
+}
+
 export async function POST(req: NextRequest) {
   try {
+    // ── Verificação de rate limit ──────────────────────────────────
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      ?? req.headers.get('x-real-ip')
+      ?? 'unknown'
+    if (isRateLimited(ip)) {
+      return NextResponse.json(
+        { error: 'Muitas requisições. Aguarde 1 minuto antes de tentar novamente.' },
+        { status: 429 }
+      )
+    }
+
     const { messages } = await req.json()
 
     if (!messages || !Array.isArray(messages)) {

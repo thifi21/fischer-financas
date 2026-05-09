@@ -1,11 +1,11 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
 import { formatBRL } from '@/lib/utils'
 import { MESES, type Meta } from '@/types'
 
-let cachedUserId: string | null = null
+
 
 const CATEGORIAS = [
   { id: 'cartoes', label: 'Cartões de Crédito', icon: '💳', color: 'blue' },
@@ -16,8 +16,139 @@ const CATEGORIAS = [
 
 type Categoria = typeof CATEGORIAS[number]['id']
 
+// ── Funções puras — fora do componente para não serem recriadas ─
+function getCategoriaInfo(cat: string) {
+  return CATEGORIAS.find(c => c.id === cat) || CATEGORIAS[0]
+}
+
+function getPercentual(gasto: number, limite: number) {
+  return limite > 0 ? (gasto / limite) * 100 : 0
+}
+
+function getCorStatus(percentual: number) {
+  if (percentual >= 100) return 'red'
+  if (percentual >= 90) return 'orange'
+  if (percentual >= 70) return 'yellow'
+  return 'green'
+}
+
+// ── MetaCard — componente externo para não ser recriado por render do pai ─
+interface MetaCardProps {
+  categoria: Categoria
+  metas: Meta[]
+  gastos: Record<string, number>
+  onEdit: (meta: Meta) => void
+  onDelete: (meta: Meta) => void
+  onCreate: (categoria: Meta) => void
+}
+
+function MetaCard({ categoria, metas, gastos, onEdit, onDelete, onCreate }: MetaCardProps) {
+  const meta = metas.find(m => m.categoria === categoria && m.ativo)
+  const gasto = gastos[categoria] || 0
+  const info = getCategoriaInfo(categoria)
+
+  if (!meta) {
+    return (
+      <div className="card hover:shadow-lg transition-shadow cursor-pointer" onClick={() => onCreate({ categoria } as Meta)}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className={`text-3xl bg-${info.color}-50 dark:bg-${info.color}-900/20 w-12 h-12 rounded-lg flex items-center justify-center`}>
+            {info.icon}
+          </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">{info.label}</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Sem meta definida</p>
+          </div>
+        </div>
+        <div className="text-center py-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
+          <p className="text-sm text-gray-400 dark:text-gray-500">+ Definir meta</p>
+        </div>
+        <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+          <strong>Gasto atual:</strong> {formatBRL(gasto)}
+        </div>
+      </div>
+    )
+  }
+
+  const percentual = getPercentual(gasto, meta.valor_limite)
+  const cor = getCorStatus(percentual)
+  const diferenca = meta.valor_limite - gasto
+  const alertaAtingido = percentual >= meta.notificar_em
+
+  return (
+    <div className="card hover:shadow-lg transition-shadow">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className={`text-3xl bg-${info.color}-50 dark:bg-${info.color}-900/20 w-12 h-12 rounded-lg flex items-center justify-center`}>
+            {info.icon}
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">{info.label}</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Meta: {formatBRL(meta.valor_limite)}</p>
+          </div>
+        </div>
+        <div className="flex gap-1">
+          <button onClick={() => onEdit(meta)} className="text-blue-600 hover:text-blue-700 p-1" title="Editar">✏️</button>
+          <button onClick={() => onDelete(meta)} className="text-red-600 hover:text-red-700 p-1" title="Excluir">🗑️</button>
+        </div>
+      </div>
+
+      {/* Barra de progresso */}
+      <div className="mb-3">
+        <div className="flex justify-between text-xs mb-1">
+          <span className="text-gray-600 dark:text-gray-400">Progresso</span>
+          <span className={`font-semibold ${
+            cor === 'red' ? 'text-red-600' :
+            cor === 'orange' ? 'text-orange-600' :
+            cor === 'yellow' ? 'text-yellow-600' :
+            'text-green-600'
+          }`}>
+            {percentual.toFixed(0)}%
+          </span>
+        </div>
+        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+          <div
+            className={`h-full transition-all duration-500 ${
+              cor === 'red' ? 'bg-red-500' :
+              cor === 'orange' ? 'bg-orange-500' :
+              cor === 'yellow' ? 'bg-yellow-500' :
+              'bg-green-500'
+            }`}
+            style={{ width: `${Math.min(percentual, 100)}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Valores */}
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <div>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Gasto</p>
+          <p className="font-bold text-gray-900 dark:text-gray-100">{formatBRL(gasto)}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-gray-500 dark:text-gray-400">{diferenca >= 0 ? 'Disponível' : 'Excedido'}</p>
+          <p className={`font-bold ${diferenca >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {formatBRL(Math.abs(diferenca))}
+          </p>
+        </div>
+      </div>
+
+      {/* Alertas */}
+      {alertaAtingido && percentual < 100 && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-2 text-xs text-yellow-800 dark:text-yellow-400">
+          ⚠️ Você atingiu {percentual.toFixed(0)}% da meta!
+        </div>
+      )}
+      {percentual >= 100 && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-2 text-xs text-red-800 dark:text-red-400">
+          🚨 Meta excedida em {formatBRL(Math.abs(diferenca))}!
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function MetasPage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const { mes, ano } = useMes()
   
   const [metas, setMetas] = useState<Meta[]>([])
@@ -26,14 +157,13 @@ export default function MetasPage() {
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState<Partial<Meta>>({})
   const [saving, setSaving] = useState(false)
-  const userIdRef = useRef<string | null>(cachedUserId)
+  const userIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     async function init() {
       if (!userIdRef.current) {
         const { data: { user } } = await supabase.auth.getUser()
         userIdRef.current = user?.id ?? null
-        cachedUserId = user?.id ?? null
       }
       carregarTudo()
     }
@@ -139,126 +269,8 @@ export default function MetasPage() {
     setMetas(prev => prev.map(m => m.id === meta.id ? { ...m, ativo: novoAtivo } : m))
   }
 
-  function getCategoriaInfo(cat: string) {
-    return CATEGORIAS.find(c => c.id === cat) || CATEGORIAS[0]
-  }
 
-  function getPercentual(gasto: number, limite: number) {
-    return limite > 0 ? (gasto / limite) * 100 : 0
-  }
-
-  function getCorStatus(percentual: number) {
-    if (percentual >= 100) return 'red'
-    if (percentual >= 90) return 'orange'
-    if (percentual >= 70) return 'yellow'
-    return 'green'
-  }
-
-  // Cards de resumo das categorias
-  function MetaCard({ categoria }: { categoria: Categoria }) {
-    const meta = metas.find(m => m.categoria === categoria && m.ativo)
-    const gasto = gastos[categoria] || 0
-    const info = getCategoriaInfo(categoria)
-
-    if (!meta) {
-      return (
-        <div className="card hover:shadow-lg transition-shadow cursor-pointer" onClick={() => abrirModal({ categoria } as Meta)}>
-          <div className="flex items-center gap-3 mb-4">
-            <div className={`text-3xl bg-${info.color}-50 dark:bg-${info.color}-900/20 w-12 h-12 rounded-lg flex items-center justify-center`}>
-              {info.icon}
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">{info.label}</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Sem meta definida</p>
-            </div>
-          </div>
-          <div className="text-center py-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
-            <p className="text-sm text-gray-400 dark:text-gray-500">+ Definir meta</p>
-          </div>
-          <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-            <strong>Gasto atual:</strong> {formatBRL(gasto)}
-          </div>
-        </div>
-      )
-    }
-
-    const percentual = getPercentual(gasto, meta.valor_limite)
-    const cor = getCorStatus(percentual)
-    const diferenca = meta.valor_limite - gasto
-    const alertaAtingido = percentual >= meta.notificar_em
-
-    return (
-      <div className="card hover:shadow-lg transition-shadow">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className={`text-3xl bg-${info.color}-50 dark:bg-${info.color}-900/20 w-12 h-12 rounded-lg flex items-center justify-center`}>
-              {info.icon}
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">{info.label}</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Meta: {formatBRL(meta.valor_limite)}</p>
-            </div>
-          </div>
-          <div className="flex gap-1">
-            <button onClick={() => abrirModal(meta)} className="text-blue-600 hover:text-blue-700 p-1" title="Editar">✏️</button>
-            <button onClick={() => excluirMeta(meta)} className="text-red-600 hover:text-red-700 p-1" title="Excluir">🗑️</button>
-          </div>
-        </div>
-
-        {/* Barra de progresso */}
-        <div className="mb-3">
-          <div className="flex justify-between text-xs mb-1">
-            <span className="text-gray-600 dark:text-gray-400">Progresso</span>
-            <span className={`font-semibold ${
-              cor === 'red' ? 'text-red-600' :
-              cor === 'orange' ? 'text-orange-600' :
-              cor === 'yellow' ? 'text-yellow-600' :
-              'text-green-600'
-            }`}>
-              {percentual.toFixed(0)}%
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
-            <div 
-              className={`h-full transition-all duration-500 ${
-                cor === 'red' ? 'bg-red-500' :
-                cor === 'orange' ? 'bg-orange-500' :
-                cor === 'yellow' ? 'bg-yellow-500' :
-                'bg-green-500'
-              }`}
-              style={{ width: `${Math.min(percentual, 100)}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Valores */}
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Gasto</p>
-            <p className="font-bold text-gray-900 dark:text-gray-100">{formatBRL(gasto)}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-500 dark:text-gray-400">{diferenca >= 0 ? 'Disponível' : 'Excedido'}</p>
-            <p className={`font-bold ${diferenca >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {formatBRL(Math.abs(diferenca))}
-            </p>
-          </div>
-        </div>
-
-        {/* Alertas */}
-        {alertaAtingido && percentual < 100 && (
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-2 text-xs text-yellow-800 dark:text-yellow-400">
-            ⚠️ Você atingiu {percentual.toFixed(0)}% da meta!
-          </div>
-        )}
-        {percentual >= 100 && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-2 text-xs text-red-800 dark:text-red-400">
-            🚨 Meta excedida em {formatBRL(Math.abs(diferenca))}!
-          </div>
-        )}
-      </div>
-    )
-  }
+  // MetaCard é agora componente externo (definido acima do MetasPage)
 
   if (loading) {
     return (
@@ -317,7 +329,15 @@ export default function MetasPage() {
       {/* Grid de Metas por Categoria */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {CATEGORIAS.map(cat => (
-          <MetaCard key={cat.id} categoria={cat.id} />
+          <MetaCard
+            key={cat.id}
+            categoria={cat.id}
+            metas={metas}
+            gastos={gastos}
+            onEdit={abrirModal}
+            onDelete={excluirMeta}
+            onCreate={abrirModal}
+          />
         ))}
       </div>
 

@@ -13,6 +13,7 @@ import { MESES } from '@/types'
 import DrivePanel from '@/components/DrivePanel'
 import CotacoesPanel from '@/components/CotacoesPanel'
 import { MesProvider, useMes } from '@/context/MesContext'
+import { UserProvider } from '@/context/UserContext'
 import AIChatBot from '@/components/AIChatBot'
 
 const NAV_ITEMS = [
@@ -68,8 +69,35 @@ function useDarkMode() {
   return { dark, toggle }
 }
 
-// ── Componente interno que usa o contexto do mês ───────────────
-// Separado para poder chamar useMes() dentro do MesProvider
+// ── Hook de atalhos de teclado ──────────────────────────────────
+// ← / → navega entre meses | Alt+← / Alt+→ navega entre anos
+function useKeyboardNav(setMes: (m: number) => void, setAno: (a: number) => void, mes: number, ano: number) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      // Ignora atalhos se o usuário estiver digitando em um campo
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+
+      if (e.altKey && e.key === 'ArrowLeft') {
+        e.preventDefault()
+        setAno(ano - 1)
+      } else if (e.altKey && e.key === 'ArrowRight') {
+        e.preventDefault()
+        setAno(ano + 1)
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        if (mes === 1) { setMes(12); setAno(ano - 1) }
+        else setMes(mes - 1)
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        if (mes === 12) { setMes(1); setAno(ano + 1) }
+        else setMes(mes + 1)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [mes, ano, setMes, setAno])
+}
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -83,6 +111,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   // Estado local para controlar qual ano está expandido na sidebar
   const [anoExpandido, setAnoExpandido] = useState<number>(ano)
+
+  // Atalhos de teclado: ← → para mês, Alt+← Alt+→ para ano
+  useKeyboardNav(setMes, setAno, mes, ano)
+
+  // Data atual para indicar o mês/ano corrente na sidebar
+  const hoje = useMemo(() => ({ mes: new Date().getMonth() + 1, ano: new Date().getFullYear() }), [])
 
   useEffect(() => {
     if (checked.current) return
@@ -195,16 +229,26 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                       {MESES.map((nome, i) => {
                         const m = i + 1
                         const ativo = isAnoAtivo && m === mes
+                        const ehHoje = a === hoje.ano && m === hoje.mes
                         return (
                           <button
                             key={m}
                             onClick={() => { setAno(a); setMes(m) }}
-                            className={`w-full text-left px-2 py-1 rounded-lg text-xs font-bold transition-all duration-300 ${ativo
+                            className={`w-full text-left px-2 py-1 rounded-lg text-xs font-bold transition-all duration-300 flex items-center justify-between gap-1 ${ativo
                                 ? 'bg-blue-600 text-white shadow-md'
                                 : 'text-blue-100/40 dark:text-slate-600 hover:bg-white/10 dark:hover:bg-slate-800/10 hover:text-white dark:hover:text-slate-300'
                               }`}
                           >
-                            {nome}
+                            <span>{nome}</span>
+                            {ehHoje && (
+                              <span className={`text-[9px] px-1 py-0.5 rounded font-black leading-none border ${
+                                ativo
+                                  ? 'bg-white/20 border-white/30 text-white'
+                                  : 'bg-green-400/30 border-green-400/40 text-green-300 dark:text-green-400'
+                              }`}>
+                                Hoje
+                              </span>
+                            )}
                           </button>
                         )
                       })}
@@ -353,13 +397,15 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   )
 }
 
-// ── Layout raiz — MesProvider envolve TUDO incluindo a sidebar ──
+// ── Layout raiz — UserProvider + MesProvider envolvem TUDO ──────
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const mesInicial = new Date().getMonth() + 1
   const anoInicial = new Date().getFullYear()
   return (
-    <MesProvider mesInicial={mesInicial} anoInicial={anoInicial}>
-      <DashboardShell>{children}</DashboardShell>
-    </MesProvider>
+    <UserProvider>
+      <MesProvider mesInicial={mesInicial} anoInicial={anoInicial}>
+        <DashboardShell>{children}</DashboardShell>
+      </MesProvider>
+    </UserProvider>
   )
 }
