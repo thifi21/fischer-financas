@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useRef, useMemo } from 'react'
+import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
 import { formatBRL, formatDate, formatVencimento } from '@/lib/utils'
@@ -235,6 +236,12 @@ export default function CartoesPage() {
     const cartaoAtual = cartoes.find(c => c.id === cartaoId)
     const vencimento  = cartaoAtual?.vencimento ?? null
 
+    // Normaliza o campo parcela antes de persistir (ex: "1/12" → "01/12")
+    const parcelaNormalizada = (() => {
+      const parsed = parseParcela(form.parcela || '')
+      return parsed ? formatParcela(parsed.atual, parsed.total) : (form.parcela || null)
+    })()
+
     const payload = {
       user_id: uid,
       cartao_id: cartaoId,
@@ -242,7 +249,7 @@ export default function CartoesPage() {
       ano,
       data_compra: form.data_compra || null,
       local: form.local,
-      parcela: form.parcela || null,
+      parcela: parcelaNormalizada || null,
       valor: Number(form.valor || 0),
       conferido: form.conferido ?? false,
     }
@@ -275,42 +282,56 @@ export default function CartoesPage() {
       await recalcularTotal(cartaoId, novaLista)
 
       // ── Propaga parcelas futuras automaticamente ──────────────
-      const parsed = parseParcela(form.parcela || '')
+      const parsed = parseParcela(parcelaNormalizada || '')
       if (parsed && parsed.atual < parsed.total) {
         const faltam = parsed.total - parsed.atual
         let mesFuturo = mes
         let anoFuturo = ano
+        let erros = 0
 
         for (let i = 1; i <= faltam; i++) {
-          const next = proximoMesAno(mesFuturo, anoFuturo)
-          mesFuturo = next.mes
-          anoFuturo = next.ano
+          try {
+            const next = proximoMesAno(mesFuturo, anoFuturo)
+            mesFuturo = next.mes
+            anoFuturo = next.ano
 
-          // Busca ou cria o cartão naquele mês
-          const cartaoFuturoId = await obterCartaoFuturo(
-            uid, cartaoNome, mesFuturo, anoFuturo, vencimento
-          )
+            // Busca ou cria o cartão naquele mês
+            const cartaoFuturoId = await obterCartaoFuturo(
+              uid, cartaoNome, mesFuturo, anoFuturo, vencimento
+            )
 
-          // Insere a parcela futura
-          await supabase.from('lancamentos_cartao').insert({
-            user_id: uid,
-            cartao_id: cartaoFuturoId,
-            mes: mesFuturo,
-            ano: anoFuturo,
-            data_compra: form.data_compra || null,
-            local: form.local,
-            parcela: formatParcela(parsed.atual + i, parsed.total),
-            valor: Number(form.valor || 0),
-            conferido: false,
-          })
+            // Insere a parcela futura
+            const { error: errFuturo } = await supabase.from('lancamentos_cartao').insert({
+              user_id: uid,
+              cartao_id: cartaoFuturoId,
+              mes: mesFuturo,
+              ano: anoFuturo,
+              data_compra: form.data_compra || null,
+              local: form.local,
+              parcela: formatParcela(parsed.atual + i, parsed.total),
+              valor: Number(form.valor || 0),
+              conferido: false,
+            })
 
-          // Recalcula o total do cartão futuro
-          const { data: lancsF } = await supabase
-            .from('lancamentos_cartao')
-            .select('valor')
-            .eq('cartao_id', cartaoFuturoId)
-          const totalF = (lancsF || []).reduce((s, r) => s + Number(r.valor), 0)
-          await supabase.from('cartoes').update({ valor: totalF }).eq('id', cartaoFuturoId)
+            if (errFuturo) throw errFuturo
+
+            // Recalcula o total do cartão futuro
+            const { data: lancsF } = await supabase
+              .from('lancamentos_cartao')
+              .select('valor')
+              .eq('cartao_id', cartaoFuturoId)
+            const totalF = (lancsF || []).reduce((s, r) => s + Number(r.valor), 0)
+            await supabase.from('cartoes').update({ valor: totalF }).eq('id', cartaoFuturoId)
+          } catch (err) {
+            console.error(`Erro ao criar parcela ${parsed.atual + i}/${parsed.total}:`, err)
+            erros++
+          }
+        }
+
+        if (erros > 0) {
+          toast.warning(`Lançamento salvo, mas ${erros} parcela(s) futura(s) não puderam ser criadas.`)
+        } else if (faltam > 0) {
+          toast.success(`Lançamento salvo com ${faltam} parcela(s) futura(s) criadas! ⚡`)
         }
       }
     }

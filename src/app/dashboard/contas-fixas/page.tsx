@@ -8,6 +8,38 @@ import { notificarPagamento } from '@/lib/notifications'
 import { MESES, ORDEM_CARTOES, LOGOS_CARTOES, type ContaFixa, type Cartao } from '@/types'
 import DriveUploadModal from '@/components/DriveUploadModal'
 
+// ── Analisa campo parcela e extrai atual/total ────────────────────────────
+// Aceita formatos: "01/12", "1/12", "01 de 12", "1 de 12"
+function parseParcela(parcela: string): { atual: number; total: number } | null {
+  if (!parcela?.trim()) return null
+  const clean = parcela.trim().replace(/\s+de\s+/i, '/')
+  const match = clean.match(/^(\d+)\/(\d+)$/)
+  if (!match) return null
+  const atual = parseInt(match[1])
+  const total = parseInt(match[2])
+  if (isNaN(atual) || isNaN(total) || atual < 1 || total < 1 || atual > total) return null
+  return { atual, total }
+}
+
+// ── Avança mês (trata virada de ano) ─────────────────────────────────────
+function proximoMesAno(mes: number, ano: number): { mes: number; ano: number } {
+  return mes === 12 ? { mes: 1, ano: ano + 1 } : { mes: mes + 1, ano }
+}
+
+// ── Formata parcela como "02/12" ──────────────────────────────────────────
+function formatParcela(atual: number, total: number): string {
+  return `${String(atual).padStart(2, '0')}/${String(total).padStart(2, '0')}`
+}
+
+// ── Avança data de vencimento para o próximo mês (mantém o dia) ───────────
+function avancarDataVencimento(dataVenc: string | null | undefined): string | null {
+  if (!dataVenc) return null
+  const d = new Date(dataVenc + 'T12:00:00') // evita problema de timezone
+  if (isNaN(d.getTime())) return null
+  d.setMonth(d.getMonth() + 1)
+  return d.toISOString().split('T')[0]
+}
+
 const GRUPOS = [
   'Contas Fixas de Casa',
   'Escola e Faculdade',
@@ -44,6 +76,7 @@ export default function ContasFixasPage() {
   const [modal, setModal]               = useState(false)
   const [form, setForm]                 = useState<Partial<ContaFixa>>({})
   const [saving, setSaving]             = useState(false)
+  const [parcelasPreview, setParcelasPreview] = useState<string[]>([])
   const [cartoesExpandido, setCartoesExpandido] = useState(true)
   const [driveModal, setDriveModal]     = useState<{ descricao: string; valor: number } | null>(null)
   const [conferidosContas, setConferidosContas]   = useState<Set<string>>(new Set())
@@ -65,10 +98,35 @@ export default function ContasFixasPage() {
     init()
   }, [])
 
-
   useEffect(() => {
     if (userIdRef.current) carregarTudo()
   }, [mes, ano]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Atualiza preview de parcelas ao digitar no modal ────────────────────
+  useEffect(() => {
+    if (!modal || form.id) {
+      setParcelasPreview([])
+      return
+    }
+    const parsed = parseParcela(form.parcela || '')
+    if (!parsed || parsed.atual === parsed.total) {
+      setParcelasPreview([])
+      return
+    }
+    const faltam = parsed.total - parsed.atual
+    const preview: string[] = []
+    let m = mes, a = ano
+    for (let i = 1; i <= Math.min(faltam, 5); i++) {
+      const next = proximoMesAno(m, a)
+      m = next.mes; a = next.ano
+      const label = a !== ano
+        ? `${MESES[m - 1]} ${a} — parcela ${formatParcela(parsed.atual + i, parsed.total)}`
+        : `${MESES[m - 1]} — parcela ${formatParcela(parsed.atual + i, parsed.total)}`
+      preview.push(label)
+    }
+    if (faltam > 5) preview.push(`... mais ${faltam - 5} parcela(s)`)
+    setParcelasPreview(preview)
+  }, [form.parcela, mes, ano, modal, form.id])
 
   // ── Carrega contas fixas + cartões em paralelo ──────────────
   async function carregarTudo() {
@@ -102,26 +160,86 @@ export default function ContasFixasPage() {
     const uid = userIdRef.current
     if (!uid) return
     setSaving(true)
-    const payload = { ...form, user_id: uid, mes, ano, valor: Number(form.valor || 0), pago: !!form.pago }
+
+    // Normaliza o campo parcela antes de persistir (ex: "1/12" → "01/12")
+    const parcelaNormalizada = (() => {
+      const parsed = parseParcela(form.parcela || '')
+      return parsed ? formatParcela(parsed.atual, parsed.total) : (form.parcela || null)
+    })()
+
+    const payload = {
+      ...form,
+      user_id: uid,
+      mes,
+      ano,
+      valor: Number(form.valor || 0),
+      pago: !!form.pago,
+      parcela: parcelaNormalizada || null,
+    }
+
     if (form.id) {
+      // Edição simples — só atualiza este registro
       const { data, error } = await supabase.from('contas_fixas').update(payload).eq('id', form.id).select().single()
       if (error) { toast.error('Erro ao atualizar conta'); console.error(error); }
-      if (data) { 
-        setContas(prev => prev.map(c => c.id === form.id ? data : c)); 
-        toast.success('Conta atualizada!');
+      if (data) {
+        setContas(prev => prev.map(c => c.id === form.id ? data : c))
+        toast.success('Conta atualizada!')
         if (data.pago && !contas.find(c => c.id === data.id)?.pago) {
           notificarPagamento(data.descricao, data.valor)
         }
       }
     } else {
+      // Novo lançamento — insere no mês atual
       const { data, error } = await supabase.from('contas_fixas').insert(payload).select().single()
-      if (error) { toast.error('Erro ao adicionar conta'); console.error(error); }
-      if (data) { 
-        setContas(prev => [...prev, data]); 
-        toast.success('Conta adicionada!'); 
+      if (error) { toast.error('Erro ao adicionar conta'); console.error(error); setSaving(false); return }
+      if (data) {
+        setContas(prev => [...prev, data])
         if (data.pago) notificarPagamento(data.descricao, data.valor)
       }
+
+      // ── Propaga parcelas futuras automaticamente ──────────────────────
+      const parsed = parseParcela(parcelaNormalizada || '')
+      if (parsed && parsed.atual < parsed.total) {
+        const faltam = parsed.total - parsed.atual
+        let mesFuturo = mes
+        let anoFuturo = ano
+        let dataVencFutura = form.data_vencimento || null
+        let erros = 0
+
+        for (let i = 1; i <= faltam; i++) {
+          const next = proximoMesAno(mesFuturo, anoFuturo)
+          mesFuturo = next.mes
+          anoFuturo = next.ano
+          dataVencFutura = avancarDataVencimento(dataVencFutura)
+
+          const { error: errFuturo } = await supabase.from('contas_fixas').insert({
+            user_id: uid,
+            mes: mesFuturo,
+            ano: anoFuturo,
+            categoria: form.categoria,
+            descricao: form.descricao,
+            data_vencimento: dataVencFutura,
+            valor: Number(form.valor || 0),
+            pago: false,
+            parcela: formatParcela(parsed.atual + i, parsed.total),
+          })
+
+          if (errFuturo) {
+            console.error(`Erro ao criar parcela ${i + parsed.atual}/${parsed.total}:`, errFuturo)
+            erros++
+          }
+        }
+
+        if (erros > 0) {
+          toast.warning(`Conta adicionada, mas ${erros} parcela(s) futura(s) não puderam ser criadas.`)
+        } else {
+          toast.success(`Conta adicionada com ${faltam} parcela(s) futura(s) criadas automaticamente! ⚡`)
+        }
+      } else {
+        toast.success('Conta adicionada!')
+      }
     }
+
     fecharModal()
     setSaving(false)
   }
@@ -180,7 +298,7 @@ export default function ContasFixasPage() {
     setSaving(false)
   }
 
-  function fecharModal() { setModal(false); setForm({}) }
+  function fecharModal() { setModal(false); setForm({}); setParcelasPreview([]) }
 
   // ── Agrupamento ─────────────────────────────────────────────
   const grupos = GRUPOS.map(g => ({
@@ -591,7 +709,28 @@ export default function ContasFixasPage() {
               </div>
               <div>
                 <label className="label">Parcela (opcional)</label>
-                <input className="input" value={form.parcela || ''} onChange={e => setForm({ ...form, parcela: e.target.value })} placeholder="Ex: 03 de 10" />
+                <input
+                  className="input"
+                  value={form.parcela || ''}
+                  onChange={e => setForm({ ...form, parcela: e.target.value })}
+                  placeholder="Ex: 01/10 ou 01 de 10"
+                />
+                {/* Preview das parcelas que serão criadas automaticamente */}
+                {parcelasPreview.length > 0 && !form.id && (
+                  <div className="mt-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900 rounded-lg px-3 py-2.5">
+                    <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-1.5 flex items-center gap-1">
+                      <span>⚡</span>
+                      Parcelas criadas automaticamente nos próximos meses:
+                    </div>
+                    <ul className="space-y-0.5">
+                      {parcelasPreview.map((p, i) => (
+                        <li key={i} className="text-xs text-blue-500 dark:text-blue-400 flex items-center gap-1.5">
+                          <span className="text-blue-300">→</span> {p}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2 pt-1">
                 <input type="checkbox" id="pago_fixo" checked={!!form.pago} onChange={e => setForm({ ...form, pago: e.target.checked })} className="w-4 h-4 accent-green-500" />

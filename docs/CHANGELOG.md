@@ -69,6 +69,10 @@
 - `[mes]` → `[mes, ano]` na dep array dos `useEffect` de recarga em `cartoes`, `contas-fixas` e `combustivel`
 - Navegar de 2026 para 2027 agora recarrega corretamente
 
+#### BUG 5 — Propagação de parcelas nos meses seguintes
+- **Contas Fixas**: Implementada a lógica de propagação automática de parcelas que estava ausente, avançando a data de vencimento mês a mês.
+- **Cartões de Crédito**: Adicionada normalização do campo parcela e tratamento de erro (try/catch) no loop de propagação para evitar falhas silenciosas. Adicionado feedback visual (toast).
+
 #### BUG 6 — Crash silencioso ao criar parcelas futuras
 - `novo!.id` substituído por verificação explícita com `throw new Error()`
 - Evita `TypeError: Cannot read properties of undefined` em caso de falha do Supabase
