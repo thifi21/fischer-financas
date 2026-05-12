@@ -1,7 +1,7 @@
 # 📚 Documentação Completa — Fischer Finanças
-## Versão 3.6 — Auditoria de Bugs & Performance ✅
+## Versão 3.6.1 — Propagação Automática de Parcelas & Correções ✅
 
-> Desenvolvido por Thiago Fischer | Versão 3.6.0 | 09/05/2026
+> Desenvolvido por Thiago Fischer | Versão 3.6.1 | 11/05/2026
 
 ---
 
@@ -24,7 +24,7 @@
 
 ## Visão Geral
 
-Fischer Finanças é uma plataforma de gestão financeira familiar de alta performance. O sistema evoluiu de uma simples planilha para um ecossistema completo com **notificações inteligentes**, **conciliação bancária**, **análise por IA** e **visualização de fluxo de caixa (Sankey)**. Na versão 3.6, passou por uma auditoria técnica profunda com correção de 12 bugs e 6 problemas de performance.
+Fischer Finanças é uma plataforma de gestão financeira familiar de alta performance. O sistema evoluiu de uma simples planilha para um ecossistema completo com **notificações inteligentes**, **conciliação bancária**, **análise por IA** e **visualização de fluxo de caixa (Sankey)**. Na versão 3.6.1, passou por melhorias significativas na propagação de parcelas automáticas tanto para Cartões de Crédito quanto para Contas Fixas.
 
 ---
 
@@ -143,6 +143,12 @@ Localizado no Dashboard, o gráfico de Sankey (`src/components/SankeyFlow.tsx`) 
 - Combustível
 - Reserva/Sobra
 
+### Cartões de Crédito e Contas Fixas (v3.6.1)
+**Propagação Automática de Parcelas:**
+- **Cartões de Crédito**: Ao lançar uma compra parcelada (ex: `01/12`), o sistema normaliza os dados e cria automaticamente as faturas dos meses subsequentes. Trata falhas parciais (via `try/catch`) e notifica no final (Toast).
+- **Contas Fixas**: Contas registradas com campo parcela (ex: `01/10`) geram automaticamente os registros para os próximos meses, avançando o mês de vencimento (mantendo o dia).
+- **Preview Dinâmico**: O modal exibe em tempo real a lista dos meses seguintes e as respectivas parcelas que serão geradas antes de confirmar o salvamento.
+
 ### Extrato & Conciliação
 **Rota:** `/dashboard/entradas` (Aba Extrato)
 - Interface unificada para todas as movimentações.
@@ -221,4 +227,4 @@ GOOGLE_DRIVE_PASTA_CONTAS_2026_ID=
 
 ---
 
-*Fischer Finanças 2026 — Documentação Técnica v3.6.0*
+*Fischer Finanças 2026 — Documentação Técnica v3.6.1*
