@@ -287,6 +287,9 @@ export default function EntradasPage() {
     if (!uid) return
     setSavingManual(true)
     
+    const hoje = new Date()
+    const dataAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`
+
     const payload = { 
       user_id: uid, 
       mes, 
@@ -294,7 +297,7 @@ export default function EntradasPage() {
       descricao: formManual.descricao,
       valor: Number(formManual.valor || 0),
       categoria: formManual.tipo === 'saida' ? 'extrato_saida' : 'extrato_entrada',
-      data_entrada: formManual.data_entrada || get5thBusinessDayFormatado(ano, mes)
+      data_entrada: formManual.data_entrada || dataAtual
     }
 
     if (formManual.id) {
@@ -316,9 +319,14 @@ export default function EntradasPage() {
   }
 
   function abrirModalManual() {
+    const hoje = new Date()
+    const anoStr = hoje.getFullYear()
+    const mesStr = String(hoje.getMonth() + 1).padStart(2, '0')
+    const diaStr = String(hoje.getDate()).padStart(2, '0')
+
     setFormManual({
       tipo: 'saida',
-      data_entrada: get5thBusinessDayFormatado(ano, mes)
+      data_entrada: `${anoStr}-${mesStr}-${diaStr}`
     })
     setModalManual(true)
   }
