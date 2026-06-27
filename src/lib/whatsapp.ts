@@ -61,7 +61,7 @@ export async function sendWhatsAppMessage(text: string, targetIndex?: number) {
     const chatId = `${cleanPhone}@c.us`
     
     const url = `https://api.green-api.com/waInstance${idInstance}/sendMessage/${apiTokenInstance}`
-    console.log(`WhatsApp: Enviando para ${chatId} via ${url}`)
+    console.log(`WhatsApp: enviando para número final ${cleanPhone.slice(-4)}`)
 
     try {
       const response = await fetch(url, {
@@ -75,20 +75,20 @@ export async function sendWhatsAppMessage(text: string, targetIndex?: number) {
       })
       
       const data = await response.json()
-      console.log(`WhatsApp: Resposta de ${phone}:`, data)
+      console.log(`WhatsApp: resposta recebida para final ${cleanPhone.slice(-4)}`)
       
       // No Green API, se o envio for bem sucedido ele retorna um idMessage
       const isOk = response.ok && data.idMessage
       
       results.push({ 
-        phone, 
+        phone: cleanPhone.slice(-4),
         success: isOk, 
         errorText: isOk ? 'Enviado' : (data.message || data.error || 'Erro no envio'), 
         status: response.status 
       })
     } catch (error: any) {
-      console.error(`WhatsApp: Erro ao enviar para ${phone}:`, error)
-      results.push({ phone, success: false, error: 'Erro de conexão', errorText: error.message })
+      console.error(`WhatsApp: erro ao enviar para final ${cleanPhone.slice(-4)}`)
+      results.push({ phone: cleanPhone.slice(-4), success: false, error: 'Erro de conexão', errorText: 'Falha de comunicação com o provedor' })
     }
   }
 

@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { motion, AnimatePresence } from 'framer-motion'
 import SankeyFlow from '@/components/SankeyFlow'
+import { authFetch } from '@/lib/auth-fetch'
 
 export default function IAAnalisePage() {
   const supabase = createClient()
@@ -79,7 +80,7 @@ export default function IAAnalisePage() {
     if (!dadosAnalise) return
     setAnalisando(true)
     try {
-      const res = await fetch('/api/ia', {
+      const res = await authFetch('/api/ia', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dados: dadosAnalise, pergunta: customPrompt }),

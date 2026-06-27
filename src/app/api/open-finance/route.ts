@@ -1,28 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { parseOFX, parseCSV, detectarBanco } from '@/lib/ofx-parser'
+import { enforceRateLimit, requireApiUser } from '@/lib/api-auth'
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { auth: { persistSession: false } }
-    )
-
-    // Pegar user da sessão via Authorization header
-    const authHeader = req.headers.get('authorization') || ''
-    const token = authHeader.replace('Bearer ', '')
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
-    }
+    const auth = await requireApiUser(req)
+    if (auth.error) return auth.error
+    const { supabase, user } = auth
+    const limited = await enforceRateLimit(supabase, 'open-finance', 5, 60)
+    if (limited) return limited
 
     const formData = await req.formData()
     const file = formData.get('arquivo') as File | null
     if (!file) {
       return NextResponse.json({ error: 'Arquivo não enviado' }, { status: 400 })
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Arquivo muito grande. Máximo 5MB.' }, { status: 413 })
     }
 
     const content = await file.text()

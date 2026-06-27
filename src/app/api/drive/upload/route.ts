@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { Readable } from 'stream'
+import { enforceRateLimit, requireApiUser } from '@/lib/api-auth'
 
 /**
  * Fischer Finanças 2026 — API Google Drive
@@ -89,6 +90,11 @@ function formatarNome(descricao: string, valor: number, extensao: string): strin
 // ── POST /api/drive/upload — faz upload do comprovante ───────────
 export async function POST(req: NextRequest) {
   try {
+    const userAuth = await requireApiUser(req)
+    if (userAuth.error) return userAuth.error
+    const limited = await enforceRateLimit(userAuth.supabase, 'drive-upload', 10, 60)
+    if (limited) return limited
+
     // Verifica configuração
     if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
       return NextResponse.json(
@@ -190,6 +196,11 @@ export async function POST(req: NextRequest) {
 // ── GET /api/drive/upload — lista comprovantes do mês ───────────
 export async function GET(req: NextRequest) {
   try {
+    const userAuth = await requireApiUser(req)
+    if (userAuth.error) return userAuth.error
+    const limited = await enforceRateLimit(userAuth.supabase, 'drive-list', 30, 60)
+    if (limited) return limited
+
     if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
       return NextResponse.json({ arquivos: [], configurado: false })
     }

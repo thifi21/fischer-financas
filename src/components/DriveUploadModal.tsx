@@ -2,6 +2,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { formatBRL } from '@/lib/utils'
 import { MESES } from '@/types'
+import { authFetch } from '@/lib/auth-fetch'
 
 type Arquivo = {
   id: string
@@ -71,7 +72,7 @@ export default function DriveUploadModal({ mes, descricao, valor, onFechar, onSu
       fd.append('descricao', descricao)
       fd.append('valor',    String(valor))
 
-      const res = await fetch('/api/drive/upload', { method: 'POST', body: fd })
+      const res = await authFetch('/api/drive/upload', { method: 'POST', body: fd })
       const json = await res.json()
 
       if (!res.ok || json.error) {

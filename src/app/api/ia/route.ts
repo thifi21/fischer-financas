@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { analiseGemini, analiseHeuristica, type DadosParaAnalise } from '@/lib/ai-analise'
+import { enforceRateLimit, requireApiUser } from '@/lib/api-auth'
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireApiUser(req)
+    if (auth.error) return auth.error
+    const limited = await enforceRateLimit(auth.supabase, 'ia', 10, 60)
+    if (limited) return limited
+
     const body = await req.json()
     const { dados, pergunta }: { dados: DadosParaAnalise; pergunta?: string } = body
 
     if (!dados) {
       return NextResponse.json({ error: 'Dados financeiros não fornecidos' }, { status: 400 })
+    }
+    if (pergunta && (typeof pergunta !== 'string' || pergunta.length > 1000)) {
+      return NextResponse.json({ error: 'Pergunta inválida ou muito longa' }, { status: 400 })
     }
 
     const apiKey = process.env.GOOGLE_AI_KEY

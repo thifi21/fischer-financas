@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { enforceRateLimit, requireApiUser } from '@/lib/api-auth'
 
-// Singleton — reutilizado entre requisições na mesma instância serverless (warm start)
-// A instância é criada de forma lazy na primeira requisição para suportar ambientes
-// onde as variáveis de ambiente só ficam disponíveis em runtime.
 let genAI: GoogleGenerativeAI | null = null
 
 function getModel() {
@@ -13,87 +11,54 @@ function getModel() {
   return genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 }
 
-// ── Rate Limiting (20 req/min por IP) ─────────────────────────────
-const rateMap = new Map<string, { count: number; reset: number }>()
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now()
-  const entry = rateMap.get(ip)
-  if (!entry || now > entry.reset) {
-    rateMap.set(ip, { count: 1, reset: now + 60_000 })
-    return false
-  }
-  if (entry.count >= 20) return true
-  entry.count++
-  return false
-}
+type ChatMessage = { role: 'user' | 'assistant'; content: string }
 
 export async function POST(req: NextRequest) {
   try {
-    // ── Verificação de rate limit ──────────────────────────────────
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-      ?? req.headers.get('x-real-ip')
-      ?? 'unknown'
-    if (isRateLimited(ip)) {
-      return NextResponse.json(
-        { error: 'Muitas requisições. Aguarde 1 minuto antes de tentar novamente.' },
-        { status: 429 }
-      )
-    }
+    const auth = await requireApiUser(req)
+    if (auth.error) return auth.error
+    const limited = await enforceRateLimit(auth.supabase, 'chat', 20, 60)
+    if (limited) return limited
 
     const { messages } = await req.json()
-
-    if (!messages || !Array.isArray(messages)) {
+    if (!Array.isArray(messages) || messages.length === 0 || messages.length > 20) {
       return NextResponse.json({ error: 'Mensagens inválidas ou ausentes.' }, { status: 400 })
+    }
+    const invalid = messages.some((msg: unknown) => {
+      if (!msg || typeof msg !== 'object') return true
+      const value = msg as Partial<ChatMessage>
+      return !['user', 'assistant'].includes(String(value.role))
+        || typeof value.content !== 'string'
+        || value.content.length > 4000
+    })
+    if (invalid) {
+      return NextResponse.json({ error: 'Formato ou tamanho de mensagem inválido.' }, { status: 400 })
     }
 
     const model = getModel()
-
     if (!model) {
-      return NextResponse.json({ error: 'A chave GOOGLE_AI_KEY não está configurada no .env.local.' }, { status: 500 })
+      return NextResponse.json({ error: 'Assistente de IA não configurado.' }, { status: 503 })
     }
 
-    // O prompt de sistema instrui a IA sobre como ela deve se comportar
-    const systemPrompt = `Você é o "Fischer AI", um assistente virtual financeiro projetado para ajudar a família Fischer a organizar e entender suas finanças no aplicativo Fischer Finanças.
+    const systemPrompt = `Você é o Fischer AI, um assistente financeiro da família Fischer.
 Responda de forma amigável, clara, concisa e sempre em português brasileiro.
-Use formatação markdown (como **negrito**, listas) para tornar as respostas fáceis de ler.
-Mantenha as respostas curtas (no máximo 2-3 parágrafos curtos) a menos que o usuário peça uma explicação detalhada.
-Se o usuário perguntar algo não relacionado a finanças, responda educadamente, mas lembre-o de que o seu foco principal é ajudá-lo com suas finanças.`
+Use markdown para facilitar a leitura e mantenha o foco em finanças.`
 
-    // A biblioteca do Gemini espera o histórico em um formato específico:
-    // [{ role: 'user' | 'model', parts: [{ text: '...' }] }]
-    // Mas a mensagem atual é passada para sendMessage.
-    
-    // Separando a última mensagem (atual) do restante do histórico
-    const lastMessage = messages[messages.length - 1]
-    const history = messages.slice(0, messages.length - 1).map((msg: any) => ({
+    const typedMessages = messages as ChatMessage[]
+    const lastMessage = typedMessages[typedMessages.length - 1]
+    const history = typedMessages.slice(0, -1).map(msg => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: msg.content }]
+      parts: [{ text: msg.content }],
     }))
-
-    // Inicia um chat com o histórico
-    const chat = model.startChat({
-      history: [
-        // Enviando o prompt de sistema na primeira iteração (como se fosse o usuário pedindo para ele agir assim, e ele concordando)
-        {
-          role: 'user',
-          parts: [{ text: systemPrompt }]
-        },
-        {
-          role: 'model',
-          parts: [{ text: 'Entendido! Sou o Fischer AI, seu assistente financeiro pessoal. Como posso ajudar com suas finanças hoje?' }]
-        },
-        ...history
-      ]
-    })
-
-    // Envia a nova mensagem do usuário
+    const chat = model.startChat({ history: [
+      { role: 'user', parts: [{ text: systemPrompt }] },
+      { role: 'model', parts: [{ text: 'Entendido! Como posso ajudar com suas finanças hoje?' }] },
+      ...history,
+    ] })
     const result = await chat.sendMessage(lastMessage.content)
-    const response = await result.response
-
-    return NextResponse.json({ resposta: response.text() })
-  } catch (error: any) {
+    return NextResponse.json({ resposta: result.response.text() })
+  } catch (error) {
     console.error('Erro no Chat Gemini:', error)
-    return NextResponse.json({ error: error.message || 'Erro interno no servidor' }, { status: 500 })
+    return NextResponse.json({ error: 'Erro interno ao processar o chat' }, { status: 500 })
   }
 }

@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const getSupabase = (token: string) =>
-  createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } }
-  )
+import { enforceRateLimit, requireApiUser } from '@/lib/api-auth'
 
 // GET: listar grupo e membros do user
 export async function GET(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '') || ''
-  const supabase = getSupabase(token)
-  const { data: { user }, error } = await supabase.auth.getUser(token)
-  if (error || !user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+  const auth = await requireApiUser(req)
+  if (auth.error) return auth.error
+  const { supabase, user } = auth
+  const limited = await enforceRateLimit(supabase, 'familia-read', 60, 60)
+  if (limited) return limited
 
   // Grupos que o user é dono OU membro
   const { data: membros } = await supabase
@@ -37,15 +31,34 @@ export async function GET(req: NextRequest) {
     .select('*')
     .eq('grupo_id', grupo.id)
 
-  return NextResponse.json({ grupo, membros: todosMembros || [] })
+  const mes = Number(req.nextUrl.searchParams.get('mes'))
+  const ano = Number(req.nextUrl.searchParams.get('ano'))
+  let resumos: unknown[] = []
+  if (mes >= 1 && mes <= 12 && ano >= 2000 && ano <= 2100) {
+    const { data, error: resumoError } = await supabase.rpc('get_resumo_familia', {
+      p_mes: mes,
+      p_ano: ano,
+    })
+    if (resumoError) {
+      console.error('[Família] Resumo:', resumoError.message)
+      return NextResponse.json(
+        { error: 'Resumo familiar indisponível. Aplique as migrations do Supabase.' },
+        { status: 503 }
+      )
+    }
+    resumos = data || []
+  }
+
+  return NextResponse.json({ grupo, membros: todosMembros || [], resumos })
 }
 
 // POST: criar grupo
 export async function POST(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '') || ''
-  const supabase = getSupabase(token)
-  const { data: { user }, error } = await supabase.auth.getUser(token)
-  if (error || !user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+  const auth = await requireApiUser(req)
+  if (auth.error) return auth.error
+  const { supabase, user } = auth
+  const limited = await enforceRateLimit(supabase, 'familia-write', 20, 60)
+  if (limited) return limited
 
   const body = await req.json()
   const { acao } = body
@@ -142,10 +155,11 @@ export async function POST(req: NextRequest) {
 
 // DELETE: deletar grupo (apenas dono)
 export async function DELETE(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '') || ''
-  const supabase = getSupabase(token)
-  const { data: { user }, error } = await supabase.auth.getUser(token)
-  if (error || !user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+  const auth = await requireApiUser(req)
+  if (auth.error) return auth.error
+  const { supabase, user } = auth
+  const limited = await enforceRateLimit(supabase, 'familia-write', 20, 60)
+  if (limited) return limited
 
   const { grupoId } = await req.json()
   const { data: grupo } = await supabase

@@ -1,10 +1,13 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { sendWhatsAppMessage, getConfiguredWhatsAppNumbers } from '@/lib/whatsapp'
+import { enforceRateLimit, requireApiUser } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const auth = await requireApiUser(request)
+    if (auth.error) return auth.error
     const numbers = getConfiguredWhatsAppNumbers()
     return NextResponse.json({ numbers })
   } catch (error) {
@@ -12,12 +15,20 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const auth = await requireApiUser(request)
+    if (auth.error) return auth.error
+    const limited = await enforceRateLimit(auth.supabase, 'whatsapp', 5, 60)
+    if (limited) return limited
+
     const { message, targetIndex } = await request.json()
 
-    if (!message) {
+    if (typeof message !== 'string' || !message.trim()) {
       return NextResponse.json({ error: 'Mensagem é obrigatória' }, { status: 400 })
+    }
+    if (message.length > 4096) {
+      return NextResponse.json({ error: 'Mensagem excede 4096 caracteres' }, { status: 413 })
     }
 
     const result = await sendWhatsAppMessage(message as string, targetIndex as number)

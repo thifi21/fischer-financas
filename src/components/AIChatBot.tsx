@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { Bot, Send, X, Mic, MessageSquare, Loader2, MicOff } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
+import { authFetch } from '@/lib/auth-fetch'
 
 type Message = {
   role: 'user' | 'assistant'
@@ -98,7 +99,7 @@ export default function AIChatBot() {
     setIsLoading(true)
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await authFetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: [...messages, userMessage] })

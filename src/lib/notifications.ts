@@ -1,4 +1,5 @@
 import { formatBRL } from './utils'
+import { authFetch } from './auth-fetch'
 
 /**
  * Envia uma notificação de pagamento confirmado para o Telegram.
@@ -13,12 +14,12 @@ export async function notificarPagamento(descricao: string, valor: number, icone
   // Disparar em paralelo
   try {
     const promises = [
-      fetch('/api/telegram', {
+      authFetch('/api/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: mensagemTelegram })
       }),
-      fetch('/api/whatsapp', {
+      authFetch('/api/whatsapp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: mensagem })

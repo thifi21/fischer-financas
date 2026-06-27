@@ -5,6 +5,7 @@ import { useMes } from '@/context/MesContext'
 import { formatBRL, formatDate } from '@/lib/utils'
 import { MESES } from '@/types'
 import { toast } from 'sonner'
+import { authFetch } from '@/lib/auth-fetch'
 
 let cachedUserId: string | null = null
 
@@ -74,7 +75,7 @@ export default function NotificacoesPage() {
 
   async function buscarNumerosWhatsApp() {
     try {
-      const res = await fetch('/api/whatsapp')
+      const res = await authFetch('/api/whatsapp')
       const data = await res.json()
       console.log('WhatsApp Numbers API response:', data)
       if (data.numbers) {
@@ -318,7 +319,7 @@ export default function NotificacoesPage() {
 
     setSaving(true)
     try {
-      const res = await fetch('/api/telegram', {
+      const res = await authFetch('/api/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: texto })
@@ -349,7 +350,7 @@ export default function NotificacoesPage() {
 
     setSaving(true)
     try {
-      const res = await fetch('/api/whatsapp', {
+      const res = await authFetch('/api/whatsapp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: texto, targetIndex })

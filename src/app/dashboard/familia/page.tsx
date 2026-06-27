@@ -65,10 +65,6 @@ export default function FamiliaPage() {
     init()
   }, [])
 
-  useEffect(() => {
-    if (grupo && membros.length > 0) carregarResumos()
-  }, [grupo, membros, mes, ano])
-
   async function getToken() {
     const { data: { session } } = await supabase.auth.getSession()
     return session?.access_token || ''
@@ -77,50 +73,17 @@ export default function FamiliaPage() {
   async function carregarGrupo() {
     setLoading(true)
     const token = await getToken()
-    const res = await fetch('/api/familia', { headers: { Authorization: `Bearer ${token}` } })
+    const res = await fetch(`/api/familia?mes=${mes}&ano=${ano}`, { headers: { Authorization: `Bearer ${token}` } })
     const json = await res.json()
     setGrupo(json.grupo)
     setMembros(json.membros || [])
+    setResumos(json.resumos || [])
     setLoading(false)
   }
 
-  async function carregarResumos() {
-    const uid = userIdRef.current
-    if (!uid || !membros.length) return
-
-    const novosResumos: ResumoMembro[] = []
-
-    for (const membro of membros) {
-      const mid = membro.user_id
-      const [
-        { data: entradas },
-        { data: cartoes },
-        { data: fixas },
-        { data: combustivel },
-      ] = await Promise.all([
-        supabase.from('entradas').select('valor').eq('user_id', mid).eq('mes', mes).eq('ano', ano),
-        supabase.from('cartoes').select('valor').eq('user_id', mid).eq('mes', mes).eq('ano', ano),
-        supabase.from('contas_fixas').select('valor').eq('user_id', mid).eq('mes', mes).eq('ano', ano),
-        supabase.from('combustivel').select('valor').eq('user_id', mid).eq('mes', mes).eq('ano', ano),
-      ])
-
-      const soma = (rows: any[] | null) => (rows || []).reduce((s, r) => s + Number(r.valor), 0)
-      const totalEntradas = soma(entradas)
-      const totalSaidas = soma(cartoes) + soma(fixas) + soma(combustivel)
-
-      novosResumos.push({
-        user_id: mid,
-        nome: membro.nome_membro || membro.email_membro?.split('@')[0] || 'Membro',
-        email: membro.email_membro || '',
-        papel: membro.papel,
-        entradas: totalEntradas,
-        saidas: totalSaidas,
-        saldo: totalEntradas - totalSaidas,
-      })
-    }
-
-    setResumos(novosResumos)
-  }
+  useEffect(() => {
+    if (userIdRef.current) carregarGrupo()
+  }, [mes, ano])
 
   async function criarGrupo() {
     if (!nomeGrupo.trim()) return

@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { MESES } from '@/types'
+import { authFetch } from '@/lib/auth-fetch'
 
 type ArquivoDrive = {
   id: string
@@ -24,7 +25,7 @@ export default function DrivePanel({ mes }: Props) {
   const carregarArquivos = useCallback(async () => {
     setLoading(true)
     try {
-      const res  = await fetch(`/api/drive/upload?mes=${mes}`)
+      const res  = await authFetch(`/api/drive/upload?mes=${mes}`)
       const json = await res.json()
       if (json.error?.includes('configurado')) {
         setConfigurado(false)
