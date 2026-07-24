@@ -3,9 +3,9 @@
 > Sistema de controle financeiro familiar completo desenvolvido para a **Família Fischer**.
 
 **Desenvolvido por:** Thiago Fischer  
-**Versão:** 3.6.0 — Auditoria de Bugs, Performance & UX 🛡️  
+**Versão:** 3.6.1 — Segurança de APIs, Limpeza de Código 🧹  
 **Ano:** 2026  
-**Stack:** Next.js 14 · TypeScript · Supabase · Tailwind CSS · Gemini AI · Telegram API
+**Stack:** Next.js 15 · TypeScript · Supabase · Tailwind CSS · Gemini AI · Telegram API
 
 ---
 
@@ -68,43 +68,57 @@ Configure as variáveis para receber notificações automáticas:
 
 ---
 
-## 📁 Estrutura do Projeto (v3.6)
+## 📁 Estrutura do Projeto (v3.6.1)
 
 ```
 fischer-financas/
 ├── mobile/                        ← App React Native (Expo)
+├── scripts/
+│   └── importar-dados.ts          ← Script manual de importação de dados
 ├── src/
 │   ├── app/
 │   │   ├── api/
 │   │   │   ├── chat/              ← Gemini AI (com rate limiting)
-│   │   │   └── telegram/          ← Webhook de notificações
-│   │   ├── dashboard/
-│   │   │   ├── layout.tsx         ← Atalhos de teclado + UserProvider + Clock isolado
-│   │   │   ├── cartoes/           ← Race condition guard + exclusão precisa de parcelas
-│   │   │   ├── contas-fixas/      ← Race condition guard + useMemo supabase
-│   │   │   ├── entradas/          ← useMemo supabase
-│   │   │   ├── metas/             ← MetaCard externo + useMemo supabase
-│   │   │   ├── relatorios/        ← useMemo supabase
-│   │   │   ├── combustivel/       ← useMemo + dep array com ano
-│   │   │   ├── sonhos/            ← Metas de longo prazo
-│   │   │   └── ia-analise/        ← IA Gemini
+│   │   │   ├── drive/             ← Upload para Google Drive
+│   │   │   ├── familia/           ← Gestão de membros da família
+│   │   │   ├── ia/                ← Análise financeira via Gemini
+│   │   │   ├── open-finance/      ← Importação OFX/CSV
+│   │   │   ├── telegram/          ← Webhook de notificações
+│   │   │   └── whatsapp/          ← Notificações WhatsApp
+│   │   └── dashboard/
+│   │       ├── layout.tsx         ← Atalhos de teclado + UserProvider + Clock isolado
+│   │       ├── cartoes/           ← Race condition guard + exclusão precisa de parcelas
+│   │       ├── contas-fixas/      ← Race condition guard + useMemo supabase
+│   │       ├── entradas/          ← useMemo supabase
+│   │       ├── metas/             ← MetaCard externo + useMemo supabase
+│   │       ├── relatorios/        ← useMemo supabase
+│   │       ├── combustivel/       ← useMemo + dep array com ano
+│   │       ├── sonhos/            ← Metas de longo prazo
+│   │       └── ia-analise/        ← IA Gemini
 │   ├── components/
 │   │   ├── AIChatBot.tsx          ← Speech cleanup + split otimizado
-│   │   ├── CotacoesPanel.tsx      ← Cache HTTP otimizado
+│   │   ├── CotacoesPanel.tsx      ← Cotações client-side (USD, EUR, PETR4, CDI)
 │   │   ├── SankeyFlow.tsx         ← Fluxo de caixa visual
+│   │   ├── DrivePanel.tsx         ← Painel Google Drive
 │   │   └── DashboardClientView    ← Core do dashboard
 │   ├── context/
 │   │   ├── MesContext.tsx         ← Fonte única de verdade para mês/ano
-│   │   └── UserContext.tsx        ← [NOVO] userId centralizado para todo o dashboard
+│   │   └── UserContext.tsx        ← userId centralizado para todo o dashboard
 │   ├── lib/
+│   │   ├── api-auth.ts            ← [NOVO] Rate limiting + autenticação de rotas API
+│   │   ├── auth-fetch.ts          ← [NOVO] fetch autenticado do lado do cliente
+│   │   ├── ai-analise.ts          ← Engine Gemini + heurística financeira
+│   │   ├── ofx-parser.ts          ← Parser OFX/CSV
 │   │   ├── utils.ts               ← formatBRL com Intl singleton
 │   │   ├── telegram.ts            ← Integração de alertas
 │   │   └── notifications.ts       ← Engine de notificações
 └── supabase/
     └── migrations/
-        ├── MIGRATIONS_FASE4.sql   ← Cleanup e correções
-        ├── MIGRATIONS_FASE5.sql   ← Extrato e Conciliação
-        └── MIGRATIONS_FASE6.sql   ← Telegram e Notificações
+        ├── MIGRATIONS.sql             ← Schema inicial
+        ├── MIGRATIONS_FASE3.sql       ← Investimentos e Sonhos
+        ├── MIGRATIONS_FASE4.sql       ← Cleanup e correções
+        ├── MIGRATIONS_FASE5_EXTRATO.sql ← Extrato e Conciliação
+        └── 002_security_serverless.sql  ← [NOVO] Segurança serverless
 ```
 
 ---

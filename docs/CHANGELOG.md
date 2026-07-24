@@ -5,6 +5,23 @@
 
 ---
 
+## [3.6.1] — Julho 2026
+
+### 🧹 Limpeza de código
+
+#### Remoção de arquivos sem uso
+- Removida rota `src/app/api/cotacoes/route.ts` — nunca foi chamada pela aplicação; o `CotacoesPanel` busca cotações diretamente no browser (AwesomeAPI, brapi, BCB)
+- Removido `build-log.txt` da raiz — arquivo de log de build antigo (Next.js 14.x) que não deveria estar versionado
+- Removido `OPTIMIZATION_RPC.sql` da raiz — script SQL avulso de otimização já aplicado ao Supabase, sem utilidade como arquivo de projeto
+
+#### Proteção de APIs e atualização de stack (pull do GitHub)
+- Aplicado commit `8e9b4b3 — security: protege APIs e atualiza stack`
+- Novos arquivos `src/lib/api-auth.ts` e `src/lib/auth-fetch.ts` para autenticação centralizada
+- Migration `supabase/migrations/002_security_serverless.sql` aplicada
+- 7 rotas de API atualizadas com rate limiting e verificação de usuário autenticado
+
+---
+
 ## [3.6.0] — Maio 2026
 
 ### 🏗️ Arquitetura
