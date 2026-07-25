@@ -157,6 +157,7 @@ export default function MetasPage() {
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState<Partial<Meta>>({})
   const [saving, setSaving] = useState(false)
+  const [copiando, setCopiando] = useState(false)
   const userIdRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -263,6 +264,55 @@ export default function MetasPage() {
     carregarTudo()
   }
 
+  async function copiarMetasMesAnterior() {
+    const uid = userIdRef.current
+    if (!uid) return
+
+    // Calcular mês/ano anterior
+    const mesAnt = mes === 1 ? 12 : mes - 1
+    const anoAnt = mes === 1 ? ano - 1 : ano
+
+    setCopiando(true)
+    const { data: metasAnt } = await supabase
+      .from('metas')
+      .select('*')
+      .eq('user_id', uid)
+      .eq('mes', mesAnt)
+      .eq('ano', anoAnt)
+      .eq('ativo', true)
+
+    if (!metasAnt || metasAnt.length === 0) {
+      alert('Nenhuma meta encontrada no mês anterior.')
+      setCopiando(false)
+      return
+    }
+
+    // Categorias que já têm meta no mês atual
+    const categoriasExistentes = new Set(metas.map(m => m.categoria))
+
+    const novasMetas = metasAnt
+      .filter(m => !categoriasExistentes.has(m.categoria))
+      .map(m => ({
+        user_id: uid,
+        categoria: m.categoria,
+        valor_limite: m.valor_limite,
+        mes,
+        ano,
+        notificar_em: m.notificar_em,
+        ativo: true,
+      }))
+
+    if (novasMetas.length === 0) {
+      alert('Todas as categorias já possuem meta neste mês.')
+      setCopiando(false)
+      return
+    }
+
+    await supabase.from('metas').insert(novasMetas)
+    setCopiando(false)
+    carregarTudo()
+  }
+
   async function toggleAtivo(meta: Meta) {
     const novoAtivo = !meta.ativo
     await supabase.from('metas').update({ ativo: novoAtivo }).eq('id', meta.id)
@@ -295,9 +345,19 @@ export default function MetasPage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">🎯 Metas e Orçamento</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm">{MESES[mes - 1]} {ano}</p>
         </div>
-        <button onClick={() => abrirModal()} className="btn-primary">
-          + Nova Meta
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={copiarMetasMesAnterior}
+            disabled={copiando}
+            className="btn-secondary"
+            title="Copia as metas do mês anterior para o mês atual"
+          >
+            {copiando ? '⏳ Copiando...' : '📋 Copiar mês anterior'}
+          </button>
+          <button onClick={() => abrirModal()} className="btn-primary">
+            + Nova Meta
+          </button>
+        </div>
       </div>
 
       {/* Card de Resumo Geral */}

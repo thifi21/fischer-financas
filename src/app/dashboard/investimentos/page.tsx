@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { toast } from 'sonner'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine
+  ResponsiveContainer, ReferenceLine, Legend
 } from 'recharts'
 
 type ModoCalc = 'aposentadoria' | 'meta' | 'livre'
@@ -52,6 +52,8 @@ export default function InvestimentosPage() {
   const [simulacoes, setSimulacoes] = useState<any[]>([])
   const [nomeSimulacao, setNomeSimulacao] = useState('')
   const [salvando, setSalvando] = useState(false)
+  const [modoComparar, setModoComparar] = useState(false)
+  const [simulacoesSelecionadas, setSimulacoesSelecionadas] = useState<string[]>([])
 
   useEffect(() => {
     carregarSimulacoes()
@@ -112,6 +114,7 @@ export default function InvestimentosPage() {
   }
 
   function carregarSimulacaoNaTela(sim: any) {
+    if (modoComparar) return // no modo comparar, não carrega na tela
     setModo(sim.modo as ModoCalc)
     setValorInicial(Number(sim.valor_inicial))
     setAporteMensal(Number(sim.aporte_mensal))
@@ -122,6 +125,30 @@ export default function InvestimentosPage() {
     setIdadeAposentadoria(Number(sim.idade_aposentadoria))
     setRendaDesejada(Number(sim.renda_desejada))
     toast.success(`Simulação "${sim.nome}" carregada`)
+  }
+
+  function toggleSelecionar(id: string) {
+    setSimulacoesSelecionadas(prev => {
+      if (prev.includes(id)) return prev.filter(x => x !== id)
+      if (prev.length >= 2) {
+        toast.error('Selecione no máximo 2 simulações para comparar')
+        return prev
+      }
+      return [...prev, id]
+    })
+  }
+
+  // Gera dados de grafico para uma simulacao salva
+  function getDadosSimulacao(sim: any) {
+    const prazo = sim.modo === 'aposentadoria'
+      ? (Number(sim.idade_aposentadoria) - Number(sim.idade_atual)) * 12
+      : Number(sim.prazo_meses)
+    return calcularJurosCompostos(
+      Number(sim.aporte_mensal),
+      Number(sim.taxa_mensal),
+      prazo,
+      Number(sim.valor_inicial)
+    )
   }
 
   // Cálculos derivados
@@ -196,25 +223,135 @@ export default function InvestimentosPage() {
 
       {/* Simulações Salvas */}
       {simulacoes.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300">
-          {simulacoes.map(sim => (
-            <div key={sim.id} className="flex-shrink-0 flex items-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden shadow-sm">
-              <button 
-                onClick={() => carregarSimulacaoNaTela(sim)}
-                className="px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                {sim.nome}
-              </button>
-              <div className="w-[1px] h-6 bg-gray-200 dark:bg-gray-700"></div>
-              <button 
-                onClick={() => apagarSimulacao(sim.id)}
-                className="px-3 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                title="Excluir"
-              >
-                ✕
-              </button>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="flex gap-2 flex-1 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-gray-300">
+              {simulacoes.map(sim => {
+                const selecionada = simulacoesSelecionadas.includes(sim.id)
+                return (
+                  <div key={sim.id} className={`flex-shrink-0 flex items-center rounded-lg overflow-hidden shadow-sm border transition-all ${
+                    modoComparar
+                      ? selecionada
+                        ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-400'
+                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                  }`}>
+                    {modoComparar && (
+                      <div className="pl-3">
+                        <input
+                          type="checkbox"
+                          checked={selecionada}
+                          onChange={() => toggleSelecionar(sim.id)}
+                          className="w-4 h-4 accent-blue-600"
+                        />
+                      </div>
+                    )}
+                    <button
+                      onClick={() => modoComparar ? toggleSelecionar(sim.id) : carregarSimulacaoNaTela(sim)}
+                      className="px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      {sim.nome}
+                    </button>
+                    {!modoComparar && (
+                      <>
+                        <div className="w-[1px] h-6 bg-gray-200 dark:bg-gray-700"></div>
+                        <button
+                          onClick={() => apagarSimulacao(sim.id)}
+                          className="px-3 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          title="Excluir"
+                        >
+                          ✕
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )
+              })}
             </div>
-          ))}
+            <button
+              onClick={() => { setModoComparar(m => !m); setSimulacoesSelecionadas([]) }}
+              className={`flex-shrink-0 px-3 py-2 text-sm font-semibold rounded-lg border transition-all ${
+                modoComparar
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-blue-300'
+              }`}
+            >
+              ⚖️ Comparar
+            </button>
+          </div>
+
+          {/* Painel de comparação */}
+          {modoComparar && simulacoesSelecionadas.length === 2 && (() => {
+            const simA = simulacoes.find(s => s.id === simulacoesSelecionadas[0])!
+            const simB = simulacoes.find(s => s.id === simulacoesSelecionadas[1])!
+            const dadosA = getDadosSimulacao(simA)
+            const dadosB = getDadosSimulacao(simB)
+            const maxMeses = Math.max(dadosA.length, dadosB.length)
+            const step = Math.max(1, Math.floor(maxMeses / 24))
+
+            // Combinar dados para o gráfico
+            const graficoCombinado = Array.from({ length: maxMeses }, (_, i) => ({
+              mes: `${i + 1}m`,
+              [simA.nome]: dadosA[i]?.valor ?? null,
+              [simB.nome]: dadosB[i]?.valor ?? null,
+            })).filter((_, i) => i % step === 0 || i === maxMeses - 1)
+
+            const valorFinalA = dadosA[dadosA.length - 1]?.valor || 0
+            const valorFinalB = dadosB[dadosB.length - 1]?.valor || 0
+
+            return (
+              <div className="card space-y-4 border-2 border-blue-200 dark:border-blue-800">
+                <h3 className="font-bold text-gray-900 dark:text-gray-100">⚖️ Comparação: {simA.nome} vs {simB.nome}</h3>
+
+                {/* Tabela de parâmetros */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-gray-700">
+                        <th className="text-left py-2 px-3 text-gray-500">Parâmetro</th>
+                        <th className="text-right py-2 px-3 text-blue-600">{simA.nome}</th>
+                        <th className="text-right py-2 px-3 text-purple-600">{simB.nome}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                      {[
+                        { label: 'Valor Inicial', a: formatBRL(simA.valor_inicial), b: formatBRL(simB.valor_inicial) },
+                        { label: 'Aporte Mensal', a: formatBRL(simA.aporte_mensal), b: formatBRL(simB.aporte_mensal) },
+                        { label: 'Taxa Mensal', a: `${simA.taxa_mensal}%`, b: `${simB.taxa_mensal}%` },
+                        { label: 'Prazo', a: `${dadosA.length}m`, b: `${dadosB.length}m` },
+                        { label: '💰 Valor Final', a: formatBRL(valorFinalA), b: formatBRL(valorFinalB), destaque: true },
+                      ].map(row => (
+                        <tr key={row.label} className={row.destaque ? 'font-bold bg-gray-50 dark:bg-gray-800' : ''}>
+                          <td className="py-2 px-3 text-gray-600 dark:text-gray-400">{row.label}</td>
+                          <td className="py-2 px-3 text-right text-blue-700 dark:text-blue-300">{row.a}</td>
+                          <td className="py-2 px-3 text-right text-purple-700 dark:text-purple-300">{row.b}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Gráfico dual */}
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={graficoCombinado}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `R$${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(v: any, name: string) => [formatBRL(Number(v)), name]} />
+                    <Legend />
+                    <Line type="monotone" dataKey={simA.nome} stroke="#3b82f6" strokeWidth={2.5} dot={false} />
+                    <Line type="monotone" dataKey={simB.nome} stroke="#a855f7" strokeWidth={2.5} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )
+          })()}
+
+          {modoComparar && simulacoesSelecionadas.length < 2 && (
+            <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+              Selecione 2 simulações para comparar ({simulacoesSelecionadas.length}/2 selecionadas)
+            </p>
+          )}
         </div>
       )}
 

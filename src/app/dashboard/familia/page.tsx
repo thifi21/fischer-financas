@@ -42,6 +42,12 @@ export default function FamiliaPage() {
   const [membros, setMembros] = useState<Membro[]>([])
   const [resumos, setResumos] = useState<ResumoMembro[]>([])
   const [tab, setTab] = useState<'dashboard' | 'gerenciar'>('dashboard')
+  const [detalheAberto, setDetalheAberto] = useState<string | null>(null)
+  const [detalhesMembros, setDetalhesMembros] = useState<Record<string, {
+    cartoes: number
+    fixas: number
+    combustivel: number
+  }>>({})  
 
   // Formulários
   const [nomeGrupo, setNomeGrupo] = useState('')
@@ -65,6 +71,34 @@ export default function FamiliaPage() {
   async function getToken() {
     const { data: { session } } = await supabase.auth.getSession()
     return session?.access_token || ''
+  }
+
+  async function buscarDetalheMembro(userId: string) {
+    if (detalheAberto === userId) {
+      setDetalheAberto(null)
+      return
+    }
+    setDetalheAberto(userId)
+
+    // Só busca se ainda não tiver os dados
+    if (detalhesMembros[userId]) return
+
+    const [{ data: cartoes }, { data: fixas }, { data: combustivel }] = await Promise.all([
+      supabase.from('cartoes').select('valor').eq('user_id', userId).eq('mes', mes).eq('ano', ano),
+      supabase.from('contas_fixas').select('valor').eq('user_id', userId).eq('mes', mes).eq('ano', ano),
+      supabase.from('combustivel').select('valor').eq('user_id', userId).eq('mes', mes).eq('ano', ano),
+    ])
+
+    const soma = (arr: any[] | null) => (arr || []).reduce((s, r) => s + Number(r.valor), 0)
+
+    setDetalhesMembros(prev => ({
+      ...prev,
+      [userId]: {
+        cartoes: soma(cartoes),
+        fixas: soma(fixas),
+        combustivel: soma(combustivel),
+      }
+    }))
   }
 
   async function carregarGrupo() {
@@ -347,6 +381,46 @@ export default function FamiliaPage() {
                             style={{ width: `${Math.min(100, (r.saidas / r.entradas) * 100)}%` }}
                           />
                         </div>
+                      </div>
+                    )}
+
+                    {/* Botão expandir detalhe por categoria */}
+                    <button
+                      onClick={() => buscarDetalheMembro(r.user_id)}
+                      className="mt-3 w-full text-xs text-blue-600 dark:text-blue-400 hover:underline text-left flex items-center gap-1"
+                    >
+                      <span>{detalheAberto === r.user_id ? '▲' : '▼'}</span>
+                      {detalheAberto === r.user_id ? 'Ocultar detalhes' : 'Ver por categoria'}
+                    </button>
+
+                    {/* Breakdown por categoria */}
+                    {detalheAberto === r.user_id && detalhesMembros[r.user_id] && (
+                      <div className="mt-3 grid grid-cols-3 gap-2 border-t border-gray-100 dark:border-gray-700 pt-3">
+                        <div className="text-center">
+                          <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">💳 Cartões</p>
+                          <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
+                            {formatBRL(detalhesMembros[r.user_id].cartoes)}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">🏠 Fixas</p>
+                          <p className="text-sm font-bold text-amber-600 dark:text-amber-400">
+                            {formatBRL(detalhesMembros[r.user_id].fixas)}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">⛽ Combustível</p>
+                          <p className="text-sm font-bold text-orange-600 dark:text-orange-400">
+                            {formatBRL(detalhesMembros[r.user_id].combustivel)}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Loading do detalhe */}
+                    {detalheAberto === r.user_id && !detalhesMembros[r.user_id] && (
+                      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 text-center">
+                        <div className="inline-block w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                       </div>
                     )}
                   </div>

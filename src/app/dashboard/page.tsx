@@ -13,7 +13,7 @@ export default function DashboardPage() {
 
   // Busca dados via RPC (Otimizado: 1 chamada em vez de 48)
   const { data: summary, isLoading, error } = useQuery({
-    queryKey: ['dashboard-summary', ano, mes],
+    queryKey: ['dashboard-summary', ano],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Não autenticado')

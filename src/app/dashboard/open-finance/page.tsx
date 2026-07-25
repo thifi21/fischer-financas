@@ -129,37 +129,42 @@ export default function OpenFinancePage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    let sincronizadosCount = 0
+    // Agrupar lançamentos por tabela destino
+    const base = (l: Lancamento) => ({
+      user_id: user.id,
+      mes,
+      ano,
+      descricao: l.descricao,
+      valor: l.valor,
+      categoria: l.categoria,
+    })
 
-    for (const l of preview) {
-      if (l.destino === 'ignorado') continue
+    const grupos = preview.reduce((acc, l) => {
+      if (l.destino === 'ignorado') return acc
+      if (!acc[l.destino]) acc[l.destino] = []
+      acc[l.destino].push(l)
+      return acc
+    }, {} as Record<string, Lancamento[]>)
 
-      // Inserção na tabela destino adequada
-      const payload = {
-        user_id: user.id,
-        mes,
-        ano,
-        descricao: l.descricao,
-        valor: l.valor,
-        categoria: l.categoria,
-      }
+    const inserts: PromiseLike<any>[] = []
 
-      if (l.destino === 'entradas') {
-        await supabase.from('entradas').insert(payload)
-      } else if (l.destino === 'cartoes') {
-        await supabase.from('cartoes').insert(payload)
-      } else if (l.destino === 'combustivel') {
-        await supabase.from('combustivel').insert(payload)
-      } else if (l.destino === 'contas_fixas') {
-        await supabase.from('contas_fixas').insert({
-          ...payload,
-          pago: false,
-          data_vencimento: l.data
-        })
-      }
-      
-      sincronizadosCount++
-    }
+    if (grupos.entradas?.length)
+      inserts.push(supabase.from('entradas').insert(grupos.entradas.map(base)))
+
+    if (grupos.cartoes?.length)
+      inserts.push(supabase.from('cartoes').insert(grupos.cartoes.map(base)))
+
+    if (grupos.combustivel?.length)
+      inserts.push(supabase.from('combustivel').insert(grupos.combustivel.map(base)))
+
+    if (grupos.contas_fixas?.length)
+      inserts.push(supabase.from('contas_fixas').insert(
+        grupos.contas_fixas.map(l => ({ ...base(l), pago: false, data_vencimento: l.data }))
+      ))
+
+    await Promise.all(inserts)
+
+    const sincronizadosCount = preview.filter(l => l.destino !== 'ignorado').length
 
     // Atualiza status da importação
     await supabase.from('importacoes_ofx').update({ 
