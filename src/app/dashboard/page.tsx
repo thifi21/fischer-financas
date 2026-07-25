@@ -1,29 +1,19 @@
 'use client'
 
 import { useMemo } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase'
 import DashboardClientView from '@/components/DashboardClientView'
 import { MESES } from '@/types'
+import { useMes } from '@/context/MesContext'
 
 export default function DashboardPage() {
-  const searchParams = useSearchParams()
   const supabase = createClient()
-
-  // Sincroniza parâmetros da URL ou usa defaults
-  const mesAtual = new Date().getMonth() + 1
-  const anoAtual = new Date().getFullYear()
-
-  const mesParam = searchParams.get('mes')
-  const anoParam = searchParams.get('ano')
-
-  const mes = mesParam ? parseInt(mesParam, 10) : mesAtual
-  const ano = anoParam ? parseInt(anoParam, 10) : anoAtual
+  const { mes, ano } = useMes()
 
   // Busca dados via RPC (Otimizado: 1 chamada em vez de 48)
   const { data: summary, isLoading, error } = useQuery({
-    queryKey: ['dashboard-summary', ano],
+    queryKey: ['dashboard-summary', ano, mes],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Não autenticado')

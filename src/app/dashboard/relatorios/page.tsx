@@ -27,6 +27,7 @@ export default function RelatoriosPage() {
     cartoes: [],
     fixas: [],
     combustivel: [],
+    lancamentosCartao: [],
     totaisPorMes: [],
     porCategoria: [],
     porCartao: []
@@ -164,6 +165,7 @@ export default function RelatoriosPage() {
       cartoes: cartoes || [],
       fixas: fixas || [],
       combustivel: combustivel || [],
+      lancamentosCartao: lancamentosCartao || [],
       totaisPorMes,
       porCategoria,
       porCartao
@@ -186,6 +188,34 @@ export default function RelatoriosPage() {
     const a = document.createElement('a')
     a.href = url
     a.download = `relatorio-${periodo}-${ano}.csv`
+    a.click()
+  }
+
+  function exportarCSVDetalhado() {
+    let csv = 'Tipo,Data,Descrição,Categoria,Valor\n'
+    
+    dados.fixas.forEach((f: any) => {
+      const dataStr = f.data_vencimento ? formatDate(f.data_vencimento) : ''
+      csv += `Conta Fixa,${dataStr},"${f.descricao || ''}","${f.categoria || ''}",${f.valor}\n`
+    })
+
+    dados.combustivel.forEach((c: any) => {
+      const dataStr = c.data_abastecimento ? formatDate(c.data_abastecimento) : ''
+      csv += `Combustível,${dataStr},"${c.descricao || 'Abastecimento'}","",${c.valor}\n`
+    })
+
+    dados.lancamentosCartao.forEach((l: any) => {
+      const dataStr = l.data_compra ? formatDate(l.data_compra) : ''
+      const cartao = dados.cartoes.find((c: any) => c.id === l.cartao_id)
+      const nomeCartao = cartao ? cartao.nome : 'Cartão'
+      csv += `${nomeCartao},${dataStr},"${l.local || ''}","",${l.valor}\n`
+    })
+
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `relatorio-detalhado-${periodo}-${ano}.csv`
     a.click()
   }
 
@@ -243,7 +273,10 @@ export default function RelatoriosPage() {
             🖨️ Exportar PDF
           </button>
           <button onClick={exportarCSV} className="btn-secondary">
-            📄 Exportar CSV
+            📊 CSV Resumo
+          </button>
+          <button onClick={exportarCSVDetalhado} className="btn-secondary">
+            📄 CSV Detalhado
           </button>
           <button onClick={exportarJSON} className="btn-secondary">
             📋 Exportar JSON

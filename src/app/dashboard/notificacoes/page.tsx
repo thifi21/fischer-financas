@@ -7,8 +7,6 @@ import { MESES } from '@/types'
 import { toast } from 'sonner'
 import { authFetch } from '@/lib/auth-fetch'
 
-let cachedUserId: string | null = null
-
 type TipoLembrete = 'vencimento' | 'meta' | 'geral'
 type Prioridade = 'baixa' | 'media' | 'alta'
 
@@ -58,14 +56,13 @@ export default function NotificacoesPage() {
   const [saving, setSaving] = useState(false)
   const [abaAtiva, setAbaAtiva] = useState<'lembretes' | 'notificacoes'>('notificacoes')
   const [whatsappNumbers, setWhatsappNumbers] = useState<{ label: string; index: number }[]>([])
-  const userIdRef = useRef<string | null>(cachedUserId)
+  const userIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     async function init() {
       if (!userIdRef.current) {
         const { data: { user } } = await supabase.auth.getUser()
         userIdRef.current = user?.id ?? null
-        cachedUserId = user?.id ?? null
       }
       carregarTudo()
       buscarNumerosWhatsApp()

@@ -1,6 +1,8 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { formatBRL } from '@/lib/utils'
+import { createClient } from '@/lib/supabase'
+import { toast } from 'sonner'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine
@@ -30,6 +32,8 @@ function calcularJurosCompostos(
 }
 
 export default function InvestimentosPage() {
+  const supabase = useMemo(() => createClient(), [])
+  
   const [modo, setModo] = useState<ModoCalc>('livre')
 
   // Parâmetros do simulador
@@ -43,6 +47,82 @@ export default function InvestimentosPage() {
   const [idadeAtual, setIdadeAtual] = useState(30)
   const [idadeAposentadoria, setIdadeAposentadoria] = useState(60)
   const [rendaDesejada, setRendaDesejada] = useState(5000)
+
+  // Estado das simulações salvas
+  const [simulacoes, setSimulacoes] = useState<any[]>([])
+  const [nomeSimulacao, setNomeSimulacao] = useState('')
+  const [salvando, setSalvando] = useState(false)
+
+  useEffect(() => {
+    carregarSimulacoes()
+  }, [])
+
+  async function carregarSimulacoes() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data, error } = await supabase
+      .from('simulacoes_investimento')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+    if (data && !error) setSimulacoes(data)
+  }
+
+  async function salvarSimulacao() {
+    if (!nomeSimulacao.trim()) {
+      toast.error('Dê um nome para a simulação')
+      return
+    }
+    setSalvando(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const payload = {
+      user_id: user.id,
+      nome: nomeSimulacao,
+      modo,
+      valor_inicial: valorInicial,
+      aporte_mensal: aportesMensal,
+      taxa_mensal: taxaMensal,
+      prazo_meses: prazoMeses,
+      meta_valor: metaValor,
+      idade_atual: idadeAtual,
+      idade_aposentadoria: idadeAposentadoria,
+      renda_desejada: rendaDesejada
+    }
+
+    const { error } = await supabase.from('simulacoes_investimento').insert(payload)
+    if (error) {
+      toast.error('Erro ao salvar simulação')
+    } else {
+      toast.success('Simulação salva com sucesso!')
+      setNomeSimulacao('')
+      carregarSimulacoes()
+    }
+    setSalvando(false)
+  }
+
+  async function apagarSimulacao(id: string) {
+    if (!confirm('Deseja excluir esta simulação?')) return
+    const { error } = await supabase.from('simulacoes_investimento').delete().eq('id', id)
+    if (!error) {
+      toast.success('Simulação excluída')
+      setSimulacoes(s => s.filter(x => x.id !== id))
+    }
+  }
+
+  function carregarSimulacaoNaTela(sim: any) {
+    setModo(sim.modo as ModoCalc)
+    setValorInicial(Number(sim.valor_inicial))
+    setAporteMensal(Number(sim.aporte_mensal))
+    setTaxaMensal(Number(sim.taxa_mensal))
+    setPrazoMeses(Number(sim.prazo_meses))
+    setMetaValor(Number(sim.meta_valor))
+    setIdadeAtual(Number(sim.idade_atual))
+    setIdadeAposentadoria(Number(sim.idade_aposentadoria))
+    setRendaDesejada(Number(sim.renda_desejada))
+    toast.success(`Simulação "${sim.nome}" carregada`)
+  }
 
   // Cálculos derivados
   const prazoReal = useMemo(() => {
@@ -89,12 +169,54 @@ export default function InvestimentosPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">📈 Simulador de Investimentos</h1>
-        <p className="text-gray-500 dark:text-gray-400 text-sm">
-          Planeje seus aportes e visualize o crescimento com juros compostos
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">📈 Simulador de Investimentos</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
+            Planeje seus aportes e visualize o crescimento com juros compostos
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <input 
+            type="text" 
+            placeholder="Nome da simulação..." 
+            className="input text-sm h-10 w-48"
+            value={nomeSimulacao}
+            onChange={e => setNomeSimulacao(e.target.value)}
+          />
+          <button 
+            onClick={salvarSimulacao} 
+            disabled={salvando || !nomeSimulacao.trim()}
+            className="btn-primary h-10 px-4"
+          >
+            {salvando ? 'Salvando...' : '💾 Salvar'}
+          </button>
+        </div>
       </div>
+
+      {/* Simulações Salvas */}
+      {simulacoes.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300">
+          {simulacoes.map(sim => (
+            <div key={sim.id} className="flex-shrink-0 flex items-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden shadow-sm">
+              <button 
+                onClick={() => carregarSimulacaoNaTela(sim)}
+                className="px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                {sim.nome}
+              </button>
+              <div className="w-[1px] h-6 bg-gray-200 dark:bg-gray-700"></div>
+              <button 
+                onClick={() => apagarSimulacao(sim.id)}
+                className="px-3 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                title="Excluir"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Modo */}
       <div className="flex flex-wrap gap-2">

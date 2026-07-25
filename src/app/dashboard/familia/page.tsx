@@ -5,8 +5,6 @@ import { useMes } from '@/context/MesContext'
 import { formatBRL } from '@/lib/utils'
 import { MESES } from '@/types'
 
-let cachedUserId: string | null = null
-
 type Grupo = {
   id: string
   nome: string
@@ -37,7 +35,7 @@ type ResumoMembro = {
 export default function FamiliaPage() {
   const supabase = createClient()
   const { mes, ano } = useMes()
-  const userIdRef = useRef<string | null>(cachedUserId)
+  const userIdRef = useRef<string | null>(null)
 
   const [loading, setLoading] = useState(true)
   const [grupo, setGrupo] = useState<Grupo | null>(null)
@@ -58,7 +56,6 @@ export default function FamiliaPage() {
       if (!userIdRef.current) {
         const { data: { user } } = await supabase.auth.getUser()
         userIdRef.current = user?.id ?? null
-        cachedUserId = user?.id ?? null
       }
       await carregarGrupo()
     }
