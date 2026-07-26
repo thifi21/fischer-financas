@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { formatBRL } from '@/lib/utils'
 import { MESES } from '@/types'
@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
+  LineChart, Line, ReferenceLine, Area, AreaChart,
 } from 'recharts'
 
 const COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899']
@@ -32,6 +33,20 @@ export default function DashboardClientView({ mes, ano, resumo, pieData, dadosMe
   const totalAnoEntradas = dadosMensais.reduce((acc: number, d: any) => acc + d.entradas, 0)
   const totalAnoSaidas = dadosMensais.reduce((acc: number, d: any) => acc + d.saidas, 0)
   const saldoAno = totalAnoEntradas - totalAnoSaidas
+
+  // Saldo acumulado mês a mês para o gráfico de linha
+  const saldoAcumuladoData = useMemo(() => {
+    let acumulado = 0
+    return dadosMensais.map((d: any) => {
+      const saldoMes = d.entradas - d.saidas
+      acumulado += saldoMes
+      return {
+        mes: d.mes,
+        saldoMes,
+        acumulado,
+      }
+    })
+  }, [dadosMensais])
 
   return (
     <div>
@@ -269,6 +284,76 @@ export default function DashboardClientView({ mes, ano, resumo, pieData, dadosMe
               )}
             </Card>
           </motion.div>
+
+          {/* Gráfico de Linha — Saldo Acumulado */}
+          {saldoAcumuladoData.length > 0 && (
+            <motion.div variants={itemVariants}>
+              <Card className="overflow-hidden">
+                <h2 className="text-xs font-black text-slate-500 uppercase tracking-[0.3em] mb-10 text-center">
+                  Evolução do Saldo Acumulado — {ano}
+                </h2>
+                <ResponsiveContainer width="100%" height={320}>
+                  <AreaChart data={saldoAcumuladoData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="gradientAcumulado" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="gradientAcumuladoNeg" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0} />
+                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0.3} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} opacity={0.5} />
+                    <XAxis dataKey="mes" tick={{ fontSize: 11, fontWeight: 'bold', fill: '#94a3b8' }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 10, fontWeight: 'bold', fill: '#94a3b8' }} tickFormatter={(v: any) => `R$${(v / 1000).toFixed(0)}k`} tickLine={false} axisLine={false} />
+                    <Tooltip
+                      cursor={{ stroke: '#6366f1', strokeWidth: 1, strokeDasharray: '4 4' }}
+                      contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 50px rgba(0,0,0,0.1)', fontWeight: 'bold', padding: '16px' }}
+                      formatter={(v: any, name: string) => [formatBRL(Number(v)), name === 'acumulado' ? 'Saldo Acumulado' : 'Saldo do Mês']}
+                      labelFormatter={(label) => `Mês: ${label}`}
+                    />
+                    <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" strokeWidth={1.5} />
+                    <Legend wrapperStyle={{ paddingTop: '20px' }} formatter={(v) => v === 'acumulado' ? 'Saldo Acumulado' : 'Saldo do Mês'} />
+                    <Area
+                      type="monotone"
+                      dataKey="acumulado"
+                      stroke="#10b981"
+                      strokeWidth={2.5}
+                      fill="url(#gradientAcumulado)"
+                      dot={(props: any) => {
+                        const { cx, cy, payload } = props
+                        return (
+                          <circle
+                            key={`dot-${payload.mes}`}
+                            cx={cx}
+                            cy={cy}
+                            r={4}
+                            fill={payload.acumulado >= 0 ? '#10b981' : '#ef4444'}
+                            stroke="white"
+                            strokeWidth={2}
+                          />
+                        )
+                      }}
+                      activeDot={{ r: 7, stroke: 'white', strokeWidth: 2 }}
+                      animationBegin={200}
+                      animationDuration={1800}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="saldoMes"
+                      stroke="#6366f1"
+                      strokeWidth={1.5}
+                      strokeDasharray="5 5"
+                      dot={false}
+                      animationBegin={400}
+                      animationDuration={1800}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </Card>
+            </motion.div>
+          )}
         </motion.div>
       )}
     </div>

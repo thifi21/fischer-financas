@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendTelegramMessage } from '@/lib/telegram'
 import { formatDate } from '@/lib/utils'
@@ -32,12 +32,13 @@ export async function GET(request: Request) {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Data de hoje no fuso de Brasília (UTC-3)
-    const hoje = new Date()
-    hoje.setUTCHours(hoje.getUTCHours() - 3)
-    const ano = hoje.getUTCFullYear()
-    const mes = String(hoje.getUTCMonth() + 1).padStart(2, '0')
-    const dia = String(hoje.getUTCDate()).padStart(2, '0')
+    // Data de hoje e hora atual no fuso de Brasília (UTC-3)
+    const agora = new Date()
+    agora.setUTCHours(agora.getUTCHours() - 3)
+    const horaAtual = agora.getUTCHours() // hora em Brasília
+    const ano = agora.getUTCFullYear()
+    const mes = String(agora.getUTCMonth() + 1).padStart(2, '0')
+    const dia = String(agora.getUTCDate()).padStart(2, '0')
     const dataHoje = `${ano}-${mes}-${dia}`
 
     // Buscar lembretes de hoje que ainda não foram lidos e estão ativos
@@ -61,10 +62,29 @@ export async function GET(request: Request) {
       return acc
     }, {})
 
+    // Buscar preferências dos usuários (item 6 — hora de envio e filtros)
+    const userIds = Object.keys(lembretePorUser)
+    const { data: prefsList } = await supabase
+      .from('preferencias_usuario')
+      .select('user_id, hora_envio_lembretes, notificar_cartoes, notificar_fixas, notificar_metas')
+      .in('user_id', userIds)
+
+    const prefsMap: Record<string, any> = {}
+    prefsList?.forEach((p: any) => { prefsMap[p.user_id] = p })
+
     let envios = 0
     const idsParaMarcar: string[] = []
 
     for (const userId in lembretePorUser) {
+      const prefs = prefsMap[userId]
+
+      // Respeitar hora de envio configurada (tolerância de ±1h, default 9h)
+      const horaPreferida = prefs?.hora_envio_lembretes ?? 9
+      if (Math.abs(horaAtual - horaPreferida) > 1) {
+        // Fora da janela de envio deste usuário — pular
+        continue
+      }
+
       const itens = lembretePorUser[userId]
 
       let msg = `📌 <b>Lembretes do dia ${formatDate(dataHoje)}</b>\n\n`
@@ -80,7 +100,10 @@ export async function GET(request: Request) {
 
       msg += `<i>Fischer Finanças • ${itens.length} lembrete(s) para hoje</i>`
 
-      await sendTelegramMessage(msg)
+      await sendTelegramMessage(msg, {
+        userId,
+        titulo: `Lembretes do dia ${formatDate(dataHoje)}`,
+      })
       envios++
       itens.forEach((l: any) => idsParaMarcar.push(l.id))
     }
@@ -96,6 +119,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       data: dataHoje,
+      horaAtual,
       lembretesProcessados: lembretes.length,
       mensagensEnviadas: envios,
     })

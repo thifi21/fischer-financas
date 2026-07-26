@@ -54,9 +54,23 @@ export default function NotificacoesPage() {
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState<Partial<Lembrete>>({})
   const [saving, setSaving] = useState(false)
-  const [abaAtiva, setAbaAtiva] = useState<'lembretes' | 'notificacoes'>('notificacoes')
+  const [abaAtiva, setAbaAtiva] = useState<'lembretes' | 'notificacoes' | 'historico' | 'configuracoes'>('notificacoes')
   const [whatsappNumbers, setWhatsappNumbers] = useState<{ label: string; index: number }[]>([])
   const userIdRef = useRef<string | null>(null)
+
+  // Configurações do usuário (item 6)
+  const [prefs, setPrefs] = useState({
+    hora_envio_lembretes: 9,
+    dias_antecedencia_lembrete: 1,
+    notificar_cartoes: true,
+    notificar_fixas: true,
+    notificar_metas: true,
+  })
+  const [salvandoPrefs, setSalvandoPrefs] = useState(false)
+
+  // Histórico de notificações (item 7)
+  const [historico, setHistorico] = useState<any[]>([])
+  const [loadingHistorico, setLoadingHistorico] = useState(false)
 
   useEffect(() => {
     async function init() {
@@ -68,6 +82,31 @@ export default function NotificacoesPage() {
       buscarNumerosWhatsApp()
     }
     init()
+  }, [])
+
+  // Carregar preferências do usuário
+  useEffect(() => {
+    async function carregarPrefs() {
+      const uid = userIdRef.current
+      if (!uid) return
+      const { data } = await supabase
+        .from('preferencias_usuario')
+        .select('*')
+        .eq('user_id', uid)
+        .single()
+      if (data) {
+        setPrefs({
+          hora_envio_lembretes: data.hora_envio_lembretes ?? 9,
+          dias_antecedencia_lembrete: data.dias_antecedencia_lembrete ?? 1,
+          notificar_cartoes: data.notificar_cartoes ?? true,
+          notificar_fixas: data.notificar_fixas ?? true,
+          notificar_metas: data.notificar_metas ?? true,
+        })
+      }
+    }
+    // Aguarda userId ser definido
+    const timer = setTimeout(carregarPrefs, 500)
+    return () => clearTimeout(timer)
   }, [])
 
   async function buscarNumerosWhatsApp() {
@@ -319,11 +358,13 @@ export default function NotificacoesPage() {
       const res = await authFetch('/api/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: texto })
+        body: JSON.stringify({ message: texto, registrarHistorico: true })
       })
       
       if (res.ok) {
         toast.success('Resumo enviado para o Telegram!')
+        // Recarregar histórico se estiver na aba
+        if (abaAtiva === 'historico') carregarHistorico()
       } else {
         const data = await res.json().catch(() => ({ error: 'Resposta inválida do servidor' }))
         toast.error(`Erro: ${data.error || 'Verifique se você deu /start no seu bot'}`)
@@ -380,6 +421,35 @@ export default function NotificacoesPage() {
 
   function marcarNotificacaoLida(id: string) {
     setNotificacoes(prev => prev.map(n => n.id === id ? { ...n, lida: true } : n))
+  }
+
+  // Salvar preferências (item 6)
+  async function salvarPreferencias() {
+    const uid = userIdRef.current
+    if (!uid) return
+    setSalvandoPrefs(true)
+    await supabase.from('preferencias_usuario').upsert({
+      user_id: uid,
+      ...prefs,
+      updated_at: new Date().toISOString(),
+    })
+    setSalvandoPrefs(false)
+    toast.success('Preferências salvas!')
+  }
+
+  // Carregar histórico de notificações (item 7)
+  async function carregarHistorico() {
+    const uid = userIdRef.current
+    if (!uid) return
+    setLoadingHistorico(true)
+    const { data } = await supabase
+      .from('historico_notificacoes')
+      .select('*')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    setHistorico(data || [])
+    setLoadingHistorico(false)
   }
 
   const notificacoesNaoLidas = notificacoes.filter(n => !n.lida).length
@@ -494,6 +564,26 @@ export default function NotificacoesPage() {
         >
           📌 Lembretes ({lembretes.length})
         </button>
+        <button
+          onClick={() => { setAbaAtiva('historico'); carregarHistorico() }}
+          className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+            abaAtiva === 'historico'
+              ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          📋 Histórico
+        </button>
+        <button
+          onClick={() => setAbaAtiva('configuracoes')}
+          className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+            abaAtiva === 'configuracoes'
+              ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          ⚙️ Configurações
+        </button>
       </div>
 
       {/* Conteúdo das Abas */}
@@ -546,7 +636,7 @@ export default function NotificacoesPage() {
             ))
           )}
         </div>
-      ) : (
+      ) : abaAtiva === 'lembretes' ? (
         <div className="space-y-3">
           {lembretes.length === 0 ? (
             <div className="card text-center py-12">
@@ -637,6 +727,117 @@ export default function NotificacoesPage() {
               )
             })
           )}
+        </div>
+      ) : abaAtiva === 'historico' ? (
+        /* ABA HISTÓRICO (item 7) */
+        <div className="space-y-3">
+          {loadingHistorico ? (
+            <div className="space-y-2">
+              {[1,2,3].map(i => <div key={i} className="animate-pulse card h-16" />)}
+            </div>
+          ) : historico.length === 0 ? (
+            <div className="card text-center py-12">
+              <div className="text-5xl mb-3">📭</div>
+              <p className="text-gray-500 dark:text-gray-400">Nenhum envio registrado ainda</p>
+              <p className="text-xs text-gray-400 mt-1">Os envios de Telegram e WhatsApp aparecerão aqui</p>
+            </div>
+          ) : (
+            historico.map((h: any) => (
+              <div key={h.id} className="card flex items-center gap-4 hover:shadow-sm transition-shadow">
+                <div className="text-2xl shrink-0">
+                  {h.canal === 'telegram' ? '✈️' : '💬'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate">{h.titulo}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    {new Date(h.created_at).toLocaleString('pt-BR', {
+                      day: '2-digit', month: '2-digit', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit'
+                    })}
+                    {' — '}
+                    <span className="capitalize">{h.canal}</span>
+                  </p>
+                  {h.erro && (
+                    <p className="text-xs text-red-500 mt-0.5 truncate">Erro: {h.erro}</p>
+                  )}
+                </div>
+                <div className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide ${
+                  h.status === 'enviado'
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                    : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                }`}>
+                  {h.status === 'enviado' ? '✓ Enviado' : '✗ Falhou'}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      ) : (
+        /* ABA CONFIGURAÇÕES (item 6) */
+        <div className="card max-w-xl space-y-6">
+          <div>
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">⏰ Horário de Envio</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Hora de envio (Brasília)</label>
+                <select
+                  className="input"
+                  value={prefs.hora_envio_lembretes}
+                  onChange={e => setPrefs(p => ({ ...p, hora_envio_lembretes: Number(e.target.value) }))}
+                >
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <option key={i} value={i}>{String(i).padStart(2, '0')}:00</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">O cron diário usará este horário para enviar seus lembretes</p>
+              </div>
+              <div>
+                <label className="label">Dias de antecedência</label>
+                <select
+                  className="input"
+                  value={prefs.dias_antecedencia_lembrete}
+                  onChange={e => setPrefs(p => ({ ...p, dias_antecedencia_lembrete: Number(e.target.value) }))}
+                >
+                  {[1, 2, 3, 5, 7].map(d => (
+                    <option key={d} value={d}>{d} dia(s) antes</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">Quantos dias antes do vencimento notificar</p>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">📣 Categorias de Notificação</h3>
+            <div className="space-y-3">
+              {[
+                { key: 'notificar_cartoes' as const, label: 'Vencimentos de cartões', emoji: '💳' },
+                { key: 'notificar_fixas' as const, label: 'Vencimentos de contas fixas', emoji: '🏠' },
+                { key: 'notificar_metas' as const, label: 'Alertas de metas atingidas', emoji: '🎯' },
+              ].map(({ key, label, emoji }) => (
+                <label key={key} className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={prefs[key]}
+                    onChange={e => setPrefs(p => ({ ...p, [key]: e.target.checked }))}
+                    className="w-5 h-5 rounded accent-blue-500"
+                  />
+                  <span className="text-xl">{emoji}</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
+            <button
+              onClick={salvarPreferencias}
+              disabled={salvandoPrefs}
+              className="btn-primary w-full"
+            >
+              {salvandoPrefs ? 'Salvando...' : '💾 Salvar Preferências'}
+            </button>
+          </div>
         </div>
       )}
 

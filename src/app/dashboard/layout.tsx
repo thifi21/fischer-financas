@@ -15,6 +15,7 @@ import CotacoesPanel from '@/components/CotacoesPanel'
 import { MesProvider, useMes } from '@/context/MesContext'
 import { UserProvider } from '@/context/UserContext'
 import AIChatBot from '@/components/AIChatBot'
+import GlobalSearch from '@/components/GlobalSearch'
 
 const NAV_ITEMS = [
   { href: '/dashboard', icon: '📊', label: 'Dashboard', grupo: 'principal' },
@@ -103,6 +104,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const supabase = useMemo(() => createClient(), [])
   const [loading, setLoading] = useState(true)
+  const [buscaAberta, setBuscaAberta] = useState(false)
   const { dark, toggle: toggleDark } = useDarkMode()
   const checked = useRef(false)
 
@@ -114,6 +116,18 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   // Atalhos de teclado: ← → para mês, Alt+← Alt+→ para ano
   useKeyboardNav(setMes, setAno, mes, ano)
+
+  // Ctrl+K abre a busca global
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault()
+        setBuscaAberta(prev => !prev)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
 
   // Data atual para indicar o mês/ano corrente na sidebar
   const hoje = useMemo(() => ({ mes: new Date().getMonth() + 1, ano: new Date().getFullYear() }), [])
@@ -343,6 +357,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           {/* Ações */}
           <div className="flex items-center gap-2">
 
+            {/* Busca Global */}
+            <button
+              id="global-search-btn"
+              onClick={() => setBuscaAberta(true)}
+              title="Busca Global (Ctrl+K)"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200 transition-colors border border-gray-200/50 dark:border-gray-700/50"
+            >
+              <span>🔍</span>
+              <span className="hidden lg:inline text-[11px] text-gray-400 dark:text-gray-600 font-bold">Ctrl+K</span>
+            </button>
+
             {/* Dados salvos */}
             <div className="hidden sm:flex items-center gap-1.5 text-xs text-green-600 dark:text-green-500 bg-green-50 dark:bg-green-950/30 px-2.5 py-1.5 rounded-lg border border-green-100 dark:border-green-900">
               <span>✓</span>
@@ -393,6 +418,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
       {/* Assistente IA Flutuante */}
       <AIChatBot />
+
+      {/* Busca Global */}
+      <GlobalSearch isOpen={buscaAberta} onClose={() => setBuscaAberta(false)} />
     </div>
   )
 }

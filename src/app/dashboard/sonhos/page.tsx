@@ -29,6 +29,8 @@ export default function SonhosPage() {
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState<Partial<Sonho>>({})
   const [saving, setSaving] = useState(false)
+  const [filtroStatus, setFiltroStatus] = useState<'todos' | 'em_andamento' | 'concluido' | 'pausado'>('todos')
+  const [saldoMedioMensal, setSaldoMedioMensal] = useState<number | null>(null)
   const userIdRef = useRef<string | null>(null)
 
   const carregarSonhos = useCallback(async () => {
@@ -49,10 +51,55 @@ export default function SonhosPage() {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
       userIdRef.current = user?.id ?? null
-      carregarSonhos()
+      await Promise.all([
+        carregarSonhos(),
+        calcularSaldoMedio(),
+      ])
     }
     init()
   }, [supabase, carregarSonhos])
+
+  // Calcula o saldo médio mensal dos últimos 6 meses
+  async function calcularSaldoMedio() {
+    const uid = userIdRef.current
+    if (!uid) return
+
+    const meses6: { mes: number; ano: number }[] = []
+    let m = mes
+    let a = ano
+    for (let i = 0; i < 6; i++) {
+      meses6.push({ mes: m, ano: a })
+      m--
+      if (m < 1) { m = 12; a-- }
+    }
+
+    const queries = meses6.map(({ mes: mm, ano: aa }) =>
+      Promise.all([
+        supabase.from('entradas').select('valor').eq('user_id', uid).eq('mes', mm).eq('ano', aa),
+        supabase.from('cartoes').select('valor').eq('user_id', uid).eq('mes', mm).eq('ano', aa),
+        supabase.from('contas_fixas').select('valor').eq('user_id', uid).eq('mes', mm).eq('ano', aa),
+        supabase.from('combustivel').select('valor').eq('user_id', uid).eq('mes', mm).eq('ano', aa),
+      ])
+    )
+
+    const resultados = await Promise.all(queries)
+    const soma = (arr: any[] | null) => (arr || []).reduce((s, r) => s + Number(r.valor), 0)
+
+    let totalSaldo = 0
+    let mesesComDados = 0
+    for (const [entradas, cartoes, fixas, combustivel] of resultados) {
+      const ent = soma(entradas.data)
+      const sai = soma(cartoes.data) + soma(fixas.data) + soma(combustivel.data)
+      if (ent > 0 || sai > 0) {
+        totalSaldo += ent - sai
+        mesesComDados++
+      }
+    }
+
+    if (mesesComDados > 0) {
+      setSaldoMedioMensal(totalSaldo / mesesComDados)
+    }
+  }
 
   function abrirModal(sonho?: Sonho) {
     if (sonho) {
@@ -115,6 +162,14 @@ export default function SonhosPage() {
 
   if (loading) return <div className="p-8 text-center animate-pulse">Carregando seus sonhos...</div>
 
+  const sonhosFiltrados = filtroStatus === 'todos' ? sonhos : sonhos.filter(s => s.status === filtroStatus)
+  const contadores = {
+    todos: sonhos.length,
+    em_andamento: sonhos.filter(s => s.status === 'em_andamento').length,
+    concluido: sonhos.filter(s => s.status === 'concluido').length,
+    pausado: sonhos.filter(s => s.status === 'pausado').length,
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -130,9 +185,57 @@ export default function SonhosPage() {
         </Button>
       </div>
 
+      {/* Saldo médio mensal */}
+      {saldoMedioMensal !== null && (
+        <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium ${
+          saldoMedioMensal >= 0
+            ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-400'
+            : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800/50 text-amber-700 dark:text-amber-400'
+        }`}>
+          <span className="text-xl">{saldoMedioMensal >= 0 ? '📈' : '⚠️'}</span>
+          <span>
+            Saldo médio mensal (6 meses):
+            <strong className="ml-1.5">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(saldoMedioMensal)}</strong>
+          </span>
+          {saldoMedioMensal <= 0 && (
+            <span className="text-xs opacity-70 ml-2">— meses com saldo negativo dificultam o planejamento</span>
+          )}
+        </div>
+      )}
+
+      {/* Filtros por status */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {([
+          { key: 'todos', label: 'Todos', emoji: '📋' },
+          { key: 'em_andamento', label: 'Em andamento', emoji: '🚀' },
+          { key: 'concluido', label: 'Concluídos', emoji: '🏆' },
+          { key: 'pausado', label: 'Pausados', emoji: '⏸️' },
+        ] as const).map(({ key, label, emoji }) => (
+          <button
+            key={key}
+            onClick={() => setFiltroStatus(key)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+              filtroStatus === key
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-700'
+            }`}
+          >
+            <span>{emoji}</span>
+            <span>{label}</span>
+            <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${
+              filtroStatus === key
+                ? 'bg-white/20 text-white'
+                : 'bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-gray-500'
+            }`}>
+              {contadores[key]}
+            </span>
+          </button>
+        ))}
+      </div>
+
       {/* Lista de Sonhos */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {sonhos.map(sonho => {
+        {sonhosFiltrados.map(sonho => {
           const percentual = Math.min(100, (sonho.valor_atual / sonho.valor_alvo) * 100)
           const mesesRestantes = calcularMesesRestantes(sonho.data_limite)
           const faltaGuardar = sonho.valor_alvo - sonho.valor_atual
@@ -185,13 +288,28 @@ export default function SonhosPage() {
                     </div>
                   </div>
 
-                  {sugestaoMensal && percentual < 100 && (
+                  {/* Estimativa baseada no saldo médio */}
+                  {saldoMedioMensal !== null && saldoMedioMensal > 0 && percentual < 100 && (
                     <div className={`p-3 rounded-xl bg-${sonho.cor}-50 dark:bg-${sonho.cor}-900/10 border border-${sonho.cor}-100 dark:border-${sonho.cor}-800/50`}>
-                      <p className={`text-[10px] font-bold text-${sonho.cor}-700 dark:text-${sonho.cor}-400 uppercase`}>Sugestão Mensal</p>
-                      <p className={`text-sm font-black text-${sonho.cor}-900 dark:text-white`}>
-                        Poupar {formatBRL(sugestaoMensal)} / mês
-                      </p>
-                      <p className="text-[10px] text-gray-500 mt-0.5">Para realizar em {mesesRestantes} meses</p>
+                      {sugestaoMensal ? (
+                        <>
+                          <p className={`text-[10px] font-bold text-${sonho.cor}-700 dark:text-${sonho.cor}-400 uppercase`}>Sugestão Mensal</p>
+                          <p className={`text-sm font-black text-${sonho.cor}-900 dark:text-white`}>
+                            Poupar {formatBRL(sugestaoMensal)} / mês
+                          </p>
+                          <p className="text-[10px] text-gray-500 mt-0.5">Para realizar em {mesesRestantes} meses</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className={`text-[10px] font-bold text-${sonho.cor}-700 dark:text-${sonho.cor}-400 uppercase`}>Estimativa pelo Saldo</p>
+                          <p className={`text-sm font-black text-${sonho.cor}-900 dark:text-white`}>
+                            {Math.ceil(faltaGuardar / saldoMedioMensal)} meses
+                          </p>
+                          <p className="text-[10px] text-gray-500 mt-0.5">
+                            Com saldo médio de {formatBRL(saldoMedioMensal)}/mês
+                          </p>
+                        </>
+                      )}
                     </div>
                   )}
 
@@ -205,9 +323,13 @@ export default function SonhosPage() {
             </motion.div>
           )
         })}
-        {sonhos.length === 0 && (
+        {sonhosFiltrados.length === 0 && (
           <div className="col-span-full py-20 text-center border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-3xl">
-            <p className="text-gray-400">Você ainda não cadastrou nenhum sonho. Que tal começar agora? 🚀</p>
+            <p className="text-gray-400">
+              {filtroStatus === 'todos'
+                ? 'Você ainda não cadastrou nenhum sonho. Que tal começar agora? 🚀'
+                : `Nenhum sonho com status "${filtroStatus}" encontrado.`}
+            </p>
           </div>
         )}
       </div>

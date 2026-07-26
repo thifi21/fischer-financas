@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
 import { formatBRL, formatDate } from '@/lib/utils'
@@ -20,6 +20,7 @@ export default function RelatoriosPage() {
   const { mes, ano } = useMes()
   
   const [loading, setLoading] = useState(true)
+  const [pdfLoading, setPdfLoading] = useState(false)
   const [periodo, setPeriodo] = useState<Periodo>('mes')
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim] = useState('')
@@ -228,21 +229,83 @@ export default function RelatoriosPage() {
     a.click()
   }
 
-  function exportarPDF() {
-    // Adiciona estilos de impressão ao head
-    const styleEl = document.getElementById('print-style') || document.createElement('style')
-    styleEl.id = 'print-style'
-    styleEl.innerHTML = `
-      @media print {
-        body > *:not(#relatorio-print) { display: none !important; }
-        aside, header, nav, button, .no-print { display: none !important; }
-        #relatorio-print { display: block !important; }
-        .card { break-inside: avoid; box-shadow: none !important; border: 1px solid #e5e7eb; }
-        @page { margin: 1cm; size: A4; }
+  async function exportarPDF() {
+    setPdfLoading(true)
+    try {
+      const { default: jsPDF } = await import('jspdf')
+      const { default: html2canvas } = await import('html2canvas')
+
+      const elemento = document.getElementById('relatorio-print')
+      if (!elemento) throw new Error('Elemento relatorio-print não encontrado')
+
+      const canvas = await html2canvas(elemento, {
+        scale: 1.5,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      })
+
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+
+      // Capa
+      pdf.setFillColor(37, 99, 235)
+      pdf.rect(0, 0, pageWidth, 45, 'F')
+      pdf.setTextColor(255, 255, 255)
+      pdf.setFontSize(20)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('Fischer Finanças 2026', pageWidth / 2, 20, { align: 'center' })
+      pdf.setFontSize(11)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text(`Relatório ${periodo === 'mes' ? MESES[mes - 1] : periodo} — ${ano}`, pageWidth / 2, 32, { align: 'center' })
+      pdf.setFontSize(9)
+      pdf.text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, pageWidth / 2, 40, { align: 'center' })
+
+      // Conteúdo do relatório
+      const imgWidth = pageWidth - 20
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      let yPosition = 50
+      let remainingHeight = imgHeight
+      let sourceY = 0
+
+      while (remainingHeight > 0) {
+        const availableHeight = pageHeight - yPosition - 10
+        const sliceHeight = Math.min(remainingHeight, availableHeight)
+        const sliceCanvas = document.createElement('canvas')
+        sliceCanvas.width = canvas.width
+        sliceCanvas.height = (sliceHeight / imgWidth) * canvas.width
+        const ctx = sliceCanvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(canvas, 0, sourceY * (canvas.width / imgWidth), canvas.width, sliceCanvas.height, 0, 0, sliceCanvas.width, sliceCanvas.height)
+          const sliceData = sliceCanvas.toDataURL('image/png')
+          pdf.addImage(sliceData, 'PNG', 10, yPosition, imgWidth, sliceHeight)
+        }
+        remainingHeight -= sliceHeight
+        sourceY += sliceHeight
+        if (remainingHeight > 0) {
+          pdf.addPage()
+          yPosition = 10
+        }
       }
-    `
-    if (!document.getElementById('print-style')) document.head.appendChild(styleEl)
-    window.print()
+
+      // Rodapé na última página
+      const totalPages = pdf.getNumberOfPages()
+      for (let p = 1; p <= totalPages; p++) {
+        pdf.setPage(p)
+        pdf.setFontSize(8)
+        pdf.setTextColor(150, 150, 150)
+        pdf.text(`Fischer Finanças 2026 — Página ${p} de ${totalPages}`, pageWidth / 2, pageHeight - 5, { align: 'center' })
+      }
+
+      pdf.save(`relatorio-${periodo}-${MESES[mes - 1]}-${ano}.pdf`)
+    } catch (e) {
+      console.error('Erro ao gerar PDF:', e)
+      alert('Erro ao gerar PDF. Tente novamente.')
+    } finally {
+      setPdfLoading(false)
+    }
   }
 
 
@@ -261,7 +324,7 @@ export default function RelatoriosPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" id="relatorio-print">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -269,8 +332,19 @@ export default function RelatoriosPage() {
           <p className="text-gray-500 dark:text-gray-400 text-sm">{MESES[mes - 1]} {ano}</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={exportarPDF} className="btn-secondary">
-            🖨️ Exportar PDF
+          <button
+            onClick={exportarPDF}
+            disabled={pdfLoading}
+            className="btn-secondary flex items-center gap-2"
+          >
+            {pdfLoading ? (
+              <>
+                <span className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                Gerando PDF...
+              </>
+            ) : (
+              '📄 Exportar PDF'
+            )}
           </button>
           <button onClick={exportarCSV} className="btn-secondary">
             📊 CSV Resumo
