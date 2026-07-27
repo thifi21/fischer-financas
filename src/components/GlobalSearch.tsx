@@ -247,7 +247,7 @@ export default function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
               {query.trim().length >= 2 && !carregando && resultados.length === 0 && (
                 <div className="py-12 text-center text-gray-400 dark:text-gray-600">
                   <p className="text-3xl mb-3">🔍</p>
-                  <p className="font-medium">Nenhum resultado para <strong className="text-gray-600 dark:text-gray-400">"{query}"</strong></p>
+                  <p className="font-medium">Nenhum resultado para <strong className="text-gray-600 dark:text-gray-400">&quot;{query}&quot;</strong></p>
                 </div>
               )}
 
