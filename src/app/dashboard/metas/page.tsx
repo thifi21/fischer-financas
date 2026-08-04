@@ -342,7 +342,7 @@ export default function MetasPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">🎯 Metas e Orçamento</h1>
+          <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Metas e Orçamento</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm">{MESES[mes - 1]} {ano}</p>
         </div>
         <div className="flex gap-2">

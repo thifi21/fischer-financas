@@ -170,7 +170,7 @@ export default function CombustivelPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">⛽ Combustível</h1>
+          <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Combustível</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm">{MESES[mes - 1]} {anoAtual}</p>
         </div>
         <button className="btn-primary" onClick={() => { setForm({}); setModal(true) }}>

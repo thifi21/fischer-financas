@@ -408,7 +408,7 @@ export default function EntradasPage() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">💵 Receitas & Extrato</h1>
+          <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Receitas &amp; Extrato</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm">{MESES[mes - 1]} {ano}</p>
         </div>
         <div className="flex bg-gray-200 dark:bg-gray-800 p-1 rounded-lg">

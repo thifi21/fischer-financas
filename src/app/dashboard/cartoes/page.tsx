@@ -7,6 +7,7 @@ import { formatBRL, formatDate, formatVencimento } from '@/lib/utils'
 import { notificarPagamento } from '@/lib/notifications'
 import { MESES, NOMES_CARTOES, ORDEM_CARTOES, LOGOS_CARTOES, type Cartao, type LancamentoCartao } from '@/types'
 import DriveUploadModal from '@/components/DriveUploadModal'
+import { CreditCard, Plus, X, Pencil, Trash2, Zap, CheckCheck } from 'lucide-react'
 
 type ModalState =
   | { tipo: 'cartao'; dados?: Cartao }
@@ -476,19 +477,24 @@ export default function CartoesPage() {
     <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">💳 Cartões de Crédito</h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm">
-            {MESES[mes - 1]} {ano}
-            {!loading && (
-              <span className="ml-2 text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full">
-                {totalLancs} lançamentos
-              </span>
-            )}
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-indigo-100 dark:bg-indigo-500/15 flex items-center justify-center">
+            <CreditCard size={20} className="text-indigo-600 dark:text-indigo-400" strokeWidth={1.8} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Cartões de Crédito</h1>
+            <p className="text-slate-400 dark:text-slate-500 text-sm">
+              {MESES[mes - 1]} {ano}
+              {!loading && (
+                <span className="ml-2 text-xs bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full font-semibold">
+                  {totalLancs} lançamentos
+                </span>
+              )}
+            </p>
+          </div>
         </div>
         <button className="btn-primary" onClick={() => { setForm({ nome: NOMES_CARTOES[0] }); setModal({ tipo: 'cartao' }) }}>
-          + Adicionar Cartão
+          <Plus size={15} /> Adicionar Cartão
         </button>
       </div>
 
@@ -526,11 +532,13 @@ export default function CartoesPage() {
           ))}
         </div>
       ) : cartoes.length === 0 ? (
-        <div className="card text-center py-16 text-gray-400 dark:text-gray-500">
-          <div className="text-4xl mb-3">💳</div>
-          <p>Nenhum cartão cadastrado para {MESES[mes - 1]}.</p>
-          <button className="btn-primary mt-4" onClick={() => { setForm({ nome: NOMES_CARTOES[0] }); setModal({ tipo: 'cartao' }) }}>
-            Adicionar Cartão
+        <div className="card text-center py-16 flex flex-col items-center">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-100 dark:bg-indigo-500/15 flex items-center justify-center mb-4">
+            <CreditCard size={30} className="text-indigo-400" strokeWidth={1.3} />
+          </div>
+          <p className="text-slate-500 dark:text-slate-400 font-medium mb-4">Nenhum cartão cadastrado para {MESES[mes - 1]}.</p>
+          <button className="btn-primary" onClick={() => { setForm({ nome: NOMES_CARTOES[0] }); setModal({ tipo: 'cartao' }) }}>
+            <Plus size={15} /> Adicionar Cartão
           </button>
         </div>
       ) : (
@@ -695,9 +703,13 @@ export default function CartoesPage() {
                                 <td className="px-3 py-2.5">
                                   <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button onClick={() => abrirModalLancamento(cartao, l)} title="Editar"
-                                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-blue-100 dark:hover:bg-blue-900/40 text-gray-400 hover:text-blue-600 transition-colors">✏️</button>
+                                      className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                                      <Pencil size={13} />
+                                    </button>
                                     <button onClick={() => excluirLancamento(l)} title="Excluir"
-                                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-100 dark:hover:bg-red-900/40 text-gray-300 hover:text-red-500 transition-colors">🗑️</button>
+                                      className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900/40 text-slate-300 dark:text-slate-600 hover:text-rose-500 dark:hover:text-rose-400 transition-colors">
+                                      <Trash2 size={13} />
+                                    </button>
                                   </div>
                                 </td>
                               </tr>
@@ -723,13 +735,20 @@ export default function CartoesPage() {
 
       {/* MODAL: Cartão */}
       {modal?.tipo === 'cartao' && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && fecharModal()}>
-          <div className="bg-white dark:bg-gray-900 dark:border dark:border-gray-700 rounded-xl shadow-xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-lg text-gray-900 dark:text-gray-100">{form.id ? 'Editar Cartão' : 'Novo Cartão'}</h2>
-              <button onClick={fecharModal} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400">✕</button>
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && fecharModal()}>
+          <div className="modal-content w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-500/15 flex items-center justify-center">
+                  <CreditCard size={17} className="text-indigo-600 dark:text-indigo-400" strokeWidth={1.8} />
+                </div>
+                <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100">{form.id ? 'Editar Cartão' : 'Novo Cartão'}</h2>
+              </div>
+              <button onClick={fecharModal} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors">
+                <X size={16} />
+              </button>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div>
                 <label className="label">Nome do Cartão</label>
                 <select className="input" value={form.nome || ''} onChange={e => setForm({ ...form, nome: e.target.value })}>
@@ -745,13 +764,17 @@ export default function CartoesPage() {
                 <input type="number" step="0.01" min="0" className="input" value={form.valor || ''} onChange={e => setForm({ ...form, valor: e.target.value })} placeholder="0,00" />
               </div>
               <div className="flex items-center gap-2 pt-1">
-                <input type="checkbox" id="pago_c" checked={!!form.pago} onChange={e => setForm({ ...form, pago: e.target.checked })} className="w-4 h-4 accent-green-500" />
-                <label htmlFor="pago_c" className="text-sm text-gray-700 dark:text-gray-300">Fatura já paga</label>
+                <input type="checkbox" id="pago_c" checked={!!form.pago} onChange={e => setForm({ ...form, pago: e.target.checked })} className="w-4 h-4 accent-emerald-500" />
+                <label htmlFor="pago_c" className="text-sm text-slate-700 dark:text-slate-300 font-medium">Fatura já paga</label>
               </div>
             </div>
-            <div className="flex gap-3 mt-5">
+            <div className="flex gap-3 mt-6">
               <button className="btn-secondary flex-1" onClick={fecharModal}>Cancelar</button>
-              <button className="btn-primary flex-1" onClick={salvarCartao} disabled={saving || !form.nome}>{saving ? 'Salvando...' : 'Salvar'}</button>
+              <button className="btn-primary flex-1" onClick={salvarCartao} disabled={saving || !form.nome}>
+                {saving ? (
+                  <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg> Salvando...</>
+                ) : 'Salvar'}
+              </button>
             </div>
           </div>
         </div>
@@ -759,19 +782,23 @@ export default function CartoesPage() {
 
       {/* MODAL: Lançamento */}
       {modal?.tipo === 'lancamento' && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && fecharModal()}>
-          <div className="bg-white dark:bg-gray-900 dark:border dark:border-gray-700 rounded-xl shadow-xl w-full max-w-md p-6">
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && fecharModal()}>
+          <div className="modal-content w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-1">
-              <h2 className="font-bold text-lg text-gray-900 dark:text-gray-100">
-                {form.id ? 'Editar Lançamento' : 'Novo Lançamento'}
-              </h2>
-              <button onClick={fecharModal} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400">✕</button>
+              <div>
+                <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100">
+                  {form.id ? 'Editar Lançamento' : 'Novo Lançamento'}
+                </h2>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                  Cartão: <span className="font-semibold text-slate-600 dark:text-slate-300">{modal.cartaoNome}</span>
+                </p>
+              </div>
+              <button onClick={fecharModal} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors">
+                <X size={16} />
+              </button>
             </div>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
-              Cartão: <span className="font-semibold text-gray-600 dark:text-gray-300">{modal.cartaoNome}</span>
-            </p>
 
-            <div className="space-y-3">
+            <div className="space-y-4 mt-4">
               <div>
                 <label className="label">Data da Compra</label>
                 <input type="date" className="input" value={form.data_compra || ''} onChange={e => setForm({ ...form, data_compra: e.target.value })} autoFocus />
@@ -799,17 +826,16 @@ export default function CartoesPage() {
                   onChange={e => setForm({ ...form, parcela: e.target.value })}
                   placeholder="Ex: 01/12 ou 01 de 12"
                 />
-                {/* Preview das parcelas que serão criadas automaticamente */}
                 {parcelasPreview.length > 0 && !form.id && (
-                  <div className="mt-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900 rounded-lg px-3 py-2.5">
-                    <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-1.5 flex items-center gap-1">
-                      <span>⚡</span>
+                  <div className="mt-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 rounded-xl px-3 py-2.5">
+                    <div className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-1.5 flex items-center gap-1.5">
+                      <Zap size={11} />
                       Parcelas criadas automaticamente nos próximos meses:
                     </div>
                     <ul className="space-y-0.5">
                       {parcelasPreview.map((p, i) => (
                         <li key={i} className="text-xs text-blue-500 dark:text-blue-400 flex items-center gap-1.5">
-                          <span className="text-blue-300">→</span> {p}
+                          <span className="text-blue-300 dark:text-blue-600">→</span> {p}
                         </li>
                       ))}
                     </ul>
@@ -822,7 +848,7 @@ export default function CartoesPage() {
               </div>
             </div>
 
-            <div className="flex gap-3 mt-5">
+            <div className="flex gap-3 mt-6">
               <button className="btn-secondary flex-1" onClick={fecharModal}>Cancelar</button>
               <button
                 className="btn-primary flex-1"
@@ -830,10 +856,7 @@ export default function CartoesPage() {
                 disabled={saving || !form.local || !form.valor}
               >
                 {saving ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="animate-spin">⏳</span>
-                    {parcelasPreview.length > 0 ? `Criando ${parcelasPreview.length + 1} parcelas...` : 'Salvando...'}
-                  </span>
+                  <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg> {parcelasPreview.length > 0 ? `Criando ${parcelasPreview.length + 1} parcelas...` : 'Salvando...'}</>
                 ) : (
                   parcelasPreview.length > 0 && !form.id
                     ? `Adicionar + ${parcelasPreview.length} parcela(s)`

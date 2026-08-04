@@ -16,24 +16,31 @@ import { MesProvider, useMes } from '@/context/MesContext'
 import { UserProvider } from '@/context/UserContext'
 import AIChatBot from '@/components/AIChatBot'
 import GlobalSearch from '@/components/GlobalSearch'
+import {
+  LayoutDashboard, CreditCard, Home, DollarSign, Fuel,
+  Target, BarChart2, Bell, Landmark, Bot, TrendingUp,
+  Star, ChevronDown, Calendar, Search, Sun, Moon,
+  LogOut, Wallet, PanelLeftClose, PanelLeftOpen,
+  Clock as ClockIcon, CheckCircle2,
+} from 'lucide-react'
 
+// ── Mapeamento de ícones ─────────────────────────────────────────
 const NAV_ITEMS = [
-  { href: '/dashboard', icon: '📊', label: 'Dashboard', grupo: 'principal' },
-  { href: '/dashboard/cartoes', icon: '💳', label: 'Cartões de Crédito', grupo: 'principal' },
-  { href: '/dashboard/contas-fixas', icon: '🏠', label: 'Contas Fixas', grupo: 'principal' },
-  { href: '/dashboard/entradas', icon: '💵', label: 'Entradas / Salários', grupo: 'principal' },
-  { href: '/dashboard/combustivel', icon: '⛽', label: 'Combustível', grupo: 'principal' },
-  { href: '/dashboard/metas', icon: '🎯', label: 'Metas e Orçamento', grupo: 'principal' },
-  { href: '/dashboard/relatorios', icon: '📈', label: 'Relatórios', grupo: 'principal' },
-  { href: '/dashboard/notificacoes', icon: '🔔', label: 'Notificações', grupo: 'principal' },
-  // Fase 3
-  { href: '/dashboard/open-finance', icon: '🏦', label: 'Open Finance', grupo: 'avancado' },
-  { href: '/dashboard/ia-analise', icon: '🤖', label: 'IA Financeira', grupo: 'avancado' },
-  { href: '/dashboard/investimentos', icon: '📈', label: 'Investimentos', grupo: 'avancado' },
-  { href: '/dashboard/sonhos', icon: '🎯', label: 'Meus Sonhos', grupo: 'planejamento' },
+  { href: '/dashboard',                   icon: LayoutDashboard, label: 'Dashboard',           grupo: 'principal' },
+  { href: '/dashboard/cartoes',           icon: CreditCard,      label: 'Cartões de Crédito',  grupo: 'principal' },
+  { href: '/dashboard/contas-fixas',      icon: Home,            label: 'Contas Fixas',         grupo: 'principal' },
+  { href: '/dashboard/entradas',          icon: DollarSign,      label: 'Entradas / Salários',  grupo: 'principal' },
+  { href: '/dashboard/combustivel',       icon: Fuel,            label: 'Combustível',          grupo: 'principal' },
+  { href: '/dashboard/metas',             icon: Target,          label: 'Metas e Orçamento',    grupo: 'principal' },
+  { href: '/dashboard/relatorios',        icon: BarChart2,       label: 'Relatórios',           grupo: 'principal' },
+  { href: '/dashboard/notificacoes',      icon: Bell,            label: 'Notificações',         grupo: 'principal' },
+  { href: '/dashboard/open-finance',      icon: Landmark,        label: 'Open Finance',         grupo: 'avancado'  },
+  { href: '/dashboard/ia-analise',        icon: Bot,             label: 'IA Financeira',        grupo: 'avancado'  },
+  { href: '/dashboard/investimentos',     icon: TrendingUp,      label: 'Investimentos',        grupo: 'avancado'  },
+  { href: '/dashboard/sonhos',            icon: Star,            label: 'Meus Sonhos',          grupo: 'planejamento' },
 ]
 
-// Componente isolado para o relógio — evita re-render do layout a cada segundo
+// ── Relógio isolado (evita re-render do layout a cada segundo) ───
 function Clock() {
   const [now, setNow] = useState(new Date())
   useEffect(() => {
@@ -42,11 +49,11 @@ function Clock() {
   }, [])
   return (
     <div className="leading-tight">
-      <div className="text-base font-bold text-gray-800 dark:text-gray-100 tabular-nums tracking-wide">
+      <div className="text-sm font-bold text-slate-800 dark:text-slate-100 tabular-nums tracking-wide">
         {now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
       </div>
-      <div className="text-xs text-gray-400 dark:text-gray-500 capitalize">
-        {now.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}
+      <div className="text-[11px] text-slate-400 dark:text-slate-500 capitalize">
+        {now.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })}
       </div>
     </div>
   )
@@ -70,66 +77,78 @@ function useDarkMode() {
   return { dark, toggle }
 }
 
-// ── Hook de atalhos de teclado ──────────────────────────────────
-// ← / → navega entre meses | Alt+← / Alt+→ navega entre anos
+// ── Atalhos de teclado ← → Alt+← Alt+→ ─────────────────────────
 function useKeyboardNav(setMes: (m: number) => void, setAno: (a: number) => void, mes: number, ano: number) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      // Ignora atalhos se o usuário estiver digitando em um campo
       const tag = (e.target as HTMLElement)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
-
-      if (e.altKey && e.key === 'ArrowLeft') {
-        e.preventDefault()
-        setAno(ano - 1)
-      } else if (e.altKey && e.key === 'ArrowRight') {
-        e.preventDefault()
-        setAno(ano + 1)
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault()
-        if (mes === 1) { setMes(12); setAno(ano - 1) }
-        else setMes(mes - 1)
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault()
-        if (mes === 12) { setMes(1); setAno(ano + 1) }
-        else setMes(mes + 1)
-      }
+      if (e.altKey && e.key === 'ArrowLeft')  { e.preventDefault(); setAno(ano - 1) }
+      else if (e.altKey && e.key === 'ArrowRight') { e.preventDefault(); setAno(ano + 1) }
+      else if (e.key === 'ArrowLeft')  { e.preventDefault(); if (mes === 1)  { setMes(12); setAno(ano - 1) } else setMes(mes - 1) }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); if (mes === 12) { setMes(1);  setAno(ano + 1) } else setMes(mes + 1) }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [mes, ano, setMes, setAno])
 }
+
+// ── Componente de item de navegação ─────────────────────────────
+function NavItem({ href, icon: Icon, label, active, mes, ano, collapsed }: {
+  href: string; icon: React.ElementType; label: string;
+  active: boolean; mes: number; ano: number; collapsed: boolean
+}) {
+  return (
+    <Link
+      href={`${href}?mes=${mes}&ano=${ano}`}
+      title={collapsed ? label : undefined}
+      className={`nav-item relative ${active ? 'nav-item-active' : 'nav-item-inactive'}`}
+    >
+      {active && (
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-white rounded-r-full" />
+      )}
+      <Icon size={16} strokeWidth={active ? 2.2 : 1.8} className="shrink-0" />
+      <AnimatePresence>
+        {!collapsed && (
+          <motion.span
+            initial={{ opacity: 0, width: 0 }}
+            animate={{ opacity: 1, width: 'auto' }}
+            exit={{ opacity: 0, width: 0 }}
+            transition={{ duration: 0.2 }}
+            className="truncate"
+          >
+            {label}
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </Link>
+  )
+}
+
 function DashboardShell({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
+  const router   = useRouter()
   const pathname = usePathname()
   const supabase = useMemo(() => createClient(), [])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading]         = useState(true)
   const [buscaAberta, setBuscaAberta] = useState(false)
-  const { dark, toggle: toggleDark } = useDarkMode()
+  const [collapsed, setCollapsed]     = useState(false)
+  const { dark, toggle: toggleDark }  = useDarkMode()
   const checked = useRef(false)
 
-  // Lê o mês do contexto — fonte única de verdade
   const { mes, setMes, ano, setAno } = useMes()
-
-  // Estado local para controlar qual ano está expandido na sidebar
   const [anoExpandido, setAnoExpandido] = useState<number>(ano)
 
-  // Atalhos de teclado: ← → para mês, Alt+← Alt+→ para ano
   useKeyboardNav(setMes, setAno, mes, ano)
 
-  // Ctrl+K abre a busca global
+  // Ctrl+K abre busca global
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault()
-        setBuscaAberta(prev => !prev)
-      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); setBuscaAberta(prev => !prev) }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [])
 
-  // Data atual para indicar o mês/ano corrente na sidebar
   const hoje = useMemo(() => ({ mes: new Date().getMonth() + 1, ano: new Date().getFullYear() }), [])
 
   useEffect(() => {
@@ -155,266 +174,327 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   }
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
-      <div className="text-center">
-        <div className="text-4xl mb-4 animate-bounce">💰</div>
-        <div className="text-gray-500 dark:text-gray-400 text-sm font-medium">
+    <div className="min-h-screen flex items-center justify-center bg-[#f4f7fb] dark:bg-[#050d1a]">
+      <div className="flex flex-col items-center gap-4">
+        <div
+          className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl animate-pulse-ring"
+          style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}
+        >
+          <Wallet size={26} className="text-white" strokeWidth={1.8} />
+        </div>
+        <div className="text-slate-400 dark:text-slate-500 text-sm font-medium tracking-wide">
           Carregando Fischer Finanças...
         </div>
       </div>
     </div>
   )
 
+  const sidebarW = collapsed ? 72 : 256
+
   return (
-    <div className="min-h-screen flex bg-[#f8fafc] dark:bg-[#020617] transition-colors duration-500">
+    <div className="min-h-screen flex bg-[#f4f7fb] dark:bg-[#050d1a] transition-colors duration-500">
 
-      {/* ── SIDEBAR ─────────────────────────────────────────── */}
-      <aside className="w-64 glass dark:glass-dark !bg-blue-900/90 dark:!bg-slate-950/80 text-white flex flex-col h-[calc(100vh-2rem)] fixed top-4 left-4 z-30 rounded-3xl overflow-hidden shadow-2xl border-white/20 dark:border-slate-800/50">
-
-        {/* Logo */}
-        <div className="p-6 border-b border-white/10 dark:border-slate-800/50">
-          <div className="flex items-center gap-3">
-            <motion.span 
-              initial={{ rotate: -20, scale: 0.8 }}
-              animate={{ rotate: 0, scale: 1 }}
-              transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-              className="text-3xl filter drop-shadow-md"
+      {/* ── SIDEBAR ──────────────────────────────────────────────── */}
+      <motion.aside
+        animate={{ width: sidebarW }}
+        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+        className="fixed top-4 left-4 z-30 h-[calc(100vh-2rem)] flex flex-col rounded-3xl overflow-hidden shadow-2xl"
+        style={{
+          background: 'linear-gradient(180deg, #1e3a8a 0%, #1e1b4b 100%)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          width: sidebarW,
+        }}
+      >
+        {/* Logo + colapso */}
+        <div className={`flex items-center border-b border-white/10 shrink-0 ${collapsed ? 'justify-center p-4' : 'justify-between p-5'}`}>
+          {!collapsed && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex items-center gap-3 overflow-hidden"
             >
-              💰
-            </motion.span>
-            <div>
-              <div className="font-bold text-base tracking-tight">Família Fischer</div>
-              <div className="text-blue-200/60 dark:text-slate-500 text-[10px] font-bold uppercase tracking-widest">Finanças {ano}</div>
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-lg"
+                style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}
+              >
+                <Wallet size={18} className="text-white" strokeWidth={1.8} />
+              </div>
+              <div className="overflow-hidden">
+                <div className="font-bold text-sm text-white tracking-tight truncate">Família Fischer</div>
+                <div className="text-blue-300/50 text-[10px] font-bold uppercase tracking-widest">Finanças {ano}</div>
+              </div>
+            </motion.div>
+          )}
+          {collapsed && (
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg"
+              style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}
+            >
+              <Wallet size={18} className="text-white" strokeWidth={1.8} />
             </div>
-          </div>
+          )}
+          {!collapsed && (
+            <button
+              onClick={() => setCollapsed(true)}
+              className="text-blue-300/40 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
+              title="Colapsar sidebar"
+            >
+              <PanelLeftClose size={16} />
+            </button>
+          )}
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-0.5">
-          {/* Navegação Principal */}
-          <div className="pt-1 pb-1">
-            <div className="text-blue-300/60 dark:text-gray-500 text-[10px] uppercase tracking-[0.2em] px-3 font-black">
+        <nav className={`flex-1 overflow-y-auto overflow-x-hidden py-3 space-y-0.5 ${collapsed ? 'px-2' : 'px-3'}`}>
+
+          {/* Contas Mensais */}
+          {!collapsed && (
+            <div className="text-blue-300/40 text-[9px] uppercase tracking-[0.25em] px-3 font-black pt-1 pb-1.5">
               Contas Mensais
             </div>
-          </div>
-          {NAV_ITEMS.filter(n => n.grupo === 'principal').map(({ href, icon, label }) => {
-            const active = pathname === href
-            return (
-              <Link
-                key={href}
-                href={`${href}?mes=${mes}&ano=${ano}`}
-                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-300 group ${active
-                    ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-lg shadow-blue-500/20 active:scale-95'
-                    : 'hover:bg-white/10 dark:hover:bg-slate-800/50 text-blue-100/80 dark:text-slate-400 hover:text-white dark:hover:text-slate-200'
-                  }`}
-              >
-                <span className={`text-base transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-125'}`}>{icon}</span>
-                {label}
-              </Link>
-            )
-          })}
+          )}
+          {NAV_ITEMS.filter(n => n.grupo === 'principal').map(({ href, icon, label }) => (
+            <NavItem key={href} href={href} icon={icon} label={label}
+              active={pathname === href} mes={mes} ano={ano} collapsed={collapsed} />
+          ))}
 
-          {/* Seletor de Ano/Mês — árvore expansível */}
-          <div className="pt-3 pb-1 space-y-0.5">
-            <div className="text-blue-300/60 dark:text-gray-500 text-[10px] uppercase tracking-[0.2em] px-3 font-black">
-              Período
-            </div>
+          {/* Período */}
+          {!collapsed && (
+            <>
+              <div className="text-blue-300/40 text-[9px] uppercase tracking-[0.25em] px-3 font-black pt-4 pb-1.5">
+                Período
+              </div>
+              {Array.from({ length: 2030 - 2026 + 1 }, (_, i) => 2026 + i).map(a => {
+                const isAnoAtivo  = a === ano
+                const isExpandido = a === anoExpandido
+                return (
+                  <div key={a}>
+                    <button
+                      onClick={() => setAnoExpandido(isExpandido ? 0 : a)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-[11px] font-bold
+                                  transition-all duration-200 ${isAnoAtivo
+                        ? 'bg-blue-600/20 text-white border border-white/10'
+                        : 'hover:bg-white/5 text-blue-100/50 hover:text-white'}`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Calendar size={12} className="shrink-0" />
+                        {a}
+                      </span>
+                      <ChevronDown
+                        size={12}
+                        className={`transition-transform duration-300 ${isExpandido ? 'rotate-180' : ''}`}
+                      />
+                    </button>
 
-            {Array.from({ length: 2030 - 2026 + 1 }, (_, i) => 2026 + i).map(a => {
-              const isAnoAtivo = a === ano
-              const isExpandido = a === anoExpandido
-              return (
-                <div key={a}>
-                  {/* Cabeçalho do ano */}
-                  <button
-                    onClick={() => setAnoExpandido(isExpandido ? 0 : a)}
-                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all duration-300 ${isAnoAtivo
-                        ? 'bg-blue-600/20 dark:bg-blue-500/10 text-white border border-white/10'
-                        : 'hover:bg-white/5 dark:hover:bg-slate-800/30 text-blue-100/60 dark:text-slate-500 hover:text-white'
-                      }`}
-                  >
-                    <span className="flex items-center gap-2">📅 {a}</span>
-                    <span className={`text-[8px] transition-transform duration-300 ${isExpandido ? 'rotate-180' : ''}`}>▼</span>
-                  </button>
+                    <AnimatePresence>
+                      {isExpandido && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.25, ease: 'easeInOut' }}
+                          className="overflow-hidden ml-3 border-l border-blue-700/30 pl-2 mt-0.5 space-y-0.5"
+                        >
+                          {MESES.map((nome, i) => {
+                            const m    = i + 1
+                            const ativo  = isAnoAtivo && m === mes
+                            const ehHoje = a === hoje.ano && m === hoje.mes
+                            return (
+                              <button
+                                key={m}
+                                onClick={() => { setAno(a); setMes(m) }}
+                                className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-semibold
+                                            transition-all duration-200 flex items-center justify-between gap-1 ${ativo
+                                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
+                                  : 'text-blue-100/40 hover:bg-white/10 hover:text-white'}`}
+                              >
+                                <span>{nome}</span>
+                                {ehHoje && (
+                                  <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-black leading-none ${ativo
+                                    ? 'bg-white/25 text-white'
+                                    : 'bg-emerald-400/25 text-emerald-300'
+                                  }`}>
+                                    Hoje
+                                  </span>
+                                )}
+                              </button>
+                            )
+                          })}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )
+              })}
+            </>
+          )}
 
-                  {/* Meses do ano expandido */}
-                  {isExpandido && (
-                    <div className="ml-2.5 mt-0.5 space-y-0.5 border-l-2 border-blue-700/40 dark:border-gray-700 pl-2">
-                      {MESES.map((nome, i) => {
-                        const m = i + 1
-                        const ativo = isAnoAtivo && m === mes
-                        const ehHoje = a === hoje.ano && m === hoje.mes
-                        return (
-                          <button
-                            key={m}
-                            onClick={() => { setAno(a); setMes(m) }}
-                            className={`w-full text-left px-2 py-1 rounded-lg text-xs font-bold transition-all duration-300 flex items-center justify-between gap-1 ${ativo
-                                ? 'bg-blue-600 text-white shadow-md'
-                                : 'text-blue-100/40 dark:text-slate-600 hover:bg-white/10 dark:hover:bg-slate-800/10 hover:text-white dark:hover:text-slate-300'
-                              }`}
-                          >
-                            <span>{nome}</span>
-                            {ehHoje && (
-                              <span className={`text-[9px] px-1 py-0.5 rounded font-black leading-none border ${
-                                ativo
-                                  ? 'bg-white/20 border-white/30 text-white'
-                                  : 'bg-green-400/30 border-green-400/40 text-green-300 dark:text-green-400'
-                              }`}>
-                                Hoje
-                              </span>
-                            )}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Seção Fase 3 — Recursos Avançados */}
-          <div className="pt-3 pb-1">
-            <div className="text-blue-300/60 dark:text-gray-500 text-[10px] uppercase tracking-[0.2em] px-3 font-black">
+          {/* Recursos Avançados */}
+          {!collapsed && (
+            <div className="text-blue-300/40 text-[9px] uppercase tracking-[0.25em] px-3 font-black pt-4 pb-1.5">
               Recursos Avançados
             </div>
-          </div>
-          {NAV_ITEMS.filter(n => n.grupo === 'avancado').map(({ href, icon, label }) => {
-            const active = pathname === href
-            return (
-              <Link
-                key={href}
-                href={`${href}?mes=${mes}&ano=${ano}`}
-                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-300 group ${active
-                    ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-lg shadow-blue-500/20 active:scale-95'
-                    : 'hover:bg-white/10 dark:hover:bg-slate-800/50 text-blue-100/80 dark:text-slate-400 hover:text-white dark:hover:text-slate-200'
-                  }`}
-              >
-                <span className={`text-base transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-125'}`}>{icon}</span>
-                {label}
-              </Link>
-            )
-          })}
+          )}
+          {NAV_ITEMS.filter(n => n.grupo === 'avancado').map(({ href, icon, label }) => (
+            <NavItem key={href} href={href} icon={icon} label={label}
+              active={pathname === href} mes={mes} ano={ano} collapsed={collapsed} />
+          ))}
 
-          {/* Seção Fase 4 — Planejamento */}
-          <div className="pt-3 pb-1">
-            <div className="text-blue-300/60 dark:text-gray-500 text-[10px] uppercase tracking-[0.2em] px-3 font-black">
-              Planejamento Futuro
+          {/* Planejamento */}
+          {!collapsed && (
+            <div className="text-blue-300/40 text-[9px] uppercase tracking-[0.25em] px-3 font-black pt-4 pb-1.5">
+              Planejamento
             </div>
-          </div>
-          {NAV_ITEMS.filter(n => n.grupo === 'planejamento').map(({ href, icon, label }) => {
-            const active = pathname === href
-            return (
-              <Link
-                key={href}
-                href={`${href}?mes=${mes}&ano=${ano}`}
-                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-300 group ${active
-                    ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-lg shadow-blue-500/20 active:scale-95'
-                    : 'hover:bg-white/10 dark:hover:bg-slate-800/50 text-blue-100/80 dark:text-slate-400 hover:text-white dark:hover:text-slate-200'
-                  }`}
-              >
-                <span className={`text-base transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-125'}`}>{icon}</span>
-                {label}
-              </Link>
-            )
-          })}
+          )}
+          {NAV_ITEMS.filter(n => n.grupo === 'planejamento').map(({ href, icon, label }) => (
+            <NavItem key={href} href={href} icon={icon} label={label}
+              active={pathname === href} mes={mes} ano={ano} collapsed={collapsed} />
+          ))}
 
-          {/* Comprovantes Drive */}
-          <div className="pt-5 pb-2">
-            <DrivePanel mes={mes} />
-          </div>
-
-          {/* Cotações ao vivo */}
-          <div className="pt-2">
-            <CotacoesPanel />
-          </div>
+          {/* Drive + Cotações — apenas quando expandido */}
+          {!collapsed && (
+            <>
+              <div className="pt-4 pb-1 border-t border-white/5 mt-3">
+                <DrivePanel mes={mes} />
+              </div>
+              <div className="pt-2">
+                <CotacoesPanel />
+              </div>
+            </>
+          )}
         </nav>
-      </aside>
 
-      {/* ── ÁREA PRINCIPAL ───────────────────────────────────── */}
-      <div className="ml-[18rem] flex-1 flex flex-col min-h-screen p-4 pr-6">
+        {/* Footer — logout + expandir */}
+        <div className={`shrink-0 border-t border-white/10 ${collapsed ? 'p-2 flex flex-col gap-2 items-center' : 'p-3 flex items-center gap-2'}`}>
+          {collapsed ? (
+            <>
+              <button
+                onClick={() => setCollapsed(false)}
+                className="w-9 h-9 flex items-center justify-center rounded-xl text-blue-300/60
+                           hover:text-white hover:bg-white/10 transition-all"
+                title="Expandir sidebar"
+              >
+                <PanelLeftOpen size={16} />
+              </button>
+              <button
+                onClick={() => { if (window.confirm('Deseja sair?')) handleLogout() }}
+                className="w-9 h-9 flex items-center justify-center rounded-xl text-blue-300/60
+                           hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+                title="Sair"
+              >
+                <LogOut size={15} />
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] font-bold text-white/80 truncate">Fischer Finanças</div>
+                <div className="text-[10px] text-blue-300/40 truncate">v3.7</div>
+              </div>
+              <button
+                onClick={() => { if (window.confirm('Deseja sair? Seus dados estão salvos automaticamente.')) handleLogout() }}
+                title="Sair da conta"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-semibold
+                           text-blue-200/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+              >
+                <LogOut size={14} />
+                Sair
+              </button>
+            </>
+          )}
+        </div>
+      </motion.aside>
 
-        {/* ── TOPBAR ────────────────────────────────────────── */}
-        <header className="sticky top-4 z-20 h-16 glass dark:glass-dark !bg-white/80 dark:!bg-slate-900/60 rounded-2xl flex items-center justify-between px-8 shadow-xl border-white/40 dark:border-slate-800/50 mb-6 mx-2 transition-all duration-500">
+      {/* ── ÁREA PRINCIPAL ────────────────────────────────────────── */}
+      <motion.div
+        animate={{ marginLeft: sidebarW + 16 }}
+        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+        className="flex-1 flex flex-col min-h-screen p-4 pr-6"
+        style={{ marginLeft: sidebarW + 16 }}
+      >
 
-          {/* Relógio + Mês ativo */}
+        {/* ── TOPBAR ───────────────────────────────────────────── */}
+        <header className="sticky top-4 z-20 h-16 glass dark:glass rounded-2xl flex items-center justify-between px-6 shadow-lg mb-6 transition-all duration-500"
+          style={{ background: 'rgba(255,255,255,0.82)', backdropFilter: 'blur(20px)' }}
+        >
+
+          {/* Esquerda — relógio + mês */}
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <span className="text-lg select-none">🕐</span>
+            <div className="flex items-center gap-2.5">
+              <ClockIcon size={16} className="text-slate-400 dark:text-slate-500 shrink-0" />
               <Clock />
             </div>
-            {/* Indicador do mês ativo */}
-            <motion.div 
+
+            <div className="w-px h-7 bg-slate-200 dark:bg-slate-700/60" />
+
+            <motion.div
               initial={{ x: 20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
-              className="hidden md:flex items-center gap-2 text-[10px] font-bold uppercase tracking-tighter text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full border border-blue-100 dark:border-blue-800"
+              className="hidden md:flex items-center gap-1.5 text-[11px] font-bold text-blue-600 dark:text-blue-400
+                         bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full
+                         border border-blue-100 dark:border-blue-800/50 select-none"
             >
-              <span>📅</span>
-              <span>{MESES[mes - 1]} {ano}</span>
+              <Calendar size={12} />
+              {MESES[mes - 1]} {ano}
             </motion.div>
           </div>
 
-          {/* Ações */}
+          {/* Direita — ações */}
           <div className="flex items-center gap-2">
 
-            {/* Busca Global */}
+            {/* Busca global */}
             <button
               id="global-search-btn"
               onClick={() => setBuscaAberta(true)}
               title="Busca Global (Ctrl+K)"
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200 transition-colors border border-gray-200/50 dark:border-gray-700/50"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium
+                         text-slate-500 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700/50
+                         hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200
+                         transition-all"
             >
-              <span>🔍</span>
-              <span className="hidden lg:inline text-[11px] text-gray-400 dark:text-gray-600 font-bold">Ctrl+K</span>
+              <Search size={14} />
+              <span className="hidden lg:inline text-[11px] text-slate-400 dark:text-slate-600 font-bold">Ctrl+K</span>
             </button>
 
             {/* Dados salvos */}
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-green-600 dark:text-green-500 bg-green-50 dark:bg-green-950/30 px-2.5 py-1.5 rounded-lg border border-green-100 dark:border-green-900">
-              <span>✓</span>
-              <span className="font-medium">Dados salvos</span>
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-500
+                            bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1.5 rounded-xl
+                            border border-emerald-100 dark:border-emerald-900/50">
+              <CheckCircle2 size={13} />
+              <span className="font-semibold">Salvo</span>
             </div>
 
             {/* Dark mode */}
             <button
               onClick={toggleDark}
               title={dark ? 'Modo claro' : 'Modo escuro'}
-              className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-lg"
+              className="w-9 h-9 flex items-center justify-center rounded-xl
+                         bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700
+                         text-slate-600 dark:text-slate-400 transition-all"
             >
-              {dark ? '☀️' : '🌙'}
-            </button>
-
-            <div className="w-px h-6 bg-gray-200 dark:bg-gray-700" />
-
-            {/* Sair */}
-            <button
-              onClick={() => {
-                if (window.confirm('Deseja sair? Seus dados estão salvos automaticamente no banco de dados.')) {
-                  handleLogout()
-                }
-              }}
-              title="Sair da conta (dados salvos automaticamente)"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-            >
-              <span className="text-base">🚪</span>
-              <span className="hidden sm:inline">Sair</span>
+              {dark
+                ? <Sun size={16} className="text-amber-400" />
+                : <Moon size={16} className="text-slate-500" />
+              }
             </button>
           </div>
         </header>
 
-        {/* ── CONTEÚDO ─────────────────────────────────────── */}
+        {/* ── CONTEÚDO ──────────────────────────────────────────── */}
         <AnimatePresence mode="wait">
-          <motion.main 
+          <motion.main
             key={pathname}
-            initial={{ opacity: 0, y: 15 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            className="flex-1 p-2"
+            exit={{ opacity: 0, y: -16 }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            className="flex-1 pb-8"
           >
             {children}
           </motion.main>
         </AnimatePresence>
-      </div>
+      </motion.div>
 
       {/* Assistente IA Flutuante */}
       <AIChatBot />
@@ -425,7 +505,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   )
 }
 
-// ── Layout raiz — UserProvider + MesProvider envolvem TUDO ──────
+// ── Layout raiz ─────────────────────────────────────────────────
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const mesInicial = new Date().getMonth() + 1
   const anoInicial = new Date().getFullYear()

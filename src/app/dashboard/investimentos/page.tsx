@@ -198,7 +198,7 @@ export default function InvestimentosPage() {
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">📈 Simulador de Investimentos</h1>
+          <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Simulador de Investimentos</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm">
             Planeje seus aportes e visualize o crescimento com juros compostos
           </p>

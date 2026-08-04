@@ -7,6 +7,7 @@ import { formatBRL, formatDate, formatVencimento } from '@/lib/utils'
 import { notificarPagamento } from '@/lib/notifications'
 import { MESES, ORDEM_CARTOES, LOGOS_CARTOES, type ContaFixa, type Cartao } from '@/types'
 import DriveUploadModal from '@/components/DriveUploadModal'
+import { Cloud, Pencil, Trash2, Flag, X, Zap } from 'lucide-react'
 
 // ── Analisa campo parcela e extrai atual/total ────────────────────────────
 // Aceita formatos: "01/12", "1/12", "01 de 12", "1 de 12"
@@ -326,7 +327,7 @@ export default function ContasFixasPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">🏠 Contas do Mês</h1>
+          <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Contas do Mês</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm">{MESES[mes - 1]} {ano}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -579,18 +580,18 @@ export default function ContasFixasPage() {
                             <button
                               onClick={() => setDriveModal({ descricao: conta.descricao, valor: conta.valor })}
                               title="Enviar comprovante para o Google Drive"
-                              className="w-7 h-7 flex items-center justify-center rounded hover:bg-green-100 dark:hover:bg-green-900/30 text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors"
-                            >☁️</button>
+                              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                            ><Cloud size={13} /></button>
                             <button
                               onClick={() => { setForm(conta); setModal(true) }}
                               title="Editar"
-                              className="w-7 h-7 flex items-center justify-center rounded hover:bg-blue-100 dark:hover:bg-blue-900/40 text-gray-300 hover:text-blue-600 transition-colors"
-                            >✏️</button>
+                              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                            ><Pencil size={13} /></button>
                             <button
                               onClick={() => excluir(conta.id)}
                               title="Excluir"
-                              className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-100 dark:hover:bg-red-900/40 text-gray-300 hover:text-red-500 transition-colors"
-                            >🗑️</button>
+                              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900/40 text-slate-300 hover:text-rose-500 dark:hover:text-rose-400 transition-colors"
+                            ><Trash2 size={13} /></button>
                             {/* Flag de conferência */}
                             <button
                               onClick={() => setConferidosContas(prev => {
@@ -604,7 +605,7 @@ export default function ContasFixasPage() {
                                   ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
                                   : 'text-gray-300 hover:text-yellow-400 opacity-0 group-hover:opacity-100'
                               }`}
-                            >🚩</button>
+                            ><Flag size={13} /></button>
                           </div>
                         </div>
                       </div>
@@ -678,17 +679,19 @@ export default function ContasFixasPage() {
       {/* ── MODAL: Nova / Editar Conta Fixa ── */}
       {modal && (
         <div
-          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+          className="modal-overlay"
           onClick={e => e.target === e.currentTarget && fecharModal()}
         >
-          <div className="bg-white dark:bg-gray-900 dark:border dark:border-gray-700 rounded-xl shadow-xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-lg text-gray-900 dark:text-gray-100">
+          <div className="modal-content w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100">
                 {form.id ? 'Editar Conta Fixa' : 'Nova Conta Fixa'}
               </h2>
-              <button onClick={fecharModal} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400">✕</button>
+              <button onClick={fecharModal} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors">
+                <X size={16} />
+              </button>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div>
                 <label className="label">Categoria</label>
                 <select className="input" value={form.categoria || GRUPOS[0]} onChange={e => setForm({ ...form, categoria: e.target.value })}>
@@ -715,17 +718,16 @@ export default function ContasFixasPage() {
                   onChange={e => setForm({ ...form, parcela: e.target.value })}
                   placeholder="Ex: 01/10 ou 01 de 10"
                 />
-                {/* Preview das parcelas que serão criadas automaticamente */}
                 {parcelasPreview.length > 0 && !form.id && (
-                  <div className="mt-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900 rounded-lg px-3 py-2.5">
-                    <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-1.5 flex items-center gap-1">
-                      <span>⚡</span>
+                  <div className="mt-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 rounded-xl px-3 py-2.5">
+                    <div className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-1.5 flex items-center gap-1.5">
+                      <Zap size={11} />
                       Parcelas criadas automaticamente nos próximos meses:
                     </div>
                     <ul className="space-y-0.5">
                       {parcelasPreview.map((p, i) => (
                         <li key={i} className="text-xs text-blue-500 dark:text-blue-400 flex items-center gap-1.5">
-                          <span className="text-blue-300">→</span> {p}
+                          <span className="text-blue-300 dark:text-blue-600">→</span> {p}
                         </li>
                       ))}
                     </ul>
@@ -733,14 +735,16 @@ export default function ContasFixasPage() {
                 )}
               </div>
               <div className="flex items-center gap-2 pt-1">
-                <input type="checkbox" id="pago_fixo" checked={!!form.pago} onChange={e => setForm({ ...form, pago: e.target.checked })} className="w-4 h-4 accent-green-500" />
-                <label htmlFor="pago_fixo" className="text-sm text-gray-700 dark:text-gray-300">Já pago</label>
+                <input type="checkbox" id="pago_fixo" checked={!!form.pago} onChange={e => setForm({ ...form, pago: e.target.checked })} className="w-4 h-4 accent-emerald-500" />
+                <label htmlFor="pago_fixo" className="text-sm text-slate-700 dark:text-slate-300 font-medium">Já pago</label>
               </div>
             </div>
-            <div className="flex gap-3 mt-5">
+            <div className="flex gap-3 mt-6">
               <button className="btn-secondary flex-1" onClick={fecharModal}>Cancelar</button>
               <button className="btn-primary flex-1" onClick={salvar} disabled={saving || !form.descricao}>
-                {saving ? 'Salvando...' : 'Salvar'}
+                {saving ? (
+                  <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg> Salvando...</>
+                ) : 'Salvar'}
               </button>
             </div>
           </div>
