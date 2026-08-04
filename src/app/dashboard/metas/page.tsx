@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
 import { formatBRL } from '@/lib/utils'
 import { MESES, type Meta } from '@/types'
+import { X } from 'lucide-react'
 
 
 
@@ -477,13 +478,15 @@ export default function MetasPage() {
 
       {/* Modal de Criar/Editar Meta */}
       {modal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && fecharModal()}>
-          <div className="bg-white dark:bg-gray-900 dark:border dark:border-gray-700 rounded-xl shadow-xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-lg text-gray-900 dark:text-gray-100">
-                {form.id ? '✏️ Editar Meta' : '🎯 Nova Meta'}
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && fecharModal()}>
+          <div className="modal-content w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100">
+                {form.id ? 'Editar Meta' : 'Nova Meta'}
               </h2>
-              <button onClick={fecharModal} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400">✕</button>
+              <button onClick={fecharModal} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors">
+                <X size={16} />
+              </button>
             </div>
 
             <div className="space-y-4">
@@ -499,7 +502,7 @@ export default function MetasPage() {
                     <option key={cat.id} value={cat.id}>{cat.icon} {cat.label}</option>
                   ))}
                 </select>
-                {form.id && <p className="text-xs text-gray-500 mt-1">Não é possível alterar a categoria de uma meta existente</p>}
+                {form.id && <p className="text-xs text-slate-500 mt-1">Não é possível alterar a categoria de uma meta existente</p>}
               </div>
 
               <div>
@@ -528,11 +531,11 @@ export default function MetasPage() {
                     value={form.notificar_em || 80} 
                     onChange={e => setForm({ ...form, notificar_em: parseInt(e.target.value) })}
                   />
-                  <span className="text-lg font-bold text-gray-900 dark:text-gray-100 w-12 text-right">
+                  <span className="text-lg font-bold text-slate-900 dark:text-slate-100 w-12 text-right">
                     {form.notificar_em || 80}%
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Você será alertado ao atingir este percentual da meta</p>
+                <p className="text-xs text-slate-500 mt-1">Você será alertado ao atingir este percentual da meta</p>
               </div>
 
               <div className="flex items-center gap-2 pt-2">
@@ -541,24 +544,22 @@ export default function MetasPage() {
                   id="ativo" 
                   checked={form.ativo !== false} 
                   onChange={e => setForm({ ...form, ativo: e.target.checked })}
-                  className="w-4 h-4 accent-green-500"
+                  className="w-4 h-4 accent-emerald-500"
                 />
-                <label htmlFor="ativo" className="text-sm text-gray-700 dark:text-gray-300">
+                <label htmlFor="ativo" className="text-sm text-slate-700 dark:text-slate-300 font-medium">
                   Meta ativa (será monitorada)
                 </label>
               </div>
             </div>
 
             <div className="flex gap-3 mt-6">
-              <button className="btn-secondary flex-1" onClick={fecharModal}>
-                Cancelar
-              </button>
+              <button className="btn-secondary flex-1" onClick={fecharModal}>Cancelar</button>
               <button 
                 className="btn-primary flex-1" 
                 onClick={salvarMeta}
                 disabled={saving || !form.categoria || !form.valor_limite}
               >
-                {saving ? 'Salvando...' : form.id ? 'Salvar' : 'Criar Meta'}
+                {saving ? <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg> Salvando...</> : form.id ? 'Salvar' : 'Criar Meta'}
               </button>
             </div>
           </div>

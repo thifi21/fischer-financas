@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
 import { formatBRL } from '@/lib/utils'
 import { MESES, type Entrada } from '@/types'
-
+import { Pencil, Trash2, X, Plus } from 'lucide-react'
 
 
 // Helper para calcular o 5º dia útil do mês
@@ -430,7 +430,7 @@ export default function EntradasPage() {
       {activeTab === 'entradas' && (
         <>
           <div className="flex justify-end mb-4">
-            <button className="btn-primary" onClick={abrirModalNova}>+ Nova Entrada</button>
+            <button className="btn-primary" onClick={abrirModalNova}><Plus size={15} /> Nova Entrada</button>
           </div>
           <div className="card mb-5 bg-green-50 dark:bg-green-950/30 border border-green-100">
             <div className="flex justify-between items-center">
@@ -457,16 +457,18 @@ export default function EntradasPage() {
                   </thead>
                   <tbody>
                     {entradas.map(e => (
-                      <tr key={e.id} className="hover:bg-gray-50 transition-colors group">
-                        <td className="py-3 px-2">{formatDateBr(e.data_entrada ?? '')}</td>
-                        <td className="py-3 px-2 font-semibold">{e.descricao}</td>
-                        <td className="py-3 px-2">{catLabel(e.categoria)}</td>
-                        <td className="py-3 px-2 text-right text-green-700 font-bold">{formatBRL(e.valor)}</td>
-                        <td className="py-3 px-2">
-                           <button onClick={() => { setForm(e); setModal(true) }} className="p-1">✏️</button>
-                           <button onClick={() => excluir(e.id)} className="p-1">🗑️</button>
-                        </td>
-                      </tr>
+                        <tr key={e.id} className="table-row-hover group border-b border-slate-50 dark:border-slate-800/60">
+                          <td className="py-3 px-2 text-slate-500 dark:text-slate-400 text-sm">{formatDateBr(e.data_entrada ?? '')}</td>
+                          <td className="py-3 px-2 font-semibold text-slate-800 dark:text-slate-200">{e.descricao}</td>
+                          <td className="py-3 px-2 text-slate-500 dark:text-slate-400">{catLabel(e.categoria)}</td>
+                          <td className="py-3 px-2 text-right text-emerald-700 dark:text-emerald-400 font-bold">{formatBRL(e.valor)}</td>
+                          <td className="py-3 px-2">
+                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                               <button onClick={() => { setForm(e); setModal(true) }} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 text-slate-300 hover:text-blue-500 transition-colors"><Pencil size={13} /></button>
+                               <button onClick={() => excluir(e.id)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900/40 text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={13} /></button>
+                             </div>
+                          </td>
+                        </tr>
                     ))}
                   </tbody>
                 </table>
@@ -545,9 +547,11 @@ export default function EntradasPage() {
                                   className={`w-6 h-6 rounded border-2 ${item.conferido ? 'bg-green-500 border-green-500 text-white' : 'border-gray-200 text-transparent hover:border-green-400'}`}
                                 >✓</button>
                               </td>
-                              <td className="py-3 px-2 text-right flex items-center justify-end gap-1">
-                                <button onClick={() => abrirEdicaoExtrato(item)} className="text-gray-400 hover:text-blue-500 p-1">✏️</button>
-                                <button onClick={() => ocultarEdicaoExtrato(item)} className="text-gray-400 hover:text-red-500 p-1">🗑️</button>
+                              <td className="py-3 px-2">
+                                <div className="flex items-center gap-1">
+                                  <button onClick={() => abrirEdicaoExtrato(item)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 text-slate-300 hover:text-blue-500 transition-colors"><Pencil size={13} /></button>
+                                  <button onClick={() => ocultarEdicaoExtrato(item)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900/40 text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={13} /></button>
+                                </div>
                               </td>
                             </tr>
                           )
@@ -568,72 +572,85 @@ export default function EntradasPage() {
       )}
 
       {modal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md p-6">
-            <h2 className="font-bold text-lg mb-4">{form.id ? 'Editar Entrada' : 'Nova Entrada'}</h2>
-            <div className="space-y-3">
-              <label className="label">Data</label>
-              <input type="date" className="input" value={form.data_entrada || ''} onChange={e => setForm({ ...form, data_entrada: e.target.value })} />
-              <label className="label">Descrição</label>
-              <input className="input" value={form.descricao || ''} onChange={e => setForm({ ...form, descricao: e.target.value })} />
-              <label className="label">Categoria</label>
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && fecharModal()}>
+          <div className="modal-content w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100">{form.id ? 'Editar Entrada' : 'Nova Entrada'}</h2>
+              <button onClick={fecharModal} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors"><X size={16} /></button>
+            </div>
+            <div className="space-y-4">
+              <div><label className="label">Data</label>
+              <input type="date" className="input" value={form.data_entrada || ''} onChange={e => setForm({ ...form, data_entrada: e.target.value })} /></div>
+              <div><label className="label">Descrição</label>
+              <input className="input" value={form.descricao || ''} onChange={e => setForm({ ...form, descricao: e.target.value })} /></div>
+              <div><label className="label">Categoria</label>
               <select className="input" value={form.categoria || 'salario'} onChange={e => setForm({ ...form, categoria: e.target.value })}>
                 {CATEGORIAS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
-              <label className="label">Valor</label>
-              <input type="number" step="0.01" className="input" value={form.valor || ''} onChange={e => setForm({ ...form, valor: Number(e.target.value) })} />
+              </select></div>
+              <div><label className="label">Valor</label>
+              <input type="number" step="0.01" className="input" value={form.valor || ''} onChange={e => setForm({ ...form, valor: Number(e.target.value) })} /></div>
             </div>
-            <div className="flex gap-3 mt-5">
+            <div className="flex gap-3 mt-6">
               <button className="btn-secondary flex-1" onClick={fecharModal}>Cancelar</button>
-              <button className="btn-primary flex-1" onClick={salvarEntrada} disabled={saving || !form.descricao || !form.valor}>{saving ? 'Salvando...' : 'Salvar'}</button>
+              <button className="btn-primary flex-1" onClick={salvarEntrada} disabled={saving || !form.descricao || !form.valor}>
+                {saving ? <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg> Salvando...</> : 'Salvar'}
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {modalManual && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md p-6">
-            <h2 className="font-bold text-lg mb-4">Nova Movimentação Avulsa</h2>
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setModalManual(false)}>
+          <div className="modal-content w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100">Nova Movimentação Avulsa</h2>
+              <button onClick={() => setModalManual(false)} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors"><X size={16} /></button>
+            </div>
             <div className="space-y-4">
-               <div className="flex gap-4">
-                  <button className={`flex-1 p-2 border rounded ${formManual.tipo === 'entrada' ? 'bg-green-100 border-green-500' : ''}`} onClick={() => setFormManual({...formManual, tipo: 'entrada'})}>Crédito</button>
-                  <button className={`flex-1 p-2 border rounded ${formManual.tipo === 'saida' ? 'bg-red-100 border-red-500' : ''}`} onClick={() => setFormManual({...formManual, tipo: 'saida'})}>Débito</button>
+               <div className="flex gap-3">
+                  <button className={`flex-1 py-2.5 border-2 rounded-xl text-sm font-bold transition-all ${formManual.tipo === 'entrada' ? 'bg-emerald-50 border-emerald-500 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500 dark:text-emerald-400' : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:border-emerald-300'}`} onClick={() => setFormManual({...formManual, tipo: 'entrada'})}>Crédito</button>
+                  <button className={`flex-1 py-2.5 border-2 rounded-xl text-sm font-bold transition-all ${formManual.tipo === 'saida' ? 'bg-rose-50 border-rose-500 text-rose-700 dark:bg-rose-500/10 dark:border-rose-500 dark:text-rose-400' : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:border-rose-300'}`} onClick={() => setFormManual({...formManual, tipo: 'saida'})}>Débito</button>
                </div>
-               <label className="label">Data</label>
-               <input type="date" className="input" value={formManual.data_entrada || ''} onChange={e => setFormManual({ ...formManual, data_entrada: e.target.value })} />
-               <label className="label">Descrição</label>
-               <input className="input" value={formManual.descricao || ''} onChange={e => setFormManual({ ...formManual, descricao: e.target.value })} />
-               <label className="label">Valor</label>
-               <input type="number" step="0.01" className="input" value={formManual.valor || ''} onChange={e => setFormManual({ ...formManual, valor: Number(e.target.value) })} />
+               <div><label className="label">Data</label>
+               <input type="date" className="input" value={formManual.data_entrada || ''} onChange={e => setFormManual({ ...formManual, data_entrada: e.target.value })} /></div>
+               <div><label className="label">Descrição</label>
+               <input className="input" value={formManual.descricao || ''} onChange={e => setFormManual({ ...formManual, descricao: e.target.value })} /></div>
+               <div><label className="label">Valor</label>
+               <input type="number" step="0.01" className="input" value={formManual.valor || ''} onChange={e => setFormManual({ ...formManual, valor: Number(e.target.value) })} /></div>
             </div>
             <div className="flex gap-3 mt-6">
                <button className="btn-secondary flex-1" onClick={() => setModalManual(false)}>Cancelar</button>
-               <button className="btn-primary flex-1" onClick={salvarManual} disabled={savingManual || !formManual.descricao || !formManual.valor}>{savingManual ? 'Salvando...' : 'Adicionar'}</button>
+               <button className="btn-primary flex-1" onClick={salvarManual} disabled={savingManual || !formManual.descricao || !formManual.valor}>
+                 {savingManual ? <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg> Salvando...</> : 'Adicionar'}
+               </button>
             </div>
           </div>
         </div>
       )}
 
       {modalEdicao && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md p-6">
-            <h2 className="font-bold text-lg mb-4">Editar Lançamento</h2>
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setModalEdicao(null)}>
+          <div className="modal-content w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100">Editar Lançamento</h2>
+              <button onClick={() => setModalEdicao(null)} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors"><X size={16} /></button>
+            </div>
             <div className="space-y-4">
-              <label className="label">Descrição</label>
-              <input className="input" value={formEdicao.descricao || ''} onChange={e => setFormEdicao({ ...formEdicao, descricao: e.target.value })} />
+              <div><label className="label">Descrição</label>
+              <input className="input" value={formEdicao.descricao || ''} onChange={e => setFormEdicao({ ...formEdicao, descricao: e.target.value })} /></div>
               {modalEdicao.tabelaOrigem !== 'cartoes' && (
-                <>
-                  <label className="label">Data</label>
-                  <input type="date" className="input" value={formEdicao.data || ''} onChange={e => setFormEdicao({ ...formEdicao, data: e.target.value })} />
-                </>
+                <div><label className="label">Data</label>
+                <input type="date" className="input" value={formEdicao.data || ''} onChange={e => setFormEdicao({ ...formEdicao, data: e.target.value })} /></div>
               )}
-              <label className="label">Valor</label>
-              <input type="number" step="0.01" className="input" value={formEdicao.valor || ''} onChange={e => setFormEdicao({ ...formEdicao, valor: Number(e.target.value) })} />
+              <div><label className="label">Valor</label>
+              <input type="number" step="0.01" className="input" value={formEdicao.valor || ''} onChange={e => setFormEdicao({ ...formEdicao, valor: Number(e.target.value) })} /></div>
             </div>
             <div className="flex gap-3 mt-6">
               <button className="btn-secondary flex-1" onClick={() => setModalEdicao(null)}>Cancelar</button>
-              <button className="btn-primary flex-1" onClick={salvarEdicaoExtrato} disabled={savingEdicao || !formEdicao.descricao || !formEdicao.valor}>{savingEdicao ? 'Salvando...' : 'Salvar'}</button>
+              <button className="btn-primary flex-1" onClick={salvarEdicaoExtrato} disabled={savingEdicao || !formEdicao.descricao || !formEdicao.valor}>
+                {savingEdicao ? <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg> Salvando...</> : 'Salvar'}
+              </button>
             </div>
           </div>
         </div>

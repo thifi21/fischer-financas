@@ -95,6 +95,8 @@ export const NOMES_CARTOES = [
   'Tricard',
   'Mercado Pago',
   'DM Card Koch',
+  'Havan',
+  'Pernambucanas',
 ]
 
 // Logos dos cartões — Locais (public/logos) e via CDN como fallback
@@ -107,6 +109,8 @@ export const LOGOS_CARTOES: Record<string, { src: string; bg: string }> = {
   'Tricard':              { src: '/logos/Tricard.jpg',         bg: '#E30613' },
   'Mercado Pago':         { src: '/logos/Mercado_Pago.png',     bg: '#009EE3' },
   'DM Card Koch':         { src: 'https://logo.clearbit.com/dmcard.com.br',          bg: '#E30613' },
+  'Havan':                { src: 'https://logo.clearbit.com/havan.com.br',          bg: '#004B8D' },
+  'Pernambucanas':        { src: 'https://logo.clearbit.com/pernambucanas.com.br',  bg: '#005FAA' },
 }
 
 
@@ -119,6 +123,8 @@ export const ORDEM_CARTOES: Record<string, number> = {
   'Tricard':              6,
   'Mercado Pago':         7,
   'DM Card Koch':         8,
+  'Havan':                9,
+  'Pernambucanas':        10,
 }
 
 export type Sonho = {

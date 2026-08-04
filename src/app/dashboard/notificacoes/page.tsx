@@ -1,9 +1,10 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
 import { formatBRL, formatDate } from '@/lib/utils'
 import { MESES } from '@/types'
+import { X } from 'lucide-react'
 import { toast } from 'sonner'
 import { authFetch } from '@/lib/auth-fetch'
 
@@ -843,13 +844,15 @@ export default function NotificacoesPage() {
 
       {/* Modal de Criar/Editar Lembrete */}
       {modal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && fecharModal()}>
-          <div className="bg-white dark:bg-gray-900 dark:border dark:border-gray-700 rounded-xl shadow-xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-lg text-gray-900 dark:text-gray-100">
-                {form.id ? '✏️ Editar Lembrete' : '📌 Novo Lembrete'}
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && fecharModal()}>
+          <div className="modal-content w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100">
+                {form.id ? 'Editar Lembrete' : 'Novo Lembrete'}
               </h2>
-              <button onClick={fecharModal} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400">✕</button>
+              <button onClick={fecharModal} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors">
+                <X size={16} />
+              </button>
             </div>
 
             <div className="space-y-4">
@@ -906,15 +909,15 @@ export default function NotificacoesPage() {
                     <button
                       key={p}
                       onClick={() => setForm({ ...form, prioridade: p })}
-                      className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
                         form.prioridade === p
-                          ? p === 'alta' ? 'bg-red-500 text-white' :
-                            p === 'media' ? 'bg-yellow-500 text-white' :
-                            'bg-blue-500 text-white'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                          ? p === 'alta' ? 'bg-rose-500 text-white shadow-md shadow-rose-500/25' :
+                            p === 'media' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25' :
+                            'bg-blue-500 text-white shadow-md shadow-blue-500/25'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                       }`}
                     >
-                      {p === 'alta' ? '🔴 Alta' : p === 'media' ? '🟡 Média' : '🔵 Baixa'}
+                      {p === 'alta' ? 'Alta' : p === 'media' ? 'Média' : 'Baixa'}
                     </button>
                   ))}
                 </div>
@@ -928,22 +931,20 @@ export default function NotificacoesPage() {
                   onChange={e => setForm({ ...form, ativo: e.target.checked })}
                   className="w-4 h-4 accent-blue-500"
                 />
-                <label htmlFor="ativo" className="text-sm text-gray-700 dark:text-gray-300">
+                <label htmlFor="ativo" className="text-sm text-slate-700 dark:text-slate-300 font-medium">
                   Lembrete ativo (será exibido nas notificações)
                 </label>
               </div>
             </div>
 
             <div className="flex gap-3 mt-6">
-              <button className="btn-secondary flex-1" onClick={fecharModal}>
-                Cancelar
-              </button>
+              <button className="btn-secondary flex-1" onClick={fecharModal}>Cancelar</button>
               <button 
                 className="btn-primary flex-1" 
                 onClick={salvarLembrete}
                 disabled={saving || !form.titulo || !form.data_lembrete}
               >
-                {saving ? 'Salvando...' : form.id ? 'Salvar' : 'Criar Lembrete'}
+                {saving ? <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg> Salvando...</> : form.id ? 'Salvar' : 'Criar Lembrete'}
               </button>
             </div>
           </div>

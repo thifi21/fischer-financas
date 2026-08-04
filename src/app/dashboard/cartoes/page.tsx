@@ -7,7 +7,7 @@ import { formatBRL, formatDate, formatVencimento } from '@/lib/utils'
 import { notificarPagamento } from '@/lib/notifications'
 import { MESES, NOMES_CARTOES, ORDEM_CARTOES, LOGOS_CARTOES, type Cartao, type LancamentoCartao } from '@/types'
 import DriveUploadModal from '@/components/DriveUploadModal'
-import { CreditCard, Plus, X, Pencil, Trash2, Zap, CheckCheck } from 'lucide-react'
+import { CreditCard, Plus, X, Pencil, Trash2, Zap, CheckCheck, Cloud } from 'lucide-react'
 
 type ModalState =
   | { tipo: 'cartao'; dados?: Cartao }
@@ -56,6 +56,7 @@ export default function CartoesPage() {
   const [parcelasPreview, setParcelasPreview]       = useState<string[]>([])
   const [sugestoesLocais, setSugestoesLocais]       = useState<string[]>([])
   const [driveModal, setDriveModal]                 = useState<{ cartao: Cartao } | null>(null)
+  const [modalCustomNome, setModalCustomNome]       = useState(false)
   const userIdRef   = useRef<string | null>(null)
   // Contador de geração para evitar race condition na troca de mês/ano
   const loadGenRef  = useRef(0)
@@ -468,7 +469,7 @@ export default function CartoesPage() {
     setModal({ tipo: 'lancamento', cartaoId: cartao.id, cartaoNome: cartao.nome, dados: lancamento })
   }
 
-  function fecharModal() { setModal(null); setForm({}); setParcelasPreview([]) }
+  function fecharModal() { setModal(null); setForm({}); setParcelasPreview([]); setModalCustomNome(false); }
 
   const totalMes   = cartoes.reduce((s, c) => s + Number(c.valor), 0)
   const totalLancs = Object.values(todosLancamentos).flat().length
@@ -493,7 +494,7 @@ export default function CartoesPage() {
             </p>
           </div>
         </div>
-        <button className="btn-primary" onClick={() => { setForm({ nome: NOMES_CARTOES[0] }); setModal({ tipo: 'cartao' }) }}>
+        <button className="btn-primary" onClick={() => { setForm({ nome: NOMES_CARTOES[0] }); setModalCustomNome(false); setModal({ tipo: 'cartao' }) }}>
           <Plus size={15} /> Adicionar Cartão
         </button>
       </div>
@@ -537,7 +538,7 @@ export default function CartoesPage() {
             <CreditCard size={30} className="text-indigo-400" strokeWidth={1.3} />
           </div>
           <p className="text-slate-500 dark:text-slate-400 font-medium mb-4">Nenhum cartão cadastrado para {MESES[mes - 1]}.</p>
-          <button className="btn-primary" onClick={() => { setForm({ nome: NOMES_CARTOES[0] }); setModal({ tipo: 'cartao' }) }}>
+          <button className="btn-primary" onClick={() => { setForm({ nome: NOMES_CARTOES[0] }); setModalCustomNome(false); setModal({ tipo: 'cartao' }) }}>
             <Plus size={15} /> Adicionar Cartão
           </button>
         </div>
@@ -608,15 +609,15 @@ export default function CartoesPage() {
                     </button>
                     <button onClick={() => setDriveModal({ cartao })} title="Enviar comprovante"
                       className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-green-50 dark:hover:bg-green-900/30 text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors">
-                      ☁️
+                      <Cloud size={13} />
                     </button>
-                    <button onClick={() => { setForm({ ...cartao }); setModal({ tipo: 'cartao' }) }} title="Editar cartão"
+                    <button onClick={() => { setForm({ ...cartao }); setModalCustomNome(!NOMES_CARTOES.includes(cartao.nome)); setModal({ tipo: 'cartao' }) }} title="Editar cartão"
                       className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-700 transition-colors">
-                      ✏️
+                      <Pencil size={13} />
                     </button>
                     <button onClick={() => excluirCartao(cartao)} title="Excluir cartão"
                       className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-300 hover:text-red-500 transition-colors">
-                      🗑️
+                      <Trash2 size={13} />
                     </button>
                   </div>
                 </div>
@@ -751,9 +752,33 @@ export default function CartoesPage() {
             <div className="space-y-4">
               <div>
                 <label className="label">Nome do Cartão</label>
-                <select className="input" value={form.nome || ''} onChange={e => setForm({ ...form, nome: e.target.value })}>
-                  {NOMES_CARTOES.map(n => <option key={n}>{n}</option>)}
+                <select 
+                  className="input mb-2" 
+                  value={modalCustomNome ? 'custom' : (form.nome || '')} 
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === 'custom') {
+                      setModalCustomNome(true);
+                      setForm({ ...form, nome: '' });
+                    } else {
+                      setModalCustomNome(false);
+                      setForm({ ...form, nome: val });
+                    }
+                  }}
+                >
+                  {NOMES_CARTOES.map(n => <option key={n} value={n}>{n}</option>)}
+                  <option value="custom">Outro (Digitar Nome...)</option>
                 </select>
+                {modalCustomNome && (
+                  <input
+                    type="text"
+                    className="input mt-1.5"
+                    placeholder="Digite o nome do cartão"
+                    value={form.nome || ''}
+                    onChange={e => setForm({ ...form, nome: e.target.value })}
+                    autoFocus
+                  />
+                )}
               </div>
               <div>
                 <label className="label">Vencimento</label>

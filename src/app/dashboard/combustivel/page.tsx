@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
 import { formatBRL, formatDate } from '@/lib/utils'
 import { MESES, type Combustivel } from '@/types'
-
+import { X, Plus, Pencil, Trash2, AlertTriangle } from 'lucide-react'
 
 
 // ── Extrai mês e ano de uma string de data (AAAA-MM-DD) ──────────
@@ -293,15 +293,17 @@ export default function CombustivelPage() {
       {/* Modal */}
       {modal && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          className="modal-overlay"
           onClick={e => e.target === e.currentTarget && fecharModal()}
         >
-          <div className="bg-white dark:bg-gray-900 dark:border dark:border-gray-700 rounded-xl shadow-xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-lg text-gray-900 dark:text-gray-100">
+          <div className="modal-content w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100">
                 {form.id ? 'Editar Abastecimento' : 'Novo Abastecimento'}
               </h2>
-              <button onClick={fecharModal} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400">✕</button>
+              <button onClick={fecharModal} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors">
+                <X size={16} />
+              </button>
             </div>
 
             {/* Aviso quando data é de outro mês */}
@@ -309,8 +311,8 @@ export default function CombustivelPage() {
               const { mes: md, ano: ad } = mesAnoDeData(form.data_abastecimento)
               if (md !== mes || ad !== anoAtual) {
                 return (
-                  <div className="mb-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 rounded-lg px-3 py-2 text-xs flex items-center gap-2">
-                    <span>⚠️</span>
+                  <div className="mb-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 rounded-xl px-3 py-2 text-xs flex items-center gap-2">
+                    <AlertTriangle size={12} className="flex-shrink-0" />
                     <span>
                       A data {form.data_abastecimento} pertence a <strong>{MESES[md - 1]} {ad}</strong>.
                       O registro será salvo nesse mês.
@@ -321,7 +323,7 @@ export default function CombustivelPage() {
               return null
             })()}
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div>
                 <label className="label">Data do Abastecimento</label>
                 <input
@@ -373,26 +375,26 @@ export default function CombustivelPage() {
                     }}
                     placeholder="Ex: 233169"
                   />
-                  <p className="text-xs text-gray-400 dark:text-gray-600 mt-0.5">Somente números, sem ponto</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-600 mt-0.5">Somente números, sem ponto</p>
                 </div>
               </div>
             </div>
 
             {/* Erro dentro do modal */}
             {erro && (
-              <div className="mt-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg px-3 py-2 text-xs">
-                ⚠️ {erro}
+              <div className="mt-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 rounded-xl px-3 py-2 text-xs flex items-center gap-2">
+                <AlertTriangle size={12} /> {erro}
               </div>
             )}
 
-            <div className="flex gap-3 mt-5">
+            <div className="flex gap-3 mt-6">
               <button className="btn-secondary flex-1" onClick={fecharModal}>Cancelar</button>
               <button
                 className="btn-primary flex-1"
                 onClick={salvar}
                 disabled={saving || !form.valor}
               >
-                {saving ? 'Salvando...' : form.id ? 'Salvar Alterações' : 'Adicionar'}
+                {saving ? <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg> Salvando...</> : form.id ? 'Salvar Alterações' : 'Adicionar'}
               </button>
             </div>
           </div>
