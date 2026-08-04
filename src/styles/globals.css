@@ -301,7 +301,7 @@ h1, h2, h3, h4, .font-premium {
 
 /* ── Nav Item ────────────────────────────────────────────── */
 .nav-item {
-  @apply flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold;
+  @apply flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold;
   transition: background-color var(--transition-base), color var(--transition-base), transform 120ms ease;
 }
 .nav-item:hover { transform: translateX(2px); }

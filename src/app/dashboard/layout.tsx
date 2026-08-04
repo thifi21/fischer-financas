@@ -221,8 +221,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                 <Wallet size={18} className="text-white" strokeWidth={1.8} />
               </div>
               <div className="overflow-hidden">
-                <div className="font-bold text-sm text-white tracking-tight truncate">Família Fischer</div>
-                <div className="text-blue-300/50 text-[10px] font-bold uppercase tracking-widest">Finanças {ano}</div>
+                <div className="font-bold text-base text-white tracking-tight truncate">Família Fischer</div>
+                <div className="text-blue-300/50 text-xs font-bold uppercase tracking-widest">Finanças {ano}</div>
               </div>
             </motion.div>
           )}
@@ -250,7 +250,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
           {/* Contas Mensais */}
           {!collapsed && (
-            <div className="text-blue-300/40 text-[9px] uppercase tracking-[0.25em] px-3 font-black pt-1 pb-1.5">
+            <div className="text-blue-300/40 text-[10.5px] uppercase tracking-[0.25em] px-3 font-black pt-1 pb-1.5">
               Contas Mensais
             </div>
           )}
@@ -262,7 +262,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           {/* Período */}
           {!collapsed && (
             <>
-              <div className="text-blue-300/40 text-[9px] uppercase tracking-[0.25em] px-3 font-black pt-4 pb-1.5">
+              <div className="text-blue-300/40 text-[10.5px] uppercase tracking-[0.25em] px-3 font-black pt-4 pb-1.5">
                 Período
               </div>
               {Array.from({ length: 2030 - 2026 + 1 }, (_, i) => 2026 + i).map(a => {
@@ -272,7 +272,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                   <div key={a}>
                     <button
                       onClick={() => setAnoExpandido(isExpandido ? 0 : a)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-[11px] font-bold
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold
                                   transition-all duration-200 ${isAnoAtivo
                         ? 'bg-blue-600/20 text-white border border-white/10'
                         : 'hover:bg-white/5 text-blue-100/50 hover:text-white'}`}
@@ -304,7 +304,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                               <button
                                 key={m}
                                 onClick={() => { setAno(a); setMes(m) }}
-                                className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-semibold
+                                className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold
                                             transition-all duration-200 flex items-center justify-between gap-1 ${ativo
                                   ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
                                   : 'text-blue-100/40 hover:bg-white/10 hover:text-white'}`}
@@ -332,7 +332,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
           {/* Recursos Avançados */}
           {!collapsed && (
-            <div className="text-blue-300/40 text-[9px] uppercase tracking-[0.25em] px-3 font-black pt-4 pb-1.5">
+            <div className="text-blue-300/40 text-[10.5px] uppercase tracking-[0.25em] px-3 font-black pt-4 pb-1.5">
               Recursos Avançados
             </div>
           )}
@@ -343,7 +343,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
           {/* Planejamento */}
           {!collapsed && (
-            <div className="text-blue-300/40 text-[9px] uppercase tracking-[0.25em] px-3 font-black pt-4 pb-1.5">
+            <div className="text-blue-300/40 text-[10.5px] uppercase tracking-[0.25em] px-3 font-black pt-4 pb-1.5">
               Planejamento
             </div>
           )}
@@ -389,13 +389,13 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           ) : (
             <>
               <div className="flex-1 min-w-0">
-                <div className="text-[11px] font-bold text-white/80 truncate">Fischer Finanças</div>
-                <div className="text-[10px] text-blue-300/40 truncate">v3.7</div>
+                <div className="text-xs font-bold text-white/80 truncate">Fischer Finanças</div>
+                <div className="text-[11px] text-blue-300/40 truncate">v3.7</div>
               </div>
               <button
                 onClick={() => { if (window.confirm('Deseja sair? Seus dados estão salvos automaticamente.')) handleLogout() }}
                 title="Sair da conta"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-semibold
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold
                            text-blue-200/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
               >
                 <LogOut size={14} />
