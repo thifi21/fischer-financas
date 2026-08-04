@@ -1,6 +1,6 @@
 'use client'
 import { useState, useMemo } from 'react'
-import { motion } from 'framer-motion'
+import { motion, type Variants } from 'framer-motion'
 import { formatBRL } from '@/lib/utils'
 import { MESES } from '@/types'
 import { Card } from '@/components/ui/Card'
@@ -17,13 +17,13 @@ import {
 
 const COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899']
 
-const containerVariants = {
+const containerVariants: Variants = {
   hidden: { opacity: 0 },
   show:   { opacity: 1, transition: { staggerChildren: 0.08 } },
 }
-const itemVariants = {
+const itemVariants: Variants = {
   hidden: { opacity: 0, y: 18 },
-  show:   { opacity: 1, y: 0, transition: { ease: [0.22, 1, 0.36, 1] } },
+  show:   { opacity: 1, y: 0, transition: { ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } },
 }
 
 // Tooltip customizado para gráficos
