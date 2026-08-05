@@ -29,6 +29,16 @@ function parseParcela(parcela: string): { atual: number; total: number } | null 
   return { atual, total }
 }
 
+// ── Retorna classes CSS de cor conforme posição da parcela ────────
+// 🔴 1ª parcela | 🟡 intermediárias | 🟢 última parcela
+function getParcelaColorClass(parcela: string): string {
+  const parsed = parseParcela(parcela)
+  if (!parsed || parsed.total === 1) return 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+  if (parsed.atual === 1)            return 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+  if (parsed.atual === parsed.total) return 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+  return 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-500'
+}
+
 // ── Avança mês (trata virada de ano) ─────────────────────────────
 function proximoMesAno(mes: number, ano: number): { mes: number; ano: number } {
   return mes === 12
@@ -676,7 +686,7 @@ export default function CartoesPage() {
                                 <td className="px-3 py-2.5 font-medium text-gray-800 dark:text-gray-200">{l.local}</td>
                                 <td className="px-3 py-2.5 text-xs">
                                   {l.parcela ? (
-                                    <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded font-mono">
+                                    <span className={`${getParcelaColorClass(l.parcela)} px-1.5 py-0.5 rounded font-mono font-semibold`}>
                                       {l.parcela}
                                     </span>
                                   ) : (
