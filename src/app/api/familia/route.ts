@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
   const auth = await requireApiUser(req)
   if (auth.error) return auth.error
   const { supabase, user } = auth
-  const limited = await enforceRateLimit(supabase, 'familia-read', 60, 60)
+  const limited = enforceRateLimit(user.id, 'familia-read', 60, 60)
   if (limited) return limited
 
   // Grupos que o user é dono OU membro
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   const auth = await requireApiUser(req)
   if (auth.error) return auth.error
   const { supabase, user } = auth
-  const limited = await enforceRateLimit(supabase, 'familia-write', 20, 60)
+  const limited = enforceRateLimit(user.id, 'familia-write', 20, 60)
   if (limited) return limited
 
   const body = await req.json()
@@ -158,7 +158,7 @@ export async function DELETE(req: NextRequest) {
   const auth = await requireApiUser(req)
   if (auth.error) return auth.error
   const { supabase, user } = auth
-  const limited = await enforceRateLimit(supabase, 'familia-write', 20, 60)
+  const limited = enforceRateLimit(user.id, 'familia-write', 20, 60)
   if (limited) return limited
 
   const { grupoId } = await req.json()

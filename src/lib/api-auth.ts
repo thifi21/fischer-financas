@@ -36,30 +36,31 @@ export async function requireApiUser(req: NextRequest): Promise<AuthResult> {
   return { user, supabase, token }
 }
 
-export async function enforceRateLimit(
-  supabase: SupabaseClient,
+// ── Rate Limit em memória (sem roundtrip ao banco) ──────────────────────
+// Chave: "rota:identificador" → array de timestamps (ms) dentro da janela
+const rateLimitStore = new Map<string, number[]>()
+
+export function enforceRateLimit(
+  identifier: string,        // user_id ou IP
   route: string,
   limit: number,
   windowSeconds = 60
-): Promise<NextResponse | null> {
-  const { data, error } = await supabase.rpc('check_api_rate_limit', {
-    p_route: route,
-    p_limit: limit,
-    p_window_seconds: windowSeconds,
-  })
+): NextResponse | null {
+  const key = `${route}:${identifier}`
+  const now = Date.now()
+  const windowMs = windowSeconds * 1000
 
-  if (error) {
-    console.error(`[RateLimit] ${route}:`, error.message)
-    return NextResponse.json(
-      { error: 'Proteção de requisições indisponível. Aplique as migrations do Supabase.' },
-      { status: 503 }
-    )
-  }
-  if (data !== true) {
+  // Obtém timestamps e descarta os fora da janela deslizante
+  const timestamps = (rateLimitStore.get(key) ?? []).filter(t => now - t < windowMs)
+
+  if (timestamps.length >= limit) {
     return NextResponse.json(
       { error: 'Muitas solicitações. Aguarde e tente novamente.' },
       { status: 429, headers: { 'Retry-After': String(windowSeconds) } }
     )
   }
+
+  timestamps.push(now)
+  rateLimitStore.set(key, timestamps)
   return null
 }

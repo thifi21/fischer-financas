@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireApiUser(req)
     if (auth.error) return auth.error
-    const limited = await enforceRateLimit(auth.supabase, 'ia', 10, 60)
+    const limited = enforceRateLimit(auth.user.id, 'ia', 10, 60)
     if (limited) return limited
 
     const body = await req.json()

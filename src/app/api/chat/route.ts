@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireApiUser(req)
     if (auth.error) return auth.error
-    const limited = await enforceRateLimit(auth.supabase, 'chat', 20, 60)
+    const limited = enforceRateLimit(auth.user.id, 'chat', 20, 60)
     if (limited) return limited
 
     const { messages } = await req.json()

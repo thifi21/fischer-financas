@@ -155,10 +155,11 @@ export default function CartoesPage() {
     })
   }
 
-  async function recalcularTotal(cartaoId: string, lista: LancamentoCartao[]) {
+  function recalcularTotal(cartaoId: string, lista: LancamentoCartao[]) {
     const novoTotal = lista.reduce((s, l) => s + Number(l.valor), 0)
     setCartoes(prev => prev.map(c => c.id === cartaoId ? { ...c, valor: novoTotal } : c))
-    await supabase.from('cartoes').update({ valor: novoTotal }).eq('id', cartaoId)
+    // Fire-and-forget: atualiza o banco sem bloquear a UI
+    supabase.from('cartoes').update({ valor: novoTotal }).eq('id', cartaoId)
   }
 
   // ── Busca ou cria cartão em um mês/ano específico ─────────────
@@ -277,7 +278,7 @@ export default function CartoesPage() {
       const novaLista = (todosLancamentos[cartaoId] || [])
         .map(l => l.id === form.id ? (data ?? l) : l)
       setTodosLancamentos(prev => ({ ...prev, [cartaoId]: novaLista }))
-      await recalcularTotal(cartaoId, novaLista)
+      recalcularTotal(cartaoId, novaLista)
     } else {
       // Novo lançamento — insere no mês atual
       const { data: lancAtual } = await supabase
@@ -291,59 +292,83 @@ export default function CartoesPage() {
         .sort((a, b) => (a.data_compra ?? '').localeCompare(b.data_compra ?? ''))
 
       setTodosLancamentos(prev => ({ ...prev, [cartaoId]: novaLista }))
-      await recalcularTotal(cartaoId, novaLista)
+      recalcularTotal(cartaoId, novaLista)
 
-      // ── Propaga parcelas futuras automaticamente ──────────────
+      // ── Propaga parcelas futuras automaticamente (paralelo + batch) ──
       const parsed = parseParcela(parcelaNormalizada || '')
       if (parsed && parsed.atual < parsed.total) {
         const faltam = parsed.total - parsed.atual
-        let mesFuturo = mes
-        let anoFuturo = ano
-        let erros = 0
 
-        for (let i = 1; i <= faltam; i++) {
-          try {
-            const next = proximoMesAno(mesFuturo, anoFuturo)
-            mesFuturo = next.mes
-            anoFuturo = next.ano
+        // Monta lista de {mes, ano, parcelaStr} para cada parcela futura
+        const parcelasFuturas = Array.from({ length: faltam }, (_, i) => {
+          let m = mes, a = ano
+          for (let j = 0; j <= i; j++) {
+            const next = proximoMesAno(m, a)
+            m = next.mes; a = next.ano
+          }
+          return { mes: m, ano: a, parcelaStr: formatParcela(parsed.atual + i + 1, parsed.total) }
+        })
 
-            // Busca ou cria o cartão naquele mês
-            const cartaoFuturoId = await obterCartaoFuturo(
-              uid, cartaoNome, mesFuturo, anoFuturo, vencimento
-            )
+        // 1️⃣ Busca/cria todos os cartões futuros em PARALELO
+        const resultados = await Promise.allSettled(
+          parcelasFuturas.map(p =>
+            obterCartaoFuturo(uid, cartaoNome, p.mes, p.ano, vencimento)
+              .then(cartaoFuturoId => ({ ...p, cartaoFuturoId, ok: true as const }))
+              .catch(err => { console.error(err); return { ...p, cartaoFuturoId: '', ok: false as const } })
+          )
+        )
 
-            // Insere a parcela futura
-            const { error: errFuturo } = await supabase.from('lancamentos_cartao').insert({
-              user_id: uid,
-              cartao_id: cartaoFuturoId,
-              mes: mesFuturo,
-              ano: anoFuturo,
-              data_compra: form.data_compra || null,
-              local: form.local,
-              parcela: formatParcela(parsed.atual + i, parsed.total),
-              valor: Number(form.valor || 0),
-              conferido: false,
+        // Separa os que obtiveram cartão com sucesso
+        const parcelasOk = resultados
+          .filter((r): r is PromiseFulfilledResult<typeof r extends PromiseFulfilledResult<infer V> ? V : never> =>
+            r.status === 'fulfilled' && (r.value as { ok: boolean }).ok
+          )
+          .map(r => r.value as { mes: number; ano: number; parcelaStr: string; cartaoFuturoId: string; ok: true })
+
+        const erros = faltam - parcelasOk.length
+
+        if (parcelasOk.length > 0) {
+          // 2️⃣ Insere TODAS as parcelas em um único INSERT batch
+          const loteInsert = parcelasOk.map(p => ({
+            user_id: uid,
+            cartao_id: p.cartaoFuturoId,
+            mes: p.mes,
+            ano: p.ano,
+            data_compra: form.data_compra || null,
+            local: form.local,
+            parcela: p.parcelaStr,
+            valor: Number(form.valor || 0),
+            conferido: false,
+          }))
+          const { error: errBatch } = await supabase.from('lancamentos_cartao').insert(loteInsert)
+          if (errBatch) {
+            console.error('Erro no batch insert de parcelas:', errBatch)
+            toast.warning(`Lançamento salvo, mas as parcelas futuras não puderam ser criadas.`)
+          } else {
+            // 3️⃣ Atualiza totais dos cartões futuros (fire-and-forget por cartão)
+            const porCartao = new Map<string, number>()
+            for (const p of parcelasOk) {
+              porCartao.set(p.cartaoFuturoId, (porCartao.get(p.cartaoFuturoId) ?? 0) + Number(form.valor || 0))
+            }
+            porCartao.forEach((incremento, cartaoFuturoId) => {
+              // Busca o total atual e atualiza — fire-and-forget
+              supabase.from('lancamentos_cartao')
+                .select('valor')
+                .eq('cartao_id', cartaoFuturoId)
+                .then(({ data: lancsF }) => {
+                  const totalF = (lancsF || []).reduce((s, r) => s + Number(r.valor), 0)
+                  supabase.from('cartoes').update({ valor: totalF }).eq('id', cartaoFuturoId)
+                })
             })
 
-            if (errFuturo) throw errFuturo
-
-            // Recalcula o total do cartão futuro
-            const { data: lancsF } = await supabase
-              .from('lancamentos_cartao')
-              .select('valor')
-              .eq('cartao_id', cartaoFuturoId)
-            const totalF = (lancsF || []).reduce((s, r) => s + Number(r.valor), 0)
-            await supabase.from('cartoes').update({ valor: totalF }).eq('id', cartaoFuturoId)
-          } catch (err) {
-            console.error(`Erro ao criar parcela ${parsed.atual + i}/${parsed.total}:`, err)
-            erros++
+            if (erros > 0) {
+              toast.warning(`Lançamento salvo, mas ${erros} parcela(s) futura(s) não puderam ser criadas.`)
+            } else {
+              toast.success(`Lançamento salvo com ${faltam} parcela(s) futura(s) criadas! ⚡`)
+            }
           }
-        }
-
-        if (erros > 0) {
+        } else if (erros > 0) {
           toast.warning(`Lançamento salvo, mas ${erros} parcela(s) futura(s) não puderam ser criadas.`)
-        } else if (faltam > 0) {
-          toast.success(`Lançamento salvo com ${faltam} parcela(s) futura(s) criadas! ⚡`)
         }
       }
     }

@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await requireApiUser(request)
     if (auth.error) return auth.error
-    const limited = await enforceRateLimit(auth.supabase, 'telegram', 5, 60)
+    const limited = enforceRateLimit(auth.user.id, 'telegram', 5, 60)
     if (limited) return limited
 
     const { message } = await request.json()

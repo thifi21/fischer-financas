@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
   try {
     const userAuth = await requireApiUser(req)
     if (userAuth.error) return userAuth.error
-    const limited = await enforceRateLimit(userAuth.supabase, 'drive-upload', 10, 60)
+    const limited = enforceRateLimit(userAuth.user.id, 'drive-upload', 10, 60)
     if (limited) return limited
 
     // Verifica configuração
@@ -198,7 +198,7 @@ export async function GET(req: NextRequest) {
   try {
     const userAuth = await requireApiUser(req)
     if (userAuth.error) return userAuth.error
-    const limited = await enforceRateLimit(userAuth.supabase, 'drive-list', 30, 60)
+    const limited = enforceRateLimit(userAuth.user.id, 'drive-list', 30, 60)
     if (limited) return limited
 
     if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {

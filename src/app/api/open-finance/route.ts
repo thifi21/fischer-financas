@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     const auth = await requireApiUser(req)
     if (auth.error) return auth.error
     const { supabase, user } = auth
-    const limited = await enforceRateLimit(supabase, 'open-finance', 5, 60)
+    const limited = enforceRateLimit(user.id, 'open-finance', 5, 60)
     if (limited) return limited
 
     const formData = await req.formData()
