@@ -120,7 +120,7 @@ export default function CartoesPage() {
     // Guarda a geração atual para descartar respostas de cargas obsoletas
     const gen = ++loadGenRef.current
     setLoading(true)
-    const [{ data: cartoesData }, { data: lancsData }, { data: locaisData }] = await Promise.all([
+    const [{ data: cartoesData, error: errCartoes }, { data: lancsData, error: errLancs }, { data: locaisData }] = await Promise.all([
       supabase.from('cartoes').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano),
       supabase.from('lancamentos_cartao').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).order('data_compra'),
       // Busca apenas o campo local (sem dados desnecessários) dos últimos 200 lançamentos
@@ -128,16 +128,30 @@ export default function CartoesPage() {
     ])
     // Se uma carga mais recente já foi iniciada, ignora esta resposta (race condition)
     if (gen !== loadGenRef.current) return
-    const ordenados = (cartoesData || []).sort((a, b) =>
-      (ORDEM_CARTOES[a.nome] ?? 99) - (ORDEM_CARTOES[b.nome] ?? 99)
-    )
-    setCartoes(ordenados)
+    if (errCartoes) console.error('Erro ao carregar cartões:', errCartoes)
+    if (errLancs) console.error('Erro ao carregar lançamentos:', errLancs)
+
     const agrupado: Record<string, LancamentoCartao[]> = {}
     for (const l of lancsData || []) {
       if (!agrupado[l.cartao_id]) agrupado[l.cartao_id] = []
       agrupado[l.cartao_id].push(l)
     }
     setTodosLancamentos(agrupado)
+
+    const ordenados = (cartoesData || []).map(c => {
+      const lancs = agrupado[c.id] || []
+      if (lancs.length > 0) {
+        const totalLancs = lancs.reduce((s, l) => s + Number(l.valor || 0), 0)
+        if (Number(c.valor) !== totalLancs) {
+          // Sincroniza no banco caso estivesse zerado ou desatualizado
+          supabase.from('cartoes').update({ valor: totalLancs }).eq('id', c.id)
+          return { ...c, valor: totalLancs }
+        }
+      }
+      return c
+    }).sort((a, b) => (ORDEM_CARTOES[a.nome] ?? 99) - (ORDEM_CARTOES[b.nome] ?? 99))
+
+    setCartoes(ordenados)
     
     if (locaisData) {
       const unicos = Array.from(new Set(locaisData.map(d => d.local))).filter(Boolean)
@@ -156,10 +170,12 @@ export default function CartoesPage() {
   }
 
   function recalcularTotal(cartaoId: string, lista: LancamentoCartao[]) {
-    const novoTotal = lista.reduce((s, l) => s + Number(l.valor), 0)
+    const novoTotal = lista.reduce((s, l) => s + Number(l.valor || 0), 0)
     setCartoes(prev => prev.map(c => c.id === cartaoId ? { ...c, valor: novoTotal } : c))
-    // Fire-and-forget: atualiza o banco sem bloquear a UI
-    supabase.from('cartoes').update({ valor: novoTotal }).eq('id', cartaoId)
+    // Atualiza o banco
+    supabase.from('cartoes').update({ valor: novoTotal }).eq('id', cartaoId).then(({ error }) => {
+      if (error) console.error('Erro ao atualizar total do cartão:', error)
+    })
   }
 
   // ── Busca ou cria cartão em um mês/ano específico ─────────────
@@ -210,27 +226,36 @@ export default function CartoesPage() {
     const uid = userIdRef.current
     if (!uid) return
     setSaving(true)
+    const valorNum = Number(String(form.valor ?? 0).replace(',', '.'))
     const payload = {
       user_id: uid, mes, ano,
       nome: form.nome,
       vencimento: form.vencimento || null,
-      valor: Number(form.valor || 0),
+      valor: isNaN(valorNum) ? 0 : valorNum,
       pago: !!form.pago,
     }
     if (form.id) {
-      const { data } = await supabase.from('cartoes').update(payload).eq('id', form.id).select().single()
-      if (data) {
+      const { data, error } = await supabase.from('cartoes').update(payload).eq('id', form.id).select().single()
+      if (error) {
+        console.error('Erro ao salvar cartão:', error)
+        toast.error('Erro ao atualizar cartão: ' + (error.message || ''))
+      } else if (data) {
         setCartoes(prev => prev.map(c => c.id === form.id ? data : c))
         if (data.pago && !cartoes.find(c => c.id === data.id)?.pago) {
           notificarPagamento(data.nome, data.valor, '💳')
         }
+        toast.success('Cartão atualizado com sucesso!')
       }
     } else {
-      const { data } = await supabase.from('cartoes').insert(payload).select().single()
-      if (data) {
+      const { data, error } = await supabase.from('cartoes').insert(payload).select().single()
+      if (error) {
+        console.error('Erro ao criar cartão:', error)
+        toast.error('Erro ao criar cartão: ' + (error.message || ''))
+      } else if (data) {
         setCartoes(prev => [...prev, data].sort((a, b) =>
           (ORDEM_CARTOES[a.nome] ?? 99) - (ORDEM_CARTOES[b.nome] ?? 99)))
         if (data.pago) notificarPagamento(data.nome, data.valor, '💳')
+        toast.success('Cartão criado com sucesso!')
       }
     }
     fecharModal()
@@ -255,6 +280,7 @@ export default function CartoesPage() {
       return parsed ? formatParcela(parsed.atual, parsed.total) : (form.parcela || null)
     })()
 
+    const valorNum = Number(String(form.valor ?? 0).replace(',', '.'))
     const payload = {
       user_id: uid,
       cartao_id: cartaoId,
@@ -263,32 +289,45 @@ export default function CartoesPage() {
       data_compra: form.data_compra || null,
       local: form.local,
       parcela: parcelaNormalizada || null,
-      valor: Number(form.valor || 0),
+      valor: isNaN(valorNum) ? 0 : valorNum,
       conferido: form.conferido ?? false,
     }
 
     if (form.id) {
       // Edição simples — só atualiza este lançamento
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('lancamentos_cartao')
         .update(payload)
         .eq('id', form.id)
         .select()
         .single()
-      const novaLista = (todosLancamentos[cartaoId] || [])
-        .map(l => l.id === form.id ? (data ?? l) : l)
-      setTodosLancamentos(prev => ({ ...prev, [cartaoId]: novaLista }))
-      recalcularTotal(cartaoId, novaLista)
+
+      if (error) {
+        console.error('Erro ao atualizar lançamento:', error)
+        toast.error('Erro ao atualizar lançamento: ' + (error.message || ''))
+      } else if (data) {
+        const novaLista = (todosLancamentos[cartaoId] || [])
+          .map(l => l.id === form.id ? data : l)
+        setTodosLancamentos(prev => ({ ...prev, [cartaoId]: novaLista }))
+        recalcularTotal(cartaoId, novaLista)
+        toast.success('Lançamento atualizado com sucesso!')
+      }
     } else {
       // Novo lançamento — insere no mês atual
-      const { data: lancAtual } = await supabase
+      const { data: lancAtual, error: errInsert } = await supabase
         .from('lancamentos_cartao')
         .insert(payload)
         .select()
         .single()
 
-      const novaLista = [...(todosLancamentos[cartaoId] || []), lancAtual!]
-        .filter(Boolean)
+      if (errInsert || !lancAtual) {
+        console.error('Erro ao adicionar lançamento:', errInsert)
+        toast.error('Erro ao adicionar lançamento: ' + (errInsert?.message || ''))
+        setSaving(false)
+        return
+      }
+
+      const novaLista = [...(todosLancamentos[cartaoId] || []), lancAtual]
         .sort((a, b) => (a.data_compra ?? '').localeCompare(b.data_compra ?? ''))
 
       setTodosLancamentos(prev => ({ ...prev, [cartaoId]: novaLista }))
@@ -337,7 +376,7 @@ export default function CartoesPage() {
             data_compra: form.data_compra || null,
             local: form.local,
             parcela: p.parcelaStr,
-            valor: Number(form.valor || 0),
+            valor: isNaN(valorNum) ? 0 : valorNum,
             conferido: false,
           }))
           const { error: errBatch } = await supabase.from('lancamentos_cartao').insert(loteInsert)
@@ -348,7 +387,7 @@ export default function CartoesPage() {
             // 3️⃣ Atualiza totais dos cartões futuros (fire-and-forget por cartão)
             const porCartao = new Map<string, number>()
             for (const p of parcelasOk) {
-              porCartao.set(p.cartaoFuturoId, (porCartao.get(p.cartaoFuturoId) ?? 0) + Number(form.valor || 0))
+              porCartao.set(p.cartaoFuturoId, (porCartao.get(p.cartaoFuturoId) ?? 0) + (isNaN(valorNum) ? 0 : valorNum))
             }
             porCartao.forEach((incremento, cartaoFuturoId) => {
               // Busca o total atual e atualiza — fire-and-forget
@@ -356,7 +395,7 @@ export default function CartoesPage() {
                 .select('valor')
                 .eq('cartao_id', cartaoFuturoId)
                 .then(({ data: lancsF }) => {
-                  const totalF = (lancsF || []).reduce((s, r) => s + Number(r.valor), 0)
+                  const totalF = (lancsF || []).reduce((s, r) => s + Number(r.valor || 0), 0)
                   supabase.from('cartoes').update({ valor: totalF }).eq('id', cartaoFuturoId)
                 })
             })
@@ -370,6 +409,8 @@ export default function CartoesPage() {
         } else if (erros > 0) {
           toast.warning(`Lançamento salvo, mas ${erros} parcela(s) futura(s) não puderam ser criadas.`)
         }
+      } else {
+        toast.success('Lançamento adicionado com sucesso!')
       }
     }
 
@@ -456,10 +497,13 @@ export default function CartoesPage() {
   }
 
   async function togglePago(cartao: Cartao) {
+    const lancs = todosLancamentos[cartao.id] || []
+    const subtotal = lancs.reduce((s, l) => s + Number(l.valor || 0), 0)
+    const valorAtual = lancs.length > 0 ? subtotal : Number(cartao.valor || 0)
     const novoPago = !cartao.pago
     setCartoes(prev => prev.map(c => c.id === cartao.id ? { ...c, pago: novoPago } : c))
     await supabase.from('cartoes').update({ pago: novoPago }).eq('id', cartao.id)
-    if (novoPago) notificarPagamento(cartao.nome, cartao.valor, '💳')
+    if (novoPago) notificarPagamento(cartao.nome, valorAtual, '💳')
   }
 
   async function toggleConferido(lancamento: LancamentoCartao) {
@@ -506,7 +550,10 @@ export default function CartoesPage() {
 
   function fecharModal() { setModal(null); setForm({}); setParcelasPreview([]); setModalCustomNome(false); }
 
-  const totalMes   = cartoes.reduce((s, c) => s + Number(c.valor), 0)
+  const totalMes = cartoes.reduce((s, c) => {
+    const lancs = todosLancamentos[c.id] || []
+    return s + (lancs.length > 0 ? lancs.reduce((acc, l) => acc + Number(l.valor || 0), 0) : Number(c.valor || 0))
+  }, 0)
   const totalLancs = Object.values(todosLancamentos).flat().length
 
   return (
@@ -580,9 +627,10 @@ export default function CartoesPage() {
       ) : (
         <div className="space-y-3">
           {cartoes.map(cartao => {
-            const lancs    = todosLancamentos[cartao.id] || []
-            const aberto   = expandidos.has(cartao.id)
-            const subtotal = lancs.reduce((s, l) => s + Number(l.valor), 0)
+            const lancs        = todosLancamentos[cartao.id] || []
+            const aberto       = expandidos.has(cartao.id)
+            const subtotal     = lancs.reduce((s, l) => s + Number(l.valor || 0), 0)
+            const valorExibido = lancs.length > 0 ? subtotal : Number(cartao.valor || 0)
 
             return (
               <div key={cartao.id} className="card hover:shadow-md transition-shadow">
@@ -633,7 +681,7 @@ export default function CartoesPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`text-lg font-bold ${cartao.pago ? 'text-green-600 line-through opacity-60' : 'text-gray-900 dark:text-gray-100'}`}>
-                      {formatBRL(cartao.valor)}
+                      {formatBRL(valorExibido)}
                     </span>
                     <span className={cartao.pago ? 'badge-ok' : 'badge-pendente'}>
                       {cartao.pago ? 'Pago' : 'Pendente'}
@@ -821,7 +869,7 @@ export default function CartoesPage() {
               </div>
               <div>
                 <label className="label">Valor Total da Fatura (R$)</label>
-                <input type="number" step="0.01" min="0" className="input" value={form.valor || ''} onChange={e => setForm({ ...form, valor: e.target.value })} placeholder="0,00" />
+                <input type="number" step="0.01" min="0" className="input" value={form.valor ?? ''} onChange={e => setForm({ ...form, valor: e.target.value })} placeholder="0,00" />
               </div>
               <div className="flex items-center gap-2 pt-1">
                 <input type="checkbox" id="pago_c" checked={!!form.pago} onChange={e => setForm({ ...form, pago: e.target.checked })} className="w-4 h-4 accent-emerald-500" />
@@ -904,7 +952,7 @@ export default function CartoesPage() {
               </div>
               <div>
                 <label className="label">Valor por Parcela (R$)</label>
-                <input type="number" step="0.01" min="0" className="input text-lg font-semibold" value={form.valor || ''} onChange={e => setForm({ ...form, valor: e.target.value })} placeholder="0,00" />
+                <input type="number" step="0.01" min="0" className="input text-lg font-semibold" value={form.valor ?? ''} onChange={e => setForm({ ...form, valor: e.target.value })} placeholder="0,00" />
               </div>
             </div>
 
@@ -913,7 +961,7 @@ export default function CartoesPage() {
               <button
                 className="btn-primary flex-1"
                 onClick={salvarLancamento}
-                disabled={saving || !form.local || !form.valor}
+                disabled={saving || !form.local || form.valor == null || form.valor === ''}
               >
                 {saving ? (
                   <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg> {parcelasPreview.length > 0 ? `Criando ${parcelasPreview.length + 1} parcelas...` : 'Salvando...'}</>
