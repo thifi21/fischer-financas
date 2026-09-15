@@ -78,19 +78,19 @@ function useDarkMode() {
 }
 
 // ── Atalhos de teclado ← → Alt+← Alt+→ ─────────────────────────
-function useKeyboardNav(setMes: (m: number) => void, setAno: (a: number) => void, mes: number, ano: number) {
+function useKeyboardNav(setPeriodo: (m: number, a: number) => void, mes: number, ano: number) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
-      if (e.altKey && e.key === 'ArrowLeft')  { e.preventDefault(); setAno(ano - 1) }
-      else if (e.altKey && e.key === 'ArrowRight') { e.preventDefault(); setAno(ano + 1) }
-      else if (e.key === 'ArrowLeft')  { e.preventDefault(); if (mes === 1)  { setMes(12); setAno(ano - 1) } else setMes(mes - 1) }
-      else if (e.key === 'ArrowRight') { e.preventDefault(); if (mes === 12) { setMes(1);  setAno(ano + 1) } else setMes(mes + 1) }
+      if (e.altKey && e.key === 'ArrowLeft')  { e.preventDefault(); setPeriodo(mes, ano - 1) }
+      else if (e.altKey && e.key === 'ArrowRight') { e.preventDefault(); setPeriodo(mes, ano + 1) }
+      else if (e.key === 'ArrowLeft')  { e.preventDefault(); setPeriodo(mes === 1 ? 12 : mes - 1, mes === 1 ? ano - 1 : ano) }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); setPeriodo(mes === 12 ? 1 : mes + 1, mes === 12 ? ano + 1 : ano) }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [mes, ano, setMes, setAno])
+  }, [mes, ano, setPeriodo])
 }
 
 // ── Componente de item de navegação ─────────────────────────────
@@ -135,10 +135,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const { dark, toggle: toggleDark }  = useDarkMode()
   const checked = useRef(false)
 
-  const { mes, setMes, ano, setAno } = useMes()
+  const { mes, ano, setPeriodo } = useMes()
   const [anoExpandido, setAnoExpandido] = useState<number>(ano)
 
-  useKeyboardNav(setMes, setAno, mes, ano)
+  useKeyboardNav(setPeriodo, mes, ano)
 
   // Ctrl+K abre busca global
   useEffect(() => {
@@ -303,7 +303,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                             return (
                               <button
                                 key={m}
-                                onClick={() => { setAno(a); setMes(m) }}
+                                onClick={() => setPeriodo(m, a)}
                                 className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold
                                             transition-all duration-200 flex items-center justify-between gap-1 ${ativo
                                   ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'

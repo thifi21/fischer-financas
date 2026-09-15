@@ -12,6 +12,7 @@ type MesContextType = {
   setMes: (mes: number) => void
   ano: number
   setAno: (ano: number) => void
+  setPeriodo: (mes: number, ano: number) => void
 }
 
 export const MesContext = createContext<MesContextType>({
@@ -19,6 +20,7 @@ export const MesContext = createContext<MesContextType>({
   setMes: () => {},
   ano: new Date().getFullYear(),
   setAno: () => {},
+  setPeriodo: () => {},
 })
 
 function MesProviderInner({ children, fallbackMes, fallbackAno }: { children: ReactNode, fallbackMes: number, fallbackAno: number }) {
@@ -32,22 +34,24 @@ function MesProviderInner({ children, fallbackMes, fallbackAno }: { children: Re
   const mes = queryMes ? parseInt(queryMes, 10) : fallbackMes
   const ano = queryAno ? parseInt(queryAno, 10) : fallbackAno
 
-  const setMes = useCallback((novoMes: number) => {
+  // Atualiza mês e ano na mesma navegação para evitar sobrescrever o período.
+  const setPeriodo = useCallback((novoMes: number, novoAno: number) => {
     const params = new URLSearchParams(searchParams.toString())
     params.set('mes', String(novoMes))
-    params.set('ano', String(ano))
+    params.set('ano', String(novoAno))
     router.replace(`${pathname}?${params.toString()}`, { scroll: false })
-  }, [router, pathname, searchParams, ano])
+  }, [router, pathname, searchParams])
+
+  const setMes = useCallback((novoMes: number) => {
+    setPeriodo(novoMes, ano)
+  }, [setPeriodo, ano])
 
   const setAno = useCallback((novoAno: number) => {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set('ano', String(novoAno))
-    params.set('mes', String(mes))
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
-  }, [router, pathname, searchParams, mes])
+    setPeriodo(mes, novoAno)
+  }, [setPeriodo, mes])
 
   return (
-    <MesContext.Provider value={{ mes, setMes, ano, setAno }}>
+    <MesContext.Provider value={{ mes, setMes, ano, setAno, setPeriodo }}>
       {children}
     </MesContext.Provider>
   )
