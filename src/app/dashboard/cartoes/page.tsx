@@ -169,13 +169,20 @@ export default function CartoesPage() {
     })
   }
 
-  function recalcularTotal(cartaoId: string, lista: LancamentoCartao[]) {
+  async function sincronizarTotalCartao(cartaoId: string, listaConhecida?: LancamentoCartao[]) {
+    // Quando a lista não está disponível, relê o banco para nunca calcular com estado antigo.
+    const lista = listaConhecida ?? ((await supabase
+      .from('lancamentos_cartao')
+      .select('valor')
+      .eq('cartao_id', cartaoId)).data || [])
     const novoTotal = lista.reduce((s, l) => s + Number(l.valor || 0), 0)
+    const { error } = await supabase.from('cartoes').update({ valor: novoTotal }).eq('id', cartaoId)
+    if (error) {
+      console.error('Erro ao atualizar total do cartão:', error)
+      return null
+    }
     setCartoes(prev => prev.map(c => c.id === cartaoId ? { ...c, valor: novoTotal } : c))
-    // Atualiza o banco
-    supabase.from('cartoes').update({ valor: novoTotal }).eq('id', cartaoId).then(({ error }) => {
-      if (error) console.error('Erro ao atualizar total do cartão:', error)
-    })
+    return novoTotal
   }
 
   // ── Busca ou cria cartão em um mês/ano específico ─────────────
@@ -309,7 +316,7 @@ export default function CartoesPage() {
         const novaLista = (todosLancamentos[cartaoId] || [])
           .map(l => l.id === form.id ? data : l)
         setTodosLancamentos(prev => ({ ...prev, [cartaoId]: novaLista }))
-        recalcularTotal(cartaoId, novaLista)
+        await sincronizarTotalCartao(cartaoId, novaLista)
         toast.success('Lançamento atualizado com sucesso!')
       }
     } else {
@@ -331,7 +338,7 @@ export default function CartoesPage() {
         .sort((a, b) => (a.data_compra ?? '').localeCompare(b.data_compra ?? ''))
 
       setTodosLancamentos(prev => ({ ...prev, [cartaoId]: novaLista }))
-      recalcularTotal(cartaoId, novaLista)
+      await sincronizarTotalCartao(cartaoId, novaLista)
 
       // ── Propaga parcelas futuras automaticamente (paralelo + batch) ──
       const parsed = parseParcela(parcelaNormalizada || '')
@@ -384,21 +391,10 @@ export default function CartoesPage() {
             console.error('Erro no batch insert de parcelas:', errBatch)
             toast.warning(`Lançamento salvo, mas as parcelas futuras não puderam ser criadas.`)
           } else {
-            // 3️⃣ Atualiza totais dos cartões futuros (fire-and-forget por cartão)
-            const porCartao = new Map<string, number>()
-            for (const p of parcelasOk) {
-              porCartao.set(p.cartaoFuturoId, (porCartao.get(p.cartaoFuturoId) ?? 0) + (isNaN(valorNum) ? 0 : valorNum))
-            }
-            porCartao.forEach((incremento, cartaoFuturoId) => {
-              // Busca o total atual e atualiza — fire-and-forget
-              supabase.from('lancamentos_cartao')
-                .select('valor')
-                .eq('cartao_id', cartaoFuturoId)
-                .then(({ data: lancsF }) => {
-                  const totalF = (lancsF || []).reduce((s, r) => s + Number(r.valor || 0), 0)
-                  supabase.from('cartoes').update({ valor: totalF }).eq('id', cartaoFuturoId)
-                })
-            })
+            // 3️⃣ Recalcula e aguarda o total de cada cartão futuro após o batch.
+            // Isso inclui parcelas que já existiam no cartão e evita deixar o valor zerado.
+            const cartoesFuturos = Array.from(new Set(parcelasOk.map(p => p.cartaoFuturoId)))
+            await Promise.all(cartoesFuturos.map(cartaoFuturoId => sincronizarTotalCartao(cartaoFuturoId)))
 
             if (erros > 0) {
               toast.warning(`Lançamento salvo, mas ${erros} parcela(s) futura(s) não puderam ser criadas.`)
@@ -493,7 +489,7 @@ export default function CartoesPage() {
     await supabase.from('lancamentos_cartao').delete().eq('id', l.id)
     const novaLista = (todosLancamentos[l.cartao_id] || []).filter(x => x.id !== l.id)
     setTodosLancamentos(prev => ({ ...prev, [l.cartao_id]: novaLista }))
-    await recalcularTotal(l.cartao_id, novaLista)
+    await sincronizarTotalCartao(l.cartao_id, novaLista)
   }
 
   async function togglePago(cartao: Cartao) {
