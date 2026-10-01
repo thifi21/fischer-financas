@@ -14,6 +14,7 @@ import DrivePanel from '@/components/DrivePanel'
 import CotacoesPanel from '@/components/CotacoesPanel'
 import { MesProvider, useMes } from '@/context/MesContext'
 import { UserProvider } from '@/context/UserContext'
+import { useQueryClient } from '@tanstack/react-query'
 import AIChatBot from '@/components/AIChatBot'
 import GlobalSearch from '@/components/GlobalSearch'
 import {
@@ -21,7 +22,7 @@ import {
   Target, BarChart2, Bell, Landmark, Bot, TrendingUp,
   Star, ChevronDown, Calendar, Search, Sun, Moon,
   LogOut, Wallet, PanelLeftClose, PanelLeftOpen,
-  Clock as ClockIcon, CheckCircle2,
+  Clock as ClockIcon, Menu, ChevronLeft, ChevronRight, X,
 } from 'lucide-react'
 
 // ── Mapeamento de ícones ─────────────────────────────────────────
@@ -34,7 +35,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/metas',             icon: Target,          label: 'Metas e Orçamento',    grupo: 'principal' },
   { href: '/dashboard/relatorios',        icon: BarChart2,       label: 'Relatórios',           grupo: 'principal' },
   { href: '/dashboard/notificacoes',      icon: Bell,            label: 'Notificações',         grupo: 'principal' },
-  { href: '/dashboard/open-finance',      icon: Landmark,        label: 'Open Finance',         grupo: 'avancado'  },
+  { href: '/dashboard/open-finance',      icon: Landmark,        label: 'Importar Extrato',     grupo: 'avancado'  },
   { href: '/dashboard/ia-analise',        icon: Bot,             label: 'IA Financeira',        grupo: 'avancado'  },
   { href: '/dashboard/investimentos',     icon: TrendingUp,      label: 'Investimentos',        grupo: 'avancado'  },
   { href: '/dashboard/sonhos',            icon: Star,            label: 'Meus Sonhos',          grupo: 'planejamento' },
@@ -94,13 +95,14 @@ function useKeyboardNav(setPeriodo: (m: number, a: number) => void, mes: number,
 }
 
 // ── Componente de item de navegação ─────────────────────────────
-function NavItem({ href, icon: Icon, label, active, mes, ano, collapsed }: {
+function NavItem({ href, icon: Icon, label, active, mes, ano, collapsed, onNavigate }: {
   href: string; icon: React.ElementType; label: string;
-  active: boolean; mes: number; ano: number; collapsed: boolean
+  active: boolean; mes: number; ano: number; collapsed: boolean; onNavigate?: () => void
 }) {
   return (
     <Link
       href={`${href}?mes=${mes}&ano=${ano}`}
+      onClick={onNavigate}
       title={collapsed ? label : undefined}
       className={`nav-item relative ${active ? 'nav-item-active' : 'nav-item-inactive'}`}
     >
@@ -126,12 +128,14 @@ function NavItem({ href, icon: Icon, label, active, mes, ano, collapsed }: {
 }
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient()
   const router   = useRouter()
   const pathname = usePathname()
   const supabase = useMemo(() => createClient(), [])
   const [loading, setLoading]         = useState(true)
   const [buscaAberta, setBuscaAberta] = useState(false)
   const [collapsed, setCollapsed]     = useState(false)
+  const [mobileOpen, setMobileOpen]   = useState(false)
   const { dark, toggle: toggleDark }  = useDarkMode()
   const checked = useRef(false)
 
@@ -170,6 +174,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       )
     }
     await supabase.auth.signOut()
+    queryClient.clear()
     router.replace('/')
   }
 
@@ -194,15 +199,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex bg-[#f4f7fb] dark:bg-[#050d1a] transition-colors duration-500">
 
+      {mobileOpen && <button type="button" aria-label="Fechar menu" onClick={() => setMobileOpen(false)}
+        className="fixed inset-0 z-30 bg-slate-950/60 md:hidden" />}
       {/* ── SIDEBAR ──────────────────────────────────────────────── */}
       <motion.aside
-        animate={{ width: sidebarW }}
+        animate={{ width: mobileOpen ? 256 : sidebarW }}
         transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-        className="fixed top-4 left-4 z-30 h-[calc(100vh-2rem)] flex flex-col rounded-3xl overflow-hidden shadow-2xl"
+        className={`${mobileOpen ? 'flex' : 'hidden'} md:flex fixed top-4 left-4 z-40 md:z-30 h-[calc(100vh-2rem)] flex-col rounded-3xl overflow-hidden shadow-2xl`}
         style={{
           background: 'linear-gradient(180deg, #1e3a8a 0%, #1e1b4b 100%)',
           border: '1px solid rgba(255,255,255,0.1)',
-          width: sidebarW,
+          width: mobileOpen ? 256 : sidebarW,
         }}
       >
         {/* Logo + colapso */}
@@ -243,6 +250,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               <PanelLeftClose size={16} />
             </button>
           )}
+          <button type="button" onClick={() => setMobileOpen(false)} aria-label="Fechar menu"
+            className="md:hidden text-white p-1"><X size={20} /></button>
         </div>
 
         {/* Nav */}
@@ -256,7 +265,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           )}
           {NAV_ITEMS.filter(n => n.grupo === 'principal').map(({ href, icon, label }) => (
             <NavItem key={href} href={href} icon={icon} label={label}
-              active={pathname === href} mes={mes} ano={ano} collapsed={collapsed} />
+              active={pathname === href} mes={mes} ano={ano} collapsed={collapsed} onNavigate={() => setMobileOpen(false)} />
           ))}
 
           {/* Período */}
@@ -338,7 +347,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           )}
           {NAV_ITEMS.filter(n => n.grupo === 'avancado').map(({ href, icon, label }) => (
             <NavItem key={href} href={href} icon={icon} label={label}
-              active={pathname === href} mes={mes} ano={ano} collapsed={collapsed} />
+              active={pathname === href} mes={mes} ano={ano} collapsed={collapsed} onNavigate={() => setMobileOpen(false)} />
           ))}
 
           {/* Planejamento */}
@@ -349,7 +358,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           )}
           {NAV_ITEMS.filter(n => n.grupo === 'planejamento').map(({ href, icon, label }) => (
             <NavItem key={href} href={href} icon={icon} label={label}
-              active={pathname === href} mes={mes} ano={ano} collapsed={collapsed} />
+              active={pathname === href} mes={mes} ano={ano} collapsed={collapsed} onNavigate={() => setMobileOpen(false)} />
           ))}
 
           {/* Drive + Cotações — apenas quando expandido */}
@@ -407,26 +416,29 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       </motion.aside>
 
       {/* ── ÁREA PRINCIPAL ────────────────────────────────────────── */}
-      <motion.div
-        animate={{ marginLeft: sidebarW + 16 }}
-        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-        className="flex-1 flex flex-col min-h-screen p-4 pr-6"
-        style={{ marginLeft: sidebarW + 16 }}
+      <div
+        className={`flex-1 min-w-0 flex flex-col min-h-screen p-3 sm:p-4 md:pr-6 transition-[margin-left] duration-300 ${collapsed ? 'md:ml-[88px]' : 'md:ml-[272px]'}`}
       >
 
         {/* ── TOPBAR ───────────────────────────────────────────── */}
-        <header className="sticky top-4 z-20 h-16 glass dark:glass rounded-2xl flex items-center justify-between px-6 shadow-lg mb-6 transition-all duration-500"
-          style={{ background: 'rgba(255,255,255,0.82)', backdropFilter: 'blur(20px)' }}
+        <header className="sticky top-3 md:top-4 z-20 min-h-16 glass rounded-2xl flex items-center justify-between gap-2 px-3 sm:px-6 shadow-lg mb-6"
         >
 
           {/* Esquerda — relógio + mês */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+            <button type="button" aria-label="Abrir menu" onClick={() => setMobileOpen(true)}
+              className="md:hidden p-2 rounded-lg text-slate-700 dark:text-slate-200"><Menu size={21} /></button>
+            <div className="hidden md:flex items-center gap-2.5">
               <ClockIcon size={16} className="text-slate-400 dark:text-slate-500 shrink-0" />
               <Clock />
             </div>
 
-            <div className="w-px h-7 bg-slate-200 dark:bg-slate-700/60" />
+            <div className="hidden md:block w-px h-7 bg-slate-200 dark:bg-slate-700/60" />
+            <div className="flex md:hidden items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-200 whitespace-nowrap">
+              <button type="button" aria-label="Mês anterior" onClick={() => setPeriodo(mes === 1 ? 12 : mes - 1, mes === 1 ? ano - 1 : ano)} className="p-1"><ChevronLeft size={17} /></button>
+              <span>{MESES[mes - 1]} {ano}</span>
+              <button type="button" aria-label="Próximo mês" onClick={() => setPeriodo(mes === 12 ? 1 : mes + 1, mes === 12 ? ano + 1 : ano)} className="p-1"><ChevronRight size={17} /></button>
+            </div>
 
             <motion.div
               initial={{ x: 20, opacity: 0 }}
@@ -457,14 +469,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               <span className="hidden lg:inline text-[11px] text-slate-400 dark:text-slate-600 font-bold">Ctrl+K</span>
             </button>
 
-            {/* Dados salvos */}
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-500
-                            bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1.5 rounded-xl
-                            border border-emerald-100 dark:border-emerald-900/50">
-              <CheckCircle2 size={13} />
-              <span className="font-semibold">Salvo</span>
-            </div>
-
             {/* Dark mode */}
             <button
               onClick={toggleDark}
@@ -494,7 +498,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             {children}
           </motion.main>
         </AnimatePresence>
-      </motion.div>
+      </div>
 
       {/* Assistente IA Flutuante */}
       <AIChatBot />

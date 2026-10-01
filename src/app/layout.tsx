@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Toaster } from 'sonner'
 import { Outfit } from 'next/font/google'
 import QueryProvider from '@/components/QueryProvider'
@@ -14,13 +14,14 @@ export const metadata: Metadata = {
   title: 'Família Fischer — Finanças 2026',
   description: 'Controle financeiro familiar inteligente',
   manifest: '/manifest.json',
-  themeColor: '#1e3a8a',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'Fischer Finanças',
   },
 }
+
+export const viewport: Viewport = { themeColor: '#1e3a8a' }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

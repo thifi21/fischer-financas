@@ -15,6 +15,7 @@ export type LancamentoCartao = {
   id: string
   user_id: string
   cartao_id: string
+  compra_id: string | null
   mes: number
   ano: number
   data_compra: string | null

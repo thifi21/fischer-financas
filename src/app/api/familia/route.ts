@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
   const auth = await requireApiUser(req)
   if (auth.error) return auth.error
   const { supabase, user } = auth
-  const limited = enforceRateLimit(user.id, 'familia-read', 60, 60)
+  const limited = await enforceRateLimit(supabase, 'familia-read', 60, 60)
   if (limited) return limited
 
   // Grupos que o user é dono OU membro
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   const auth = await requireApiUser(req)
   if (auth.error) return auth.error
   const { supabase, user } = auth
-  const limited = enforceRateLimit(user.id, 'familia-write', 20, 60)
+  const limited = await enforceRateLimit(supabase, 'familia-write', 20, 60)
   if (limited) return limited
 
   const body = await req.json()
@@ -65,55 +65,26 @@ export async function POST(req: NextRequest) {
 
   if (acao === 'criar') {
     const { nome } = body
+    if (typeof nome !== 'string' || nome.trim().length < 2 || nome.trim().length > 80)
+      return NextResponse.json({ error: 'Nome do grupo inválido' }, { status: 400 })
     const { data, error: err } = await supabase
-      .from('grupos_familia')
-      .insert({ nome, dono_id: user.id })
-      .select()
-      .single()
+      .rpc('criar_grupo_familia', { p_nome: nome.trim() })
 
-    if (err) return NextResponse.json({ error: err.message }, { status: 500 })
-
-    // Adiciona o criador como admin
-    await supabase.from('membros_familia').insert({
-      grupo_id: data.id,
-      user_id: user.id,
-      email_membro: user.email,
-      nome_membro: user.email?.split('@')[0] || 'Admin',
-      papel: 'admin',
-    })
+    if (err) return NextResponse.json({ error: 'Não foi possível criar o grupo. Verifique a migração do banco.' }, { status: 500 })
 
     return NextResponse.json({ grupo: data })
   }
 
   if (acao === 'entrar') {
     const { codigo } = body
+    if (typeof codigo !== 'string' || !/^[a-f0-9]{32}$/i.test(codigo.trim()))
+      return NextResponse.json({ error: 'Código de convite inválido' }, { status: 400 })
 
     const { data: grupo, error: gErr } = await supabase
-      .from('grupos_familia')
-      .select('*')
-      .eq('codigo_convite', codigo.trim())
-      .single()
+      .rpc('entrar_grupo_familia', { p_codigo: codigo.trim() })
 
     if (gErr || !grupo)
       return NextResponse.json({ error: 'Código de convite inválido' }, { status: 404 })
-
-    // Verificar se já é membro
-    const { data: jaExiste } = await supabase
-      .from('membros_familia')
-      .select('user_id')
-      .eq('grupo_id', grupo.id)
-      .eq('user_id', user.id)
-      .single()
-
-    if (jaExiste) return NextResponse.json({ error: 'Você já é membro deste grupo' }, { status: 409 })
-
-    await supabase.from('membros_familia').insert({
-      grupo_id: grupo.id,
-      user_id: user.id,
-      email_membro: user.email,
-      nome_membro: user.email?.split('@')[0] || 'Membro',
-      papel: 'membro',
-    })
 
     return NextResponse.json({ grupo })
   }
@@ -158,7 +129,7 @@ export async function DELETE(req: NextRequest) {
   const auth = await requireApiUser(req)
   if (auth.error) return auth.error
   const { supabase, user } = auth
-  const limited = enforceRateLimit(user.id, 'familia-write', 20, 60)
+  const limited = await enforceRateLimit(supabase, 'familia-write', 20, 60)
   if (limited) return limited
 
   const { grupoId } = await req.json()

@@ -2,13 +2,16 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendTelegramMessage } from '@/lib/telegram'
 import { formatBRL } from '@/lib/utils'
+import { integrationAllowedUserIds } from '@/lib/integration-access'
 
 export async function GET(request: Request) {
   // Autenticação do Vercel Cron
   const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
+  const allowedUsers = integrationAllowedUserIds()
+  if (!allowedUsers.length) return NextResponse.json({ error: 'Destinatários não configurados' }, { status: 503 })
 
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -28,6 +31,7 @@ export async function GET(request: Request) {
       .eq('mes', mes)
       .eq('ano', ano)
       .eq('ativo', true)
+      .in('user_id', allowedUsers)
 
     if (error) throw error
     if (!metas || metas.length === 0) {

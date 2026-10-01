@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendTelegramMessage } from '@/lib/telegram'
-import { enforceRateLimit, requireApiUser } from '@/lib/api-auth'
+import { enforceRateLimit, requireApiUser, requireIntegrationUser } from '@/lib/api-auth'
 
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireApiUser(request)
     if (auth.error) return auth.error
-    const limited = enforceRateLimit(auth.user.id, 'telegram', 5, 60)
+    const forbidden = requireIntegrationUser(auth.user.id)
+    if (forbidden) return forbidden
+    const limited = await enforceRateLimit(auth.supabase, 'telegram', 5, 60)
     if (limited) return limited
 
     const { message } = await request.json()

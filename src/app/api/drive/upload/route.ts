@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { Readable } from 'stream'
-import { enforceRateLimit, requireApiUser } from '@/lib/api-auth'
+import { enforceRateLimit, requireApiUser, requireIntegrationUser } from '@/lib/api-auth'
 
 /**
  * Fischer Finanças 2026 — API Google Drive
@@ -92,7 +92,9 @@ export async function POST(req: NextRequest) {
   try {
     const userAuth = await requireApiUser(req)
     if (userAuth.error) return userAuth.error
-    const limited = enforceRateLimit(userAuth.user.id, 'drive-upload', 10, 60)
+    const forbidden = requireIntegrationUser(userAuth.user.id)
+    if (forbidden) return forbidden
+    const limited = await enforceRateLimit(userAuth.supabase, 'drive-upload', 10, 60)
     if (limited) return limited
 
     // Verifica configuração
@@ -118,7 +120,9 @@ export async function POST(req: NextRequest) {
     const descricao = formData.get('descricao') as string
     const valor     = parseFloat(formData.get('valor') as string) || 0
 
-    if (!arquivo || !mes || !descricao) {
+    if (!arquivo || !Number.isInteger(mes) || mes < 1 || mes > 12 ||
+        typeof descricao !== 'string' || !descricao.trim() || descricao.length > 100 ||
+        !Number.isFinite(valor) || valor < 0) {
       return NextResponse.json({ error: 'Parâmetros inválidos.' }, { status: 400 })
     }
 
@@ -133,6 +137,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Arquivo muito grande. Máximo 10MB.' }, { status: 400 })
     }
 
+    const bytes = await arquivo.arrayBuffer()
+    const signature = Buffer.from(bytes.slice(0, 12))
+    const validFile = arquivo.type === 'application/pdf'
+      ? signature.subarray(0, 5).toString() === '%PDF-'
+      : arquivo.type === 'image/png'
+        ? signature.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+        : arquivo.type === 'image/jpeg'
+          ? signature[0] === 0xff && signature[1] === 0xd8 && signature[2] === 0xff
+          : signature.subarray(0, 4).toString() === 'RIFF' && signature.subarray(8, 12).toString() === 'WEBP'
+    if (!validFile) return NextResponse.json({ error: 'O conteúdo do arquivo não corresponde ao formato informado.' }, { status: 400 })
+
     // Autentica
     const auth  = getAuth()
     const drive = google.drive({ version: 'v3', auth })
@@ -145,9 +160,9 @@ export async function POST(req: NextRequest) {
     const pastaPagasId = await buscarOuCriar(drive, 'Pagas', pastaMesId)
 
     // Prepara arquivo
-    const extensao    = arquivo.name.split('.').pop()?.toLowerCase() ?? 'pdf'
+    const extensao    = ({ 'application/pdf': 'pdf', 'image/png': 'png',
+      'image/jpeg': 'jpg', 'image/webp': 'webp' } as Record<string, string>)[arquivo.type]
     const nomeArquivo = formatarNome(descricao, valor, extensao)
-    const bytes       = await arquivo.arrayBuffer()
     const stream      = Readable.from(Buffer.from(bytes))
 
     // Faz upload com supportsAllDrives=true
@@ -198,7 +213,9 @@ export async function GET(req: NextRequest) {
   try {
     const userAuth = await requireApiUser(req)
     if (userAuth.error) return userAuth.error
-    const limited = enforceRateLimit(userAuth.user.id, 'drive-list', 30, 60)
+    const forbidden = requireIntegrationUser(userAuth.user.id)
+    if (forbidden) return forbidden
+    const limited = await enforceRateLimit(userAuth.supabase, 'drive-list', 30, 60)
     if (limited) return limited
 
     if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {

@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
+import { useUser } from '@/context/UserContext'
 import { formatBRL } from '@/lib/utils'
 import { MESES } from '@/types'
 import { Card } from '@/components/ui/Card'
@@ -15,6 +16,7 @@ import { authFetch } from '@/lib/auth-fetch'
 export default function IAAnalisePage() {
   const supabase = createClient()
   const { mes, ano } = useMes()
+  const { userId } = useUser()
   
   const [pergunta, setPergunta] = useState('')
   const [analisando, setAnalisando] = useState(false)
@@ -22,11 +24,11 @@ export default function IAAnalisePage() {
 
   // 1. Buscar dados consolidados do Dashboard para a análise
   const { data: summary, isLoading: loadingDash } = useQuery({
-    queryKey: ['dashboard-summary', ano],
+    queryKey: ['dashboard-summary', userId, ano],
+    enabled: !!userId,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Não autenticado')
-      const { data, error } = await supabase.rpc('get_annual_summary', { p_user_id: user.id, p_year: ano })
+      if (!userId) throw new Error('Não autenticado')
+      const { data, error } = await supabase.rpc('get_annual_summary_secure', { p_year: ano })
       if (error) throw error
       return data
     },
@@ -35,11 +37,13 @@ export default function IAAnalisePage() {
 
   // 1.1 Buscar contas fixas pendentes do mês atual
   const { data: pendentes } = useQuery({
-    queryKey: ['contas-pendentes', mes, ano],
+    queryKey: ['contas-pendentes', userId, mes, ano],
+    enabled: !!userId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('contas_fixas')
         .select('descricao, valor, data_vencimento')
+        .eq('user_id', userId!)
         .eq('mes', mes)
         .eq('ano', ano)
         .eq('pago', false)

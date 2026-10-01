@@ -548,8 +548,8 @@ export default function ContasFixasPage() {
                   {/* Itens */}
                   <div className="divide-y divide-gray-50 dark:divide-gray-800">
                     {itens.map(conta => (
-                      <div key={conta.id} className="flex items-center justify-between py-2.5 group">
-                        <div className="flex items-center gap-3">
+                      <div key={conta.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2.5 group">
+                        <div className="flex items-center gap-3 min-w-0">
                           <button
                             onClick={() => togglePago(conta)}
                             title={conta.pago ? 'Marcar como pendente' : 'Marcar como pago'}
@@ -576,7 +576,7 @@ export default function ContasFixasPage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2 pl-9 sm:pl-0">
                           <span className={`font-semibold text-sm ${conta.pago ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-gray-100'}`}>
                             {formatBRL(conta.valor)}
                           </span>
@@ -584,7 +584,7 @@ export default function ContasFixasPage() {
                             {conta.pago ? 'Pago' : 'Pendente'}
                           </span>
                           {/* Ações aparecem no hover */}
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                             <button
                               onClick={() => setDriveModal({ descricao: conta.descricao, valor: conta.valor })}
                               title="Enviar comprovante para o Google Drive"

@@ -291,9 +291,11 @@ export default function CartoesPage() {
     })()
 
     const valorNum = Number(String(form.valor ?? 0).replace(',', '.'))
+    const compraId = form.id ? (form.compra_id || null) : crypto.randomUUID()
     const payload = {
       user_id: uid,
       cartao_id: cartaoId,
+      compra_id: compraId,
       mes,
       ano,
       data_compra: form.data_compra || null,
@@ -381,6 +383,7 @@ export default function CartoesPage() {
           const loteInsert = parcelasOk.map(p => ({
             user_id: uid,
             cartao_id: p.cartaoFuturoId,
+            compra_id: compraId,
             mes: p.mes,
             ano: p.ano,
             data_compra: form.data_compra || null,
@@ -421,66 +424,26 @@ export default function CartoesPage() {
     const parsed = parseParcela(l.parcela || '')
     const temParcelas = parsed && parsed.total > 1
 
-    const msg = temParcelas
+    const msg = temParcelas && l.compra_id
       ? `Excluir "${l.local}" (${l.parcela})?\n\nDeseja excluir apenas esta parcela ou TODAS as parcelas restantes?`
-      : `Excluir "${l.local}" — ${formatBRL(l.valor)}?`
+      : `Excluir apenas este lançamento de "${l.local}" — ${formatBRL(l.valor)}?`
 
     if (!confirm(msg)) return
 
-    if (temParcelas) {
+    if (temParcelas && l.compra_id) {
       // Pergunta se exclui todas as parcelas
       const excluirTodas = confirm(
         `Excluir TODAS as ${parsed!.total} parcelas de "${l.local}"?\n\nOK = excluir todas\nCancelar = excluir só esta`
       )
 
       if (excluirTodas) {
-        // Exclui todos os lançamentos com mesmo local, valor e total de parcelas (mais preciso)
         const uid = userIdRef.current
-        const totalParcelas = parsed!.total
         if (uid) {
-          // Busca cartões do mesmo nome em todos os meses do ano
-          const { data: cartoesDoNome } = await supabase
-            .from('cartoes')
-            .select('id')
-            .eq('user_id', uid)
-            .eq('nome', cartoes.find(c => c.id === l.cartao_id)?.nome ?? '')
-            .eq('ano', l.ano)
-
-          if (cartoesDoNome) {
-            for (const c of cartoesDoNome) {
-              // Busca lançamentos correspondentes com mesmo local E mesmo valor E mesmo total de parcelas
-              // (evita excluir compras diferentes no mesmo estabelecimento)
-              const { data: lancsParaExcluir } = await supabase
-                .from('lancamentos_cartao')
-                .select('id, parcela')
-                .eq('cartao_id', c.id)
-                .eq('local', l.local)
-                .eq('valor', l.valor)
-                .eq('ano', l.ano)
-
-              // Filtra apenas os que têm o mesmo total de parcelas (ex: /12)
-              const idsParaExcluir = (lancsParaExcluir || [])
-                .filter(x => {
-                  const p = parseParcela(x.parcela || '')
-                  return p ? p.total === totalParcelas : totalParcelas === 1
-                })
-                .map(x => x.id)
-
-              if (idsParaExcluir.length > 0) {
-                await supabase
-                  .from('lancamentos_cartao')
-                  .delete()
-                  .in('id', idsParaExcluir)
-              }
-
-              // Recalcula total
-              const { data: lancsR } = await supabase
-                .from('lancamentos_cartao')
-                .select('valor')
-                .eq('cartao_id', c.id)
-              const total = (lancsR || []).reduce((s, r) => s + Number(r.valor), 0)
-              await supabase.from('cartoes').update({ valor: total }).eq('id', c.id)
-            }
+          const { error } = await supabase.from('lancamentos_cartao').delete()
+            .eq('user_id', uid).eq('compra_id', l.compra_id)
+          if (error) {
+            toast.error('Não foi possível excluir as parcelas. Tente novamente.')
+            return
           }
         }
         await carregarTudo()
@@ -729,8 +692,8 @@ export default function CartoesPage() {
                         </button>
                       </div>
                     ) : (
-                      <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
-                        <table className="w-full text-sm">
+                      <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-x-auto">
+                        <table className="w-full min-w-[620px] text-sm">
                           <thead>
                             <tr className="bg-gray-50 dark:bg-gray-800 text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide">
                               <th className="text-left px-3 py-2">Data</th>
@@ -784,7 +747,7 @@ export default function CartoesPage() {
                                   </div>
                                 </td>
                                 <td className="px-3 py-2.5">
-                                  <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <div className="flex items-center justify-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                                     <button onClick={() => abrirModalLancamento(cartao, l)} title="Editar"
                                       className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                                       <Pencil size={13} />

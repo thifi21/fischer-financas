@@ -6,22 +6,21 @@ import { createClient } from '@/lib/supabase'
 import DashboardClientView from '@/components/DashboardClientView'
 import { MESES } from '@/types'
 import { useMes } from '@/context/MesContext'
+import { useUser } from '@/context/UserContext'
 
 export default function DashboardPage() {
   const supabase = createClient()
   const { mes, ano } = useMes()
+  const { userId, loading: userLoading } = useUser()
 
   // Busca dados via RPC (Otimizado: 1 chamada em vez de 48)
   const { data: summary, isLoading, error } = useQuery({
-    queryKey: ['dashboard-summary', ano],
+    queryKey: ['dashboard-summary', userId, ano],
+    enabled: !userLoading && !!userId,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Não autenticado')
+      if (!userId) throw new Error('Não autenticado')
       
-      const { data, error } = await supabase.rpc('get_annual_summary', {
-        p_user_id: user.id,
-        p_year: ano
-      })
+      const { data, error } = await supabase.rpc('get_annual_summary_secure', { p_year: ano })
       
       if (error) throw error
       return data
@@ -72,7 +71,7 @@ export default function DashboardPage() {
     return { resumo, pieData, mesesData, totalSaidas, saldo }
   }, [summary, mes])
 
-  if (isLoading) return (
+  if (isLoading || userLoading) return (
     <div className="min-h-[400px] flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />

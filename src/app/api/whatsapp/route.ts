@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendWhatsAppMessage, getConfiguredWhatsAppNumbers } from '@/lib/whatsapp'
-import { enforceRateLimit, requireApiUser } from '@/lib/api-auth'
+import { enforceRateLimit, requireApiUser, requireIntegrationUser } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,6 +8,8 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await requireApiUser(request)
     if (auth.error) return auth.error
+    const forbidden = requireIntegrationUser(auth.user.id)
+    if (forbidden) return forbidden
     const numbers = getConfiguredWhatsAppNumbers()
     return NextResponse.json({ numbers })
   } catch (error) {
@@ -19,7 +21,9 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await requireApiUser(request)
     if (auth.error) return auth.error
-    const limited = enforceRateLimit(auth.user.id, 'whatsapp', 5, 60)
+    const forbidden = requireIntegrationUser(auth.user.id)
+    if (forbidden) return forbidden
+    const limited = await enforceRateLimit(auth.supabase, 'whatsapp', 5, 60)
     if (limited) return limited
 
     const { message, targetIndex } = await request.json()

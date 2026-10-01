@@ -24,10 +24,21 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
+    let active = true
+    let authChanged = false
     supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!active || authChanged) return
       setUserId(user?.id ?? null)
       setLoading(false)
     })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      authChanged = true
+      if (active) {
+        setUserId(session?.user.id ?? null)
+        setLoading(false)
+      }
+    })
+    return () => { active = false; subscription.unsubscribe() }
   }, [supabase])
 
   return (

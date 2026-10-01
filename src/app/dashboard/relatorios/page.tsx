@@ -3,6 +3,7 @@ import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
 import { formatBRL, formatDate } from '@/lib/utils'
+import { csvRow } from '@/lib/csv'
 import { MESES, type LancamentoCartao, type ContaFixa, type Combustivel } from '@/types'
 import { 
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -177,11 +178,11 @@ export default function RelatoriosPage() {
 
   function exportarCSV() {
     const { totaisPorMes } = dados
-    let csv = 'Mês,Cartões,Contas Fixas,Combustível,Total\n'
+    let csv = csvRow(['Mês', 'Cartões', 'Contas Fixas', 'Combustível', 'Total'])
     
     totaisPorMes.forEach((row: any) => {
       const total = row.cartoes + row.fixas + row.combustivel
-      csv += `${row.mes},${row.cartoes},${row.fixas},${row.combustivel},${total}\n`
+      csv += csvRow([row.mes, row.cartoes, row.fixas, row.combustivel, total])
     })
 
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -193,23 +194,23 @@ export default function RelatoriosPage() {
   }
 
   function exportarCSVDetalhado() {
-    let csv = 'Tipo,Data,Descrição,Categoria,Valor\n'
+    let csv = csvRow(['Tipo', 'Data', 'Descrição', 'Categoria', 'Valor'])
     
     dados.fixas.forEach((f: any) => {
       const dataStr = f.data_vencimento ? formatDate(f.data_vencimento) : ''
-      csv += `Conta Fixa,${dataStr},"${f.descricao || ''}","${f.categoria || ''}",${f.valor}\n`
+      csv += csvRow(['Conta Fixa', dataStr, f.descricao, f.categoria, Number(f.valor)])
     })
 
     dados.combustivel.forEach((c: any) => {
       const dataStr = c.data_abastecimento ? formatDate(c.data_abastecimento) : ''
-      csv += `Combustível,${dataStr},"${c.descricao || 'Abastecimento'}","",${c.valor}\n`
+      csv += csvRow(['Combustível', dataStr, c.descricao || 'Abastecimento', '', Number(c.valor)])
     })
 
     dados.lancamentosCartao.forEach((l: any) => {
       const dataStr = l.data_compra ? formatDate(l.data_compra) : ''
       const cartao = dados.cartoes.find((c: any) => c.id === l.cartao_id)
       const nomeCartao = cartao ? cartao.nome : 'Cartão'
-      csv += `${nomeCartao},${dataStr},"${l.local || ''}","",${l.valor}\n`
+      csv += csvRow([nomeCartao, dataStr, l.local, '', Number(l.valor)])
     })
 
     const blob = new Blob([csv], { type: 'text/csv' })

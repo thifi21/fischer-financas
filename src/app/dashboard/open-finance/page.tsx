@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
 import { formatBRL, formatDate } from '@/lib/utils'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { motion, AnimatePresence } from 'framer-motion'
+import { authFetch } from '@/lib/auth-fetch'
 
 type Lancamento = {
   id: string
@@ -16,6 +17,7 @@ type Lancamento = {
   tipo: 'debito' | 'credito'
   categoria: string
   destino: 'nao_sincronizado' | 'cartoes' | 'contas_fixas' | 'entradas' | 'combustivel' | 'ignorado'
+  cartaoId?: string
 }
 
 type Importacao = {
@@ -43,7 +45,7 @@ const CATEGORIAS_LABEL: Record<string, string> = {
 }
 
 export default function OpenFinancePage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const { mes, ano } = useMes()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -57,11 +59,24 @@ export default function OpenFinancePage() {
   const [loadingHist, setLoadingHist] = useState(false)
   const [msg, setMsg] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null)
   const [sincronizando, setSincronizando] = useState(false)
+  const [cancelandoId, setCancelandoId] = useState<string | null>(null)
+  const [cartoesMes, setCartoesMes] = useState<{ id: string; nome: string }[]>([])
 
   useEffect(() => {
     carregarHistorico()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    let ativo = true
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data } = await supabase.from('cartoes').select('id,nome')
+        .eq('user_id', user.id).eq('mes', mes).eq('ano', ano).order('nome')
+      if (ativo) setCartoesMes(data || [])
+    })
+    return () => { ativo = false }
+  }, [mes, ano, supabase])
 
   async function carregarHistorico() {
     setLoadingHist(true)
@@ -102,7 +117,7 @@ export default function OpenFinancePage() {
         // Inicializa destinos baseados em heurística simples no front
         const lps = json.lancamentos.map((l: any) => ({
           ...l,
-          destino: l.tipo === 'credito' ? 'entradas' : (l.categoria === 'cartao' ? 'cartoes' : 'contas_fixas')
+          destino: l.tipo === 'credito' ? 'entradas' : (l.categoria === 'cartao' ? 'ignorado' : 'contas_fixas')
         }))
         setPreview(lps)
         setImportacaoId(json.importacaoId)
@@ -117,65 +132,50 @@ export default function OpenFinancePage() {
 
   function handleDestinoChange(index: number, novoDestino: any) {
     if (!preview) return
-    const novoPreview = [...preview]
-    novoPreview[index].destino = novoDestino
-    setPreview(novoPreview)
+    setPreview(preview.map((item, i) => i === index ? { ...item, destino: novoDestino, cartaoId: undefined } : item))
   }
 
   async function sincronizarSelecionados() {
     if (!preview || !importacaoId) return
+    const ignorados = preview.filter(l => l.destino === 'ignorado').length
+    if (ignorados > 0 && !confirm(`${ignorados} transação(ões) serão ignoradas. Continuar?`)) return
+    if (preview.some(l => l.destino === 'cartoes' && !l.cartaoId)) {
+      setMsg({ tipo: 'erro', texto: 'Selecione o cartão de cada compra antes de sincronizar.' })
+      return
+    }
     setSincronizando(true)
+    try {
+      const res = await authFetch('/api/open-finance/sync', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ importacaoId, mes, ano,
+          itens: preview.map(l => ({ id: l.id, destino: l.destino, cartao_id: l.cartaoId })) }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Falha ao sincronizar')
+      setMsg({ tipo: 'ok', texto: `✅ ${json.sincronizados} lançamentos sincronizados com sucesso!` })
+      setPreview(null)
+      await carregarHistorico()
+    } catch (error) {
+      setMsg({ tipo: 'erro', texto: error instanceof Error ? error.message : 'Falha ao sincronizar' })
+    } finally {
+      setSincronizando(false)
+    }
+  }
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    // Agrupar lançamentos por tabela destino
-    const base = (l: Lancamento) => ({
-      user_id: user.id,
-      mes,
-      ano,
-      descricao: l.descricao,
-      valor: l.valor,
-      categoria: l.categoria,
-    })
-
-    const grupos = preview.reduce((acc, l) => {
-      if (l.destino === 'ignorado') return acc
-      if (!acc[l.destino]) acc[l.destino] = []
-      acc[l.destino].push(l)
-      return acc
-    }, {} as Record<string, Lancamento[]>)
-
-    const inserts: PromiseLike<any>[] = []
-
-    if (grupos.entradas?.length)
-      inserts.push(supabase.from('entradas').insert(grupos.entradas.map(base)))
-
-    if (grupos.cartoes?.length)
-      inserts.push(supabase.from('cartoes').insert(grupos.cartoes.map(base)))
-
-    if (grupos.combustivel?.length)
-      inserts.push(supabase.from('combustivel').insert(grupos.combustivel.map(base)))
-
-    if (grupos.contas_fixas?.length)
-      inserts.push(supabase.from('contas_fixas').insert(
-        grupos.contas_fixas.map(l => ({ ...base(l), pago: false, data_vencimento: l.data }))
-      ))
-
-    await Promise.all(inserts)
-
-    const sincronizadosCount = preview.filter(l => l.destino !== 'ignorado').length
-
-    // Atualiza status da importação
-    await supabase.from('importacoes_ofx').update({ 
-      sincronizados: sincronizadosCount, 
-      status: 'sincronizado' 
-    }).eq('id', importacaoId)
-
-    setMsg({ tipo: 'ok', texto: `✅ ${sincronizadosCount} lançamentos sincronizados com sucesso!` })
-    setPreview(null)
-    setSincronizando(false)
-    carregarHistorico()
+  async function cancelarImportacao(id: string) {
+    setCancelandoId(id)
+    try {
+      const res = await authFetch(`/api/open-finance?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Falha ao cancelar')
+      if (importacaoId === id) { setPreview(null); setImportacaoId(null) }
+      await carregarHistorico()
+      setMsg(null)
+    } catch (error) {
+      setMsg({ tipo: 'erro', texto: error instanceof Error ? error.message : 'Falha ao cancelar' })
+    } finally {
+      setCancelandoId(null)
+    }
   }
 
   return (
@@ -184,7 +184,7 @@ export default function OpenFinancePage() {
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-            <span className="text-3xl">🏦</span> Open Finance
+            <span className="text-3xl">🏦</span> Importar extrato
           </h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
             Importe seu extrato bancário e sincronize com seu orçamento em segundos.
@@ -254,15 +254,15 @@ export default function OpenFinancePage() {
                     <p className="text-xs text-gray-500">Revise e escolha o destino de cada transação antes de sincronizar.</p>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setPreview(null)} disabled={sincronizando}>Cancelar</Button>
+                    <Button variant="outline" onClick={() => { if (importacaoId) cancelarImportacao(importacaoId) }} disabled={sincronizando || cancelandoId === importacaoId}>Cancelar</Button>
                     <Button onClick={sincronizarSelecionados} isLoading={sincronizando} className="bg-blue-600 text-white font-bold">
                        Sincronizar Tudo
                     </Button>
                   </div>
                 </div>
 
-                <div className="max-h-[600px] overflow-y-auto">
-                  <table className="w-full text-left border-collapse">
+                <div className="max-h-[600px] overflow-auto">
+                  <table className="w-full min-w-[640px] text-left border-collapse">
                     <thead className="sticky top-0 bg-white dark:bg-slate-900 border-b dark:border-slate-800 z-10">
                       <tr className="text-[10px] uppercase font-black text-gray-400 tracking-widest">
                         <th className="px-6 py-4">Data</th>
@@ -304,6 +304,14 @@ export default function OpenFinancePage() {
                                 </>
                               )}
                             </select>
+                            {l.destino === 'cartoes' && (
+                              <select aria-label={`Cartão para ${l.descricao}`} value={l.cartaoId || ''}
+                                onChange={e => setPreview(prev => prev?.map((item, idx) => idx === i ? { ...item, cartaoId: e.target.value } : item) || null)}
+                                className="mt-2 w-full bg-white dark:bg-slate-950 border dark:border-slate-700 rounded-lg text-xs p-2">
+                                <option value="">Selecione o cartão</option>
+                                {cartoesMes.map(cartao => <option key={cartao.id} value={cartao.id}>{cartao.nome}</option>)}
+                              </select>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -319,6 +327,7 @@ export default function OpenFinancePage() {
             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
             className="space-y-4"
           >
+            {msg?.tipo === 'erro' && <p role="alert" className="text-sm font-semibold text-red-600">{msg.texto}</p>}
             {loadingHist ? (
                <div className="space-y-3">
                  {[1,2,3].map(i => <div key={i} className="h-16 bg-gray-100 dark:bg-slate-800 animate-pulse rounded-2xl" />)}
@@ -345,6 +354,13 @@ export default function OpenFinancePage() {
                          {imp.sincronizados} Sincronizados
                       </div>
                       <p className="text-[10px] text-gray-400">{formatDate(imp.created_at)}</p>
+                      {imp.status === 'pendente' && (
+                        <button type="button" onClick={() => cancelarImportacao(imp.id)}
+                          disabled={cancelandoId === imp.id}
+                          className="mt-2 text-xs font-semibold text-red-600 hover:underline disabled:opacity-50">
+                          Descartar importação pendente
+                        </button>
+                      )}
                    </div>
                 </Card>
               ))
