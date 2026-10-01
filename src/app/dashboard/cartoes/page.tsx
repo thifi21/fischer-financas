@@ -138,18 +138,21 @@ export default function CartoesPage() {
     }
     setTodosLancamentos(agrupado)
 
-    const ordenados = (cartoesData || []).map(c => {
+    const ordenados = (await Promise.all((cartoesData || []).map(async c => {
       const lancs = agrupado[c.id] || []
       if (lancs.length > 0) {
         const totalLancs = lancs.reduce((s, l) => s + Number(l.valor || 0), 0)
         if (Number(c.valor) !== totalLancs) {
           // Sincroniza no banco caso estivesse zerado ou desatualizado
-          supabase.from('cartoes').update({ valor: totalLancs }).eq('id', c.id)
+          const { error } = await supabase.from('cartoes').update({ valor: totalLancs }).eq('id', c.id).eq('user_id', uid)
+          if (error) console.error('Erro ao sincronizar total do cartão:', error)
           return { ...c, valor: totalLancs }
         }
       }
       return c
-    }).sort((a, b) => (ORDEM_CARTOES[a.nome] ?? 99) - (ORDEM_CARTOES[b.nome] ?? 99))
+    }))).sort((a, b) => (ORDEM_CARTOES[a.nome] ?? 99) - (ORDEM_CARTOES[b.nome] ?? 99))
+
+    if (gen !== loadGenRef.current) return
 
     setCartoes(ordenados)
     

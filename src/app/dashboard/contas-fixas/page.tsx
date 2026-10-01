@@ -137,10 +137,11 @@ export default function ContasFixasPage() {
     const gen = ++loadGenRef.current
     setLoading(true)
 
-    const [{ data: contasData }, { data: cartoesData }, { data: entradasData }] = await Promise.all([
+    const [{ data: contasData }, { data: cartoesData }, { data: entradasData }, { data: lancamentosData, error: erroLancamentos }] = await Promise.all([
       supabase.from('contas_fixas').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).order('categoria'),
       supabase.from('cartoes').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano),
       supabase.from('entradas').select('valor').eq('user_id', uid).eq('mes', mes).eq('ano', ano),
+      supabase.from('lancamentos_cartao').select('cartao_id, valor').eq('user_id', uid).eq('mes', mes).eq('ano', ano),
     ])
 
     // Se uma carga mais recente já foi iniciada, ignora esta resposta
@@ -148,7 +149,14 @@ export default function ContasFixasPage() {
 
     setContas(contasData || [])
     // Ordena cartões pela sequência personalizada
-    const cartoesOrdenados = (cartoesData || []).sort((a, b) =>
+    if (erroLancamentos) toast.error('Não foi possível conferir os totais dos cartões.')
+    const totais = new Map<string, number>()
+    for (const lancamento of lancamentosData || []) {
+      totais.set(lancamento.cartao_id, (totais.get(lancamento.cartao_id) || 0) + Math.round(Number(lancamento.valor || 0) * 100))
+    }
+    const cartoesOrdenados = (cartoesData || []).map(cartao =>
+      totais.has(cartao.id) ? { ...cartao, valor: totais.get(cartao.id)! / 100 } : cartao
+    ).sort((a, b) =>
       (ORDEM_CARTOES[a.nome] ?? 99) - (ORDEM_CARTOES[b.nome] ?? 99)
     )
     setCartoes(cartoesOrdenados)
