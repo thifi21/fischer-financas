@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendTelegramMessage } from '@/lib/telegram'
 import { formatDate } from '@/lib/utils'
-import { integrationAllowedUserIds } from '@/lib/integration-access'
+import { verifyCronRequest } from '@/lib/cron-auth'
+import { agoraBrasil } from '@/lib/datetime'
+import { criarLogger } from '@/lib/logger'
+import type { Lembrete, PreferenciasUsuario } from '@/types'
+
+const log = criarLogger('cron:lembretes')
 
 const ICONES: Record<string, string> = {
   vencimento: '📅',
@@ -17,17 +22,12 @@ const PRIORIDADE_LABEL: Record<string, string> = {
 }
 
 export async function GET(request: Request) {
-  // Autenticação do Vercel Cron
-  const authHeader = request.headers.get('authorization')
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-  }
-  const allowedUsers = integrationAllowedUserIds()
-  if (!allowedUsers.length) return NextResponse.json({ error: 'Destinatários não configurados' }, { status: 503 })
+  const naoAutorizado = verifyCronRequest(request)
+  if (naoAutorizado) return naoAutorizado
 
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error('Supabase URL ou Service Key ausentes')
@@ -35,34 +35,27 @@ export async function GET(request: Request) {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Data de hoje e hora atual no fuso de Brasília (UTC-3)
-    const agora = new Date()
-    agora.setUTCHours(agora.getUTCHours() - 3)
-    const horaAtual = agora.getUTCHours() // hora em Brasília
-    const ano = agora.getUTCFullYear()
-    const mes = String(agora.getUTCMonth() + 1).padStart(2, '0')
-    const dia = String(agora.getUTCDate()).padStart(2, '0')
-    const dataHoje = `${ano}-${mes}-${dia}`
+    // Data de hoje e hora atual no fuso de Brasília
+    const { hora: horaAtual, iso: dataHoje } = agoraBrasil()
 
     // Buscar lembretes de hoje que ainda não foram lidos e estão ativos
-    const { data: lembretes, error } = await supabase
+    const { data, error } = await supabase
       .from('lembretes')
       .select('*')
       .eq('data_lembrete', dataHoje)
       .eq('ativo', true)
       .eq('lido', false)
-      .in('user_id', allowedUsers)
 
     if (error) throw error
 
-    if (!lembretes || lembretes.length === 0) {
+    const lembretes = (data ?? []) as Lembrete[]
+    if (lembretes.length === 0) {
       return NextResponse.json({ message: 'Nenhum lembrete para hoje', data: dataHoje })
     }
 
     // Agrupar por user_id
-    const lembretePorUser = lembretes.reduce((acc: any, l: any) => {
-      if (!acc[l.user_id]) acc[l.user_id] = []
-      acc[l.user_id].push(l)
+    const lembretePorUser = lembretes.reduce<Record<string, Lembrete[]>>((acc, l) => {
+      ;(acc[l.user_id] ??= []).push(l)
       return acc
     }, {})
 
@@ -70,11 +63,11 @@ export async function GET(request: Request) {
     const userIds = Object.keys(lembretePorUser)
     const { data: prefsList } = await supabase
       .from('preferencias_usuario')
-      .select('user_id, hora_envio_lembretes, notificar_cartoes, notificar_fixas, notificar_metas')
+      .select('user_id, hora_envio_lembretes, notificar_cartoes, notificar_fixas, notificar_metas, telegram_chat_id')
       .in('user_id', userIds)
 
-    const prefsMap: Record<string, any> = {}
-    prefsList?.forEach((p: any) => { prefsMap[p.user_id] = p })
+    const prefsMap: Record<string, PreferenciasUsuario> = {}
+    ;((prefsList ?? []) as PreferenciasUsuario[]).forEach(p => { prefsMap[p.user_id] = p })
 
     let envios = 0
     const idsParaMarcar: string[] = []
@@ -93,9 +86,9 @@ export async function GET(request: Request) {
 
       let msg = `📌 <b>Lembretes do dia ${formatDate(dataHoje)}</b>\n\n`
 
-      itens.forEach((l: any) => {
+      itens.forEach(l => {
         const icone = ICONES[l.tipo] || '📌'
-        const prioridade = PRIORIDADE_LABEL[l.prioridade] || ''
+        const prioridade = (l.prioridade && PRIORIDADE_LABEL[l.prioridade]) || ''
         msg += `${icone} <b>${l.titulo}</b>`
         if (prioridade) msg += ` — ${prioridade}`
         if (l.mensagem) msg += `\n   ${l.mensagem}`
@@ -106,10 +99,11 @@ export async function GET(request: Request) {
 
       await sendTelegramMessage(msg, {
         userId,
+        chatId: prefs?.telegram_chat_id,
         titulo: `Lembretes do dia ${formatDate(dataHoje)}`,
       })
       envios++
-      itens.forEach((l: any) => idsParaMarcar.push(l.id))
+      itens.forEach(l => idsParaMarcar.push(l.id))
     }
 
     // Marcar todos como lidos
@@ -127,8 +121,11 @@ export async function GET(request: Request) {
       lembretesProcessados: lembretes.length,
       mensagensEnviadas: envios,
     })
-  } catch (error: any) {
-    console.error('Erro no cron de lembretes:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    log.error('Erro no cron de lembretes', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Erro interno' },
+      { status: 500 }
+    )
   }
 }

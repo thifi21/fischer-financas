@@ -2,59 +2,61 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendTelegramMessage } from '@/lib/telegram'
 import { formatBRL } from '@/lib/utils'
-import { integrationAllowedUserIds } from '@/lib/integration-access'
+import { verifyCronRequest } from '@/lib/cron-auth'
+import { agoraBrasil } from '@/lib/datetime'
+import { criarLogger } from '@/lib/logger'
+import type { Meta, PreferenciasUsuario } from '@/types'
+
+const log = criarLogger('cron:orcamento')
+
+type LinhaValor = { valor: number | string }
 
 export async function GET(request: Request) {
-  // Autenticação do Vercel Cron
-  const authHeader = request.headers.get('authorization')
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-  }
-  const allowedUsers = integrationAllowedUserIds()
-  if (!allowedUsers.length) return NextResponse.json({ error: 'Destinatários não configurados' }, { status: 503 })
+  const naoAutorizado = verifyCronRequest(request)
+  if (naoAutorizado) return naoAutorizado
 
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Supabase URL ou Service Key ausentes')
+    }
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Mês/ano atual em Brasília (UTC-3)
-    const agora = new Date()
-    agora.setUTCHours(agora.getUTCHours() - 3)
-    const mes = agora.getUTCMonth() + 1
-    const ano = agora.getUTCFullYear()
+    // Mês/ano atual em Brasília
+    const { mes, ano } = agoraBrasil()
 
     // Buscar todas as metas ativas do mês corrente
-    const { data: metas, error } = await supabase
+    const { data: metasData, error } = await supabase
       .from('metas')
       .select('*')
       .eq('mes', mes)
       .eq('ano', ano)
       .eq('ativo', true)
-      .in('user_id', allowedUsers)
 
     if (error) throw error
-    if (!metas || metas.length === 0) {
+    const metas = (metasData ?? []) as Meta[]
+    if (metas.length === 0) {
       return NextResponse.json({ message: 'Nenhuma meta ativa para o mês', mes, ano })
     }
 
     // Buscar preferências dos usuários para respeitar notificar_metas
-    const userIds = [...new Set(metas.map((m: any) => m.user_id))]
+    const userIds = [...new Set(metas.map(m => m.user_id))]
     const { data: prefs } = await supabase
       .from('preferencias_usuario')
-      .select('user_id, notificar_metas')
+      .select('user_id, notificar_metas, telegram_chat_id')
       .in('user_id', userIds)
 
-    const prefsMap: Record<string, boolean> = {}
-    prefs?.forEach((p: any) => { prefsMap[p.user_id] = p.notificar_metas })
+    const prefsMap: Record<string, Pick<PreferenciasUsuario, 'notificar_metas' | 'telegram_chat_id'>> = {}
+    ;((prefs ?? []) as PreferenciasUsuario[]).forEach(p => { prefsMap[p.user_id] = p })
 
     let alertasEnviados = 0
 
     for (const userId of userIds) {
       // Respeitar preferência notificar_metas (default: true se não configurado)
-      if (prefsMap[userId] === false) continue
+      if (prefsMap[userId]?.notificar_metas === false) continue
 
-      const metasUsuario = metas.filter((m: any) => m.user_id === userId)
+      const metasUsuario = metas.filter(m => m.user_id === userId)
 
       // Buscar gastos do usuário no mês
       const [
@@ -67,7 +69,7 @@ export async function GET(request: Request) {
         supabase.from('combustivel').select('valor').eq('user_id', userId).eq('mes', mes).eq('ano', ano),
       ])
 
-      const soma = (arr: any[] | null) => (arr || []).reduce((s, r) => s + Number(r.valor), 0)
+      const soma = (arr: LinhaValor[] | null) => (arr ?? []).reduce((s, r) => s + Number(r.valor), 0)
       const gastos = {
         cartoes: soma(cartoes),
         fixas: soma(fixas),
@@ -95,6 +97,7 @@ export async function GET(request: Request) {
         const msg = `📊 <b>Alerta de Orçamento — ${String(mes).padStart(2, '0')}/${ano}</b>\n\n${alertas.join('\n\n')}\n\n<i>Fischer Finanças • Verificação diária de orçamento</i>`
         await sendTelegramMessage(msg, {
           userId,
+          chatId: prefsMap[userId]?.telegram_chat_id,
           titulo: `Alerta de Orçamento ${mes}/${ano}`,
         })
         alertasEnviados++
@@ -108,8 +111,11 @@ export async function GET(request: Request) {
       alertasEnviados,
       usuariosVerificados: userIds.length,
     })
-  } catch (error: any) {
-    console.error('Erro no cron de orçamento:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    log.error('Erro no cron de orçamento', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Erro interno' },
+      { status: 500 }
+    )
   }
 }

@@ -57,6 +57,7 @@ export default function SonhosPage() {
       ])
     }
     init()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, carregarSonhos])
 
   // Calcula o saldo médio mensal dos últimos 6 meses

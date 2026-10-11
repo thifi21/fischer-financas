@@ -66,6 +66,7 @@ export default function FamiliaPage() {
       await carregarGrupo()
     }
     init()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function getToken() {
@@ -114,6 +115,7 @@ export default function FamiliaPage() {
 
   useEffect(() => {
     if (userIdRef.current) carregarGrupo()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mes, ano])
 
   async function criarGrupo() {

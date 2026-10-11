@@ -88,6 +88,7 @@ export default function EntradasPage() {
       else carregarExtrato()
     }
     init()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => { 
@@ -95,6 +96,7 @@ export default function EntradasPage() {
       if (activeTab === 'entradas') carregarEntradas()
       else carregarExtrato()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mes, ano, activeTab])
 
   // ==========================================

@@ -4,16 +4,21 @@
  */
 
 import { createClient as createSupabaseServer } from '@supabase/supabase-js'
+import { criarLogger } from '@/lib/logger'
+
+const log = criarLogger('telegram')
 
 export async function sendTelegramMessage(text: string, options?: {
   userId?: string
   titulo?: string
+  /** Chat de destino do usuário; se ausente usa TELEGRAM_CHAT_ID */
+  chatId?: string | null
 }) {
   const token = process.env.TELEGRAM_BOT_TOKEN?.trim()
-  const chatId = process.env.TELEGRAM_CHAT_ID?.trim().replace(/^@/, '')
+  const chatId = (options?.chatId?.trim() || process.env.TELEGRAM_CHAT_ID?.trim() || '').replace(/^@(?=\d)/, '')
 
   if (!token || !chatId) {
-    console.error('Telegram: TELEGRAM_BOT_TOKEN ou TELEGRAM_CHAT_ID não configurados.')
+    log.error('TELEGRAM_BOT_TOKEN ou chat de destino não configurados.')
     return { success: false, error: 'Configuração ausente no Vercel' }
   }
 
@@ -36,11 +41,11 @@ export async function sendTelegramMessage(text: string, options?: {
       result = { success: true }
     } else {
       const errorData = await response.json()
-      console.error('Erro ao enviar mensagem para Telegram:', errorData)
+      log.error('Erro ao enviar mensagem para Telegram', errorData)
       result = { success: false, error: errorData.description || 'Erro desconhecido' }
     }
   } catch (error) {
-    console.error('Erro de rede ao enviar Telegram:', error)
+    log.error('Erro de rede ao enviar Telegram', error)
     result = { success: false, error: 'Erro de conexão' }
   }
 

@@ -170,10 +170,12 @@ export default function MetasPage() {
       carregarTudo()
     }
     init()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
     if (userIdRef.current) carregarTudo()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mes, ano])
 
   async function carregarTudo() {

@@ -49,7 +49,13 @@ export default function LoginPage() {
     })
 
     if (error || !data.session) {
-      setErro('Email ou senha incorretos. Verifique e tente novamente.')
+      if (error?.message?.toLowerCase().includes('network') || error?.message?.toLowerCase().includes('fetch')) {
+        setErro('Falha de conexão com o servidor. Verifique sua internet.')
+      } else if (error?.status === 429) {
+        setErro('Muitas tentativas de login. Aguarde alguns instantes.')
+      } else {
+        setErro('Email ou senha incorretos. Verifique e tente novamente.')
+      }
       setLoading(false)
       return
     }

@@ -35,6 +35,7 @@ export default function CombustivelPage() {
       carregar(mes)
     }
     init()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ── Recarrega sempre que o mês ou ano mudarem ───────────────

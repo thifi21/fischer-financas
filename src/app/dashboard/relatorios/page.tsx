@@ -3,12 +3,21 @@ import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useMes } from '@/context/MesContext'
 import { formatBRL, formatDate } from '@/lib/utils'
-import { csvRow } from '@/lib/csv'
 import { MESES, type LancamentoCartao, type ContaFixa, type Combustivel } from '@/types'
-import { 
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
-} from 'recharts'
+import dynamic from 'next/dynamic'
+
+// Gráficos (recharts) carregados sob demanda: fora do bundle inicial
+const GraficoSkeleton = () => (
+  <div className="h-[300px] w-full rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse" aria-label="Carregando gráfico" />
+)
+const EvolucaoPorMesBar = dynamic(
+  () => import('@/components/charts/RelatoriosCharts').then(m => m.EvolucaoPorMesBar),
+  { ssr: false, loading: GraficoSkeleton }
+)
+const DistribuicaoCategoriaPie = dynamic(
+  () => import('@/components/charts/RelatoriosCharts').then(m => m.DistribuicaoCategoriaPie),
+  { ssr: false, loading: GraficoSkeleton }
+)
 
 
 
@@ -48,9 +57,9 @@ export default function RelatoriosPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (userIdRef.current) carregarDados()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mes, ano, periodo, dataInicio, dataFim])
 
   function calcularPeriodo() {
@@ -178,11 +187,11 @@ export default function RelatoriosPage() {
 
   function exportarCSV() {
     const { totaisPorMes } = dados
-    let csv = csvRow(['Mês', 'Cartões', 'Contas Fixas', 'Combustível', 'Total'])
+    let csv = 'Mês,Cartões,Contas Fixas,Combustível,Total\n'
     
     totaisPorMes.forEach((row: any) => {
       const total = row.cartoes + row.fixas + row.combustivel
-      csv += csvRow([row.mes, row.cartoes, row.fixas, row.combustivel, total])
+      csv += `${row.mes},${row.cartoes},${row.fixas},${row.combustivel},${total}\n`
     })
 
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -194,23 +203,23 @@ export default function RelatoriosPage() {
   }
 
   function exportarCSVDetalhado() {
-    let csv = csvRow(['Tipo', 'Data', 'Descrição', 'Categoria', 'Valor'])
+    let csv = 'Tipo,Data,Descrição,Categoria,Valor\n'
     
     dados.fixas.forEach((f: any) => {
       const dataStr = f.data_vencimento ? formatDate(f.data_vencimento) : ''
-      csv += csvRow(['Conta Fixa', dataStr, f.descricao, f.categoria, Number(f.valor)])
+      csv += `Conta Fixa,${dataStr},"${f.descricao || ''}","${f.categoria || ''}",${f.valor}\n`
     })
 
     dados.combustivel.forEach((c: any) => {
       const dataStr = c.data_abastecimento ? formatDate(c.data_abastecimento) : ''
-      csv += csvRow(['Combustível', dataStr, c.descricao || 'Abastecimento', '', Number(c.valor)])
+      csv += `Combustível,${dataStr},"${c.descricao || 'Abastecimento'}","",${c.valor}\n`
     })
 
     dados.lancamentosCartao.forEach((l: any) => {
       const dataStr = l.data_compra ? formatDate(l.data_compra) : ''
       const cartao = dados.cartoes.find((c: any) => c.id === l.cartao_id)
       const nomeCartao = cartao ? cartao.nome : 'Cartão'
-      csv += csvRow([nomeCartao, dataStr, l.local, '', Number(l.valor)])
+      csv += `${nomeCartao},${dataStr},"${l.local || ''}","",${l.valor}\n`
     })
 
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -434,42 +443,13 @@ export default function RelatoriosPage() {
         {/* Evolução Mensal */}
         <div className="card">
           <h3 className="font-semibold mb-4 text-gray-900 dark:text-gray-100">📈 Evolução por Mês</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={dados.totaisPorMes}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="mes" />
-              <YAxis />
-              <Tooltip formatter={(value: any) => formatBRL(value)} />
-              <Legend />
-              <Bar dataKey="cartoes" fill="#3b82f6" name="Cartões" />
-              <Bar dataKey="fixas" fill="#10b981" name="Contas Fixas" />
-              <Bar dataKey="combustivel" fill="#f59e0b" name="Combustível" />
-            </BarChart>
-          </ResponsiveContainer>
+          <EvolucaoPorMesBar data={dados.totaisPorMes} />
         </div>
 
         {/* Distribuição por Categoria */}
         <div className="card">
           <h3 className="font-semibold mb-4 text-gray-900 dark:text-gray-100">🥧 Distribuição por Categoria</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={dados.porCategoria}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={(entry: any) => `${entry.name}: ${((entry.value / totalGeral) * 100).toFixed(0)}%`}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {dados.porCategoria.map((entry: any, index: number) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value: any) => formatBRL(value)} />
-            </PieChart>
-          </ResponsiveContainer>
+          <DistribuicaoCategoriaPie data={dados.porCategoria} totalGeral={totalGeral} />
         </div>
 
         {/* Ranking de Cartões */}

@@ -1,6 +1,9 @@
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { criarLogger } from '@/lib/logger'
 import { integrationAllowedUserIds } from './integration-access'
+
+const log = criarLogger('api-auth')
 
 type AuthResult =
   | { user: User; supabase: SupabaseClient; token: string; error?: never }
@@ -37,8 +40,7 @@ export async function requireApiUser(req: NextRequest): Promise<AuthResult> {
   return { user, supabase, token }
 }
 
-// As integrações abaixo usam credenciais e destinos compartilhados. A lista é configurada
-// no servidor e nunca é enviada ao navegador.
+// As integrações usam credenciais compartilhadas; valida permissão configurada
 export function requireIntegrationUser(userId: string): NextResponse | null {
   const allowed = integrationAllowedUserIds()
   if (allowed.length === 0) {
@@ -50,25 +52,79 @@ export function requireIntegrationUser(userId: string): NextResponse | null {
   return null
 }
 
+// ── Rate Limit ──────────────────────────────────────────────────────────
+// Camada principal: contador persistente no Supabase (função check_rate_limit,
+// migration 007), compartilhado entre todas as instâncias serverless.
+// Fallback: contador em memória (por instância) se o banco estiver indisponível.
+// Chave: "rota:identificador" → array de timestamps (ms) dentro da janela
+const rateLimitStore = new Map<string, number[]>()
+
+function tooManyRequests(windowSeconds: number) {
+  return NextResponse.json(
+    { error: 'Muitas solicitações. Aguarde e tente novamente.' },
+    { status: 429, headers: { 'Retry-After': String(windowSeconds) } }
+  )
+}
+
+function enforceRateLimitMemory(
+  key: string,
+  limit: number,
+  windowSeconds: number
+): NextResponse | null {
+  const now = Date.now()
+  const windowMs = windowSeconds * 1000
+
+  // Obtém timestamps e descarta os fora da janela deslizante
+  const timestamps = (rateLimitStore.get(key) ?? []).filter(t => now - t < windowMs)
+
+  if (timestamps.length >= limit) {
+    return tooManyRequests(windowSeconds)
+  }
+
+  timestamps.push(now)
+  rateLimitStore.set(key, timestamps)
+  return null
+}
+
+let rateLimitDbClient: SupabaseClient | null = null
+
+function getRateLimitDbClient(): SupabaseClient | null {
+  if (rateLimitDbClient) return rateLimitDbClient
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !serviceKey) return null
+  rateLimitDbClient = createClient(url, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+  return rateLimitDbClient
+}
+
 export async function enforceRateLimit(
-  supabase: SupabaseClient,
+  identifier: string,        // user_id ou IP
   route: string,
   limit: number,
   windowSeconds = 60
 ): Promise<NextResponse | null> {
-  const { data: permitted, error } = await supabase.rpc('check_api_rate_limit', {
-    p_route: route, p_limit: limit, p_window_seconds: windowSeconds,
-  })
-  if (error) {
-    console.error('Rate limit indisponível:', error)
-    return NextResponse.json({ error: 'Serviço temporariamente indisponível.' }, { status: 503 })
-  }
-  if (!permitted) {
-    return NextResponse.json(
-      { error: 'Muitas solicitações. Aguarde e tente novamente.' },
-      { status: 429, headers: { 'Retry-After': String(windowSeconds) } }
-    )
+  const key = `${route}:${identifier}`
+
+  const db = getRateLimitDbClient()
+  if (db) {
+    try {
+      const { data, error } = await db.rpc('check_rate_limit', {
+        p_key: key,
+        p_limit: limit,
+        p_window_seconds: windowSeconds,
+      })
+      if (!error && typeof data === 'boolean') {
+        return data ? null : tooManyRequests(windowSeconds)
+      }
+      log.warn('Rate limit no banco indisponível, usando memória', { motivo: error?.message })
+    } catch (e) {
+      log.warn('Falha ao consultar rate limit no banco, usando memória', {
+        motivo: e instanceof Error ? e.message : String(e),
+      })
+    }
   }
 
-  return null
+  return enforceRateLimitMemory(key, limit, windowSeconds)
 }

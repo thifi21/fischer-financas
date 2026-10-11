@@ -1,6 +1,7 @@
 'use client'
 import { useState, useMemo } from 'react'
 import { motion, type Variants } from 'framer-motion'
+import dynamic from 'next/dynamic'
 import { formatBRL } from '@/lib/utils'
 import { MESES } from '@/types'
 import { Card } from '@/components/ui/Card'
@@ -9,13 +10,6 @@ import {
   DollarSign, ArrowUpCircle, CheckCircle2, AlertTriangle,
   Activity, BarChart3,
 } from 'lucide-react'
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend,
-  ReferenceLine, Area, AreaChart,
-} from 'recharts'
-
-const COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899']
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -26,25 +20,26 @@ const itemVariants: Variants = {
   show:   { opacity: 1, y: 0, transition: { ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } },
 }
 
-// Tooltip customizado para gráficos
-function CustomTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null
-  return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60
-                    rounded-2xl shadow-2xl p-4 text-sm font-semibold min-w-[140px]">
-      {label && <div className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">{label}</div>}
-      {payload.map((entry: any, i: number) => (
-        <div key={i} className="flex items-center justify-between gap-4 py-0.5">
-          <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-            <span className="w-2 h-2 rounded-full" style={{ background: entry.color }} />
-            {entry.name}
-          </span>
-          <span className="font-black text-slate-900 dark:text-slate-100">{formatBRL(Number(entry.value))}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
+// Gráficos (recharts) carregados sob demanda: fora do bundle inicial do dashboard
+const GraficoSkeleton = () => (
+  <div className="h-[260px] w-full rounded-2xl bg-slate-100 dark:bg-slate-800/50 animate-pulse" aria-label="Carregando gráfico" />
+)
+const DistribuicaoPie = dynamic(
+  () => import('@/components/charts/DashboardCharts').then(m => m.DistribuicaoPie),
+  { ssr: false, loading: GraficoSkeleton }
+)
+const EntradasSaidasBar = dynamic(
+  () => import('@/components/charts/DashboardCharts').then(m => m.EntradasSaidasBar),
+  { ssr: false, loading: GraficoSkeleton }
+)
+const EvolucaoAnualBar = dynamic(
+  () => import('@/components/charts/DashboardCharts').then(m => m.EvolucaoAnualBar),
+  { ssr: false, loading: GraficoSkeleton }
+)
+const SaldoAcumuladoArea = dynamic(
+  () => import('@/components/charts/DashboardCharts').then(m => m.SaldoAcumuladoArea),
+  { ssr: false, loading: GraficoSkeleton }
+)
 
 // Mini-card de resumo
 function SummaryCard({ label, value, color, BgColor, Icon, trend }: {
@@ -186,20 +181,7 @@ export default function DashboardClientView({ mes, ano, resumo, pieData, dadosMe
                   <BarChart3 size={13} /> Distribuição — {MESES[mes - 1]}
                 </h2>
                 {pieData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={260}>
-                    <PieChart>
-                      <Pie
-                        data={pieData} dataKey="value" nameKey="name"
-                        cx="50%" cy="50%" innerRadius={62} outerRadius={92} paddingAngle={4}
-                        animationBegin={0} animationDuration={1400}
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        labelLine={false}
-                      >
-                        {pieData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                      </Pie>
-                      <Tooltip content={<CustomTooltip />} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <DistribuicaoPie pieData={pieData} />
                 ) : (
                   <div className="flex flex-col items-center justify-center py-16 text-slate-300 dark:text-slate-700">
                     <BarChart3 size={40} strokeWidth={1} />
@@ -215,17 +197,7 @@ export default function DashboardClientView({ mes, ano, resumo, pieData, dadosMe
                   <Activity size={13} /> Entradas vs Saídas — {ano}
                 </h2>
                 {dadosMensais.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={dadosMensais} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-slate-200 dark:text-slate-800" opacity={0.6} />
-                      <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} tickFormatter={(v: any) => `R$${(v / 1000).toFixed(0)}k`} />
-                      <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(99,102,241,0.04)', radius: 8 }} />
-                      <Legend iconType="circle" wrapperStyle={{ fontSize: 12, fontWeight: 600 }} />
-                      <Bar dataKey="entradas" name="Entradas" fill="#10b981" radius={[6, 6, 0, 0]} animationBegin={200} animationDuration={1400} />
-                      <Bar dataKey="saidas"   name="Saídas"   fill="#6366f1" radius={[6, 6, 0, 0]} animationBegin={400} animationDuration={1400} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <EntradasSaidasBar dadosMensais={dadosMensais} />
                 ) : (
                   <div className="flex flex-col items-center justify-center py-16 text-slate-300 dark:text-slate-700">
                     <BarChart3 size={40} strokeWidth={1} />
@@ -306,17 +278,7 @@ export default function DashboardClientView({ mes, ano, resumo, pieData, dadosMe
                 Evolução Patrimonial — {ano}
               </h2>
               {dadosMensais.length > 0 ? (
-                <ResponsiveContainer width="100%" height={380}>
-                  <BarChart data={dadosMensais} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-slate-200 dark:text-slate-800" vertical={false} opacity={0.6} />
-                    <XAxis dataKey="mes" tick={{ fontSize: 11, fontWeight: 700, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} tickFormatter={(v: any) => `R$${(v / 1000).toFixed(0)}k`} tickLine={false} axisLine={false} />
-                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(99,102,241,0.04)', radius: 8 }} />
-                    <Legend wrapperStyle={{ paddingTop: '24px', fontSize: 12, fontWeight: 600 }} />
-                    <Bar dataKey="entradas" name="Entradas" fill="#10b981" radius={[8, 8, 0, 0]} maxBarSize={28} />
-                    <Bar dataKey="saidas"   name="Saídas"   fill="#6366f1" radius={[8, 8, 0, 0]} maxBarSize={28} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <EvolucaoAnualBar dadosMensais={dadosMensais} />
               ) : (
                 <div className="flex flex-col items-center justify-center py-24 text-slate-300 dark:text-slate-700">
                   <BarChart3 size={48} strokeWidth={1} />
@@ -333,42 +295,7 @@ export default function DashboardClientView({ mes, ano, resumo, pieData, dadosMe
                 <h2 className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.25em] mb-8 text-center">
                   Evolução do Saldo Acumulado — {ano}
                 </h2>
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={saldoAcumuladoData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
-                    <defs>
-                      <linearGradient id="gradientAcumulado" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#10b981" stopOpacity={0.25} />
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}    />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-slate-200 dark:text-slate-800" vertical={false} opacity={0.6} />
-                    <XAxis dataKey="mes" tick={{ fontSize: 11, fontWeight: 700, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} tickFormatter={(v: any) => `R$${(v / 1000).toFixed(0)}k`} tickLine={false} axisLine={false} />
-                    <Tooltip
-                      content={<CustomTooltip />}
-                      cursor={{ stroke: '#6366f1', strokeWidth: 1, strokeDasharray: '4 4' }}
-                    />
-                    <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" strokeWidth={1.5} />
-                    <Legend wrapperStyle={{ paddingTop: '16px', fontSize: 12, fontWeight: 600 }}
-                      formatter={(v) => v === 'acumulado' ? 'Saldo Acumulado' : 'Saldo do Mês'} />
-                    <Area
-                      type="monotone" dataKey="acumulado"
-                      stroke="#10b981" strokeWidth={2.5}
-                      fill="url(#gradientAcumulado)"
-                      dot={(props: any) => {
-                        const { cx, cy, payload } = props
-                        return (
-                          <circle key={`dot-${payload.mes}`} cx={cx} cy={cy} r={4}
-                            fill={payload.acumulado >= 0 ? '#10b981' : '#ef4444'}
-                            stroke="white" strokeWidth={2}
-                          />
-                        )
-                      }}
-                      activeDot={{ r: 7, stroke: 'white', strokeWidth: 2 }}
-                      animationBegin={200} animationDuration={1600}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <SaldoAcumuladoArea data={saldoAcumuladoData} />
               </Card>
             </motion.div>
           )}

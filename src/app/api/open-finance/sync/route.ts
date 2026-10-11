@@ -4,7 +4,7 @@ import { enforceRateLimit, requireApiUser } from '@/lib/api-auth'
 export async function POST(req: NextRequest) {
   const auth = await requireApiUser(req)
   if (auth.error) return auth.error
-  const limited = await enforceRateLimit(auth.supabase, 'open-finance-sync', 5, 60)
+  const limited = await enforceRateLimit(auth.user.id, 'open-finance-sync', 5, 60)
   if (limited) return limited
 
   let body: { importacaoId?: unknown; mes?: unknown; ano?: unknown; itens?: unknown }

@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     if (auth.error) return auth.error
     const forbidden = requireIntegrationUser(auth.user.id)
     if (forbidden) return forbidden
-    const limited = await enforceRateLimit(auth.supabase, 'whatsapp', 5, 60)
+    const limited = await enforceRateLimit(auth.user.id, 'whatsapp', 5, 60)
     if (limited) return limited
 
     const { message, targetIndex } = await request.json()

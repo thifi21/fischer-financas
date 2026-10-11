@@ -15,7 +15,6 @@ export type LancamentoCartao = {
   id: string
   user_id: string
   cartao_id: string
-  compra_id: string | null
   mes: number
   ano: number
   data_compra: string | null
@@ -23,6 +22,7 @@ export type LancamentoCartao = {
   parcela: string | null
   valor: number
   conferido: boolean
+  compra_id?: string | null
   created_at: string
 }
 
@@ -80,7 +80,26 @@ export type Meta = {
   updated_at: string
 }
 
+export type Lembrete = {
+  id: string
+  user_id: string
+  tipo: 'vencimento' | 'meta' | 'geral' | string
+  titulo: string
+  mensagem: string | null
+  prioridade: 'alta' | 'media' | 'baixa' | string | null
+  data_lembrete: string
+  ativo: boolean
+  lido: boolean
+}
 
+export type PreferenciasUsuario = {
+  user_id: string
+  hora_envio_lembretes: number | null
+  notificar_cartoes: boolean | null
+  notificar_fixas: boolean | null
+  notificar_metas: boolean | null
+  telegram_chat_id?: string | null
+}
 
 export const MESES = [
   'Janeiro','Fevereiro','Março','Abril','Maio','Junho',

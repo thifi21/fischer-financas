@@ -83,6 +83,7 @@ export default function NotificacoesPage() {
       buscarNumerosWhatsApp()
     }
     init()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Carregar preferências do usuário
@@ -108,6 +109,7 @@ export default function NotificacoesPage() {
     // Aguarda userId ser definido
     const timer = setTimeout(carregarPrefs, 500)
     return () => clearTimeout(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function buscarNumerosWhatsApp() {
@@ -126,6 +128,7 @@ export default function NotificacoesPage() {
 
   useEffect(() => {
     if (userIdRef.current) carregarTudo()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mes, ano])
 
   async function carregarTudo() {
