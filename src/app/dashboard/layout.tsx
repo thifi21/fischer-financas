@@ -17,6 +17,7 @@ import { UserProvider } from '@/context/UserContext'
 import { useQueryClient } from '@tanstack/react-query'
 import AIChatBot from '@/components/AIChatBot'
 import GlobalSearch from '@/components/GlobalSearch'
+import MobileBottomNav from '@/components/MobileBottomNav'
 import {
   LayoutDashboard, CreditCard, Home, DollarSign, Fuel,
   Target, BarChart2, Bell, Landmark, Bot, TrendingUp,
@@ -104,6 +105,8 @@ function NavItem({ href, icon: Icon, label, active, mes, ano, collapsed, onNavig
       href={`${href}?mes=${mes}&ano=${ano}`}
       onClick={onNavigate}
       title={collapsed ? label : undefined}
+      aria-label={collapsed ? label : undefined}
+      aria-current={active ? 'page' : undefined}
       className={`nav-item relative ${active ? 'nav-item-active' : 'nav-item-inactive'}`}
     >
       {active && (
@@ -246,6 +249,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               onClick={() => setCollapsed(true)}
               className="text-blue-300/40 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
               title="Colapsar sidebar"
+              aria-label="Colapsar sidebar"
             >
               <PanelLeftClose size={16} />
             </button>
@@ -281,6 +285,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                   <div key={a}>
                     <button
                       onClick={() => setAnoExpandido(isExpandido ? 0 : a)}
+                      aria-expanded={isExpandido}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold
                                   transition-all duration-200 ${isAnoAtivo
                         ? 'bg-blue-600/20 text-white border border-white/10'
@@ -383,6 +388,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                 className="w-9 h-9 flex items-center justify-center rounded-xl text-blue-300/60
                            hover:text-white hover:bg-white/10 transition-all"
                 title="Expandir sidebar"
+                aria-label="Expandir sidebar"
               >
                 <PanelLeftOpen size={16} />
               </button>
@@ -391,6 +397,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                 className="w-9 h-9 flex items-center justify-center rounded-xl text-blue-300/60
                            hover:text-rose-400 hover:bg-rose-500/10 transition-all"
                 title="Sair"
+                aria-label="Sair da conta"
               >
                 <LogOut size={15} />
               </button>
@@ -460,6 +467,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               id="global-search-btn"
               onClick={() => setBuscaAberta(true)}
               title="Busca Global (Ctrl+K)"
+              aria-label="Abrir busca global"
               className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium
                          text-slate-500 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700/50
                          hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200
@@ -473,6 +481,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             <button
               onClick={toggleDark}
               title={dark ? 'Modo claro' : 'Modo escuro'}
+              aria-label={dark ? 'Ativar modo claro' : 'Ativar modo escuro'}
               className="w-9 h-9 flex items-center justify-center rounded-xl
                          bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700
                          text-slate-600 dark:text-slate-400 transition-all"
@@ -493,7 +502,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            className="flex-1 pb-8"
+            className="flex-1 pb-24 md:pb-8"
           >
             {children}
           </motion.main>
@@ -502,6 +511,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
       {/* Assistente IA Flutuante */}
       <AIChatBot />
+
+      {/* Barra inferior (somente mobile) */}
+      <MobileBottomNav mes={mes} ano={ano} />
 
       {/* Busca Global */}
       <GlobalSearch isOpen={buscaAberta} onClose={() => setBuscaAberta(false)} />

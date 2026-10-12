@@ -68,7 +68,17 @@ export default function DashboardPage() {
     const totalSaidas = resumo.cartoes + resumo.fixas + resumo.combustivel
     const saldo = resumo.entradas - totalSaidas
 
-    return { resumo, pieData, mesesData, totalSaidas, saldo }
+    // Mês anterior (apenas dentro do mesmo ano, pois o RPC é anual)
+    let anterior: { entradas: number; cartoes: number; fixas: number; totalSaidas: number } | null = null
+    if (mes > 1) {
+      const p = summary[mes - 1]
+      if (p) {
+        const c = Number(p.cartoes), f = Number(p.fixas), g = Number(p.combustivel)
+        anterior = { entradas: Number(p.entradas), cartoes: c, fixas: f, totalSaidas: c + f + g }
+      }
+    }
+
+    return { resumo, pieData, mesesData, totalSaidas, saldo, anterior }
   }, [summary, mes])
 
   if (isLoading || userLoading) return (
@@ -96,6 +106,7 @@ export default function DashboardPage() {
       dadosMensais={dashboardData.mesesData} 
       totalSaidas={dashboardData.totalSaidas} 
       saldo={dashboardData.saldo} 
+      anterior={dashboardData.anterior} 
     />
   )
 }

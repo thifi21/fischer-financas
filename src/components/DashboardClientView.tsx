@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import { formatBRL } from '@/lib/utils'
 import { MESES } from '@/types'
 import { Card } from '@/components/ui/Card'
+import ProximosVencimentos from '@/components/ProximosVencimentos'
 import {
   TrendingUp, TrendingDown, CreditCard, Home, ArrowDownCircle,
   DollarSign, ArrowUpCircle, CheckCircle2, AlertTriangle,
@@ -42,9 +43,14 @@ const SaldoAcumuladoArea = dynamic(
 )
 
 // Mini-card de resumo
-function SummaryCard({ label, value, color, BgColor, Icon, trend }: {
+function SummaryCard({ label, value, color, BgColor, Icon, trend, anterior, invert }: {
   label: string; value: number; color: string; BgColor: string; Icon: React.ElementType; trend?: 'up' | 'down' | null
+  anterior?: number | null; invert?: boolean
 }) {
+  // Variação % vs mês anterior (invert: aumento é ruim, ex.: saídas)
+  const delta = anterior != null && anterior > 0 ? ((value - anterior) / anterior) * 100 : null
+  const deltaUp = delta != null && delta > 0
+  const deltaGood = delta != null && (invert ? delta <= 0 : delta >= 0)
   return (
     <motion.div variants={itemVariants} whileHover={{ y: -4, scale: 1.015 }} transition={{ type: 'spring', stiffness: 300 }}>
       <Card className={`h-full border-b-4 ${color} overflow-hidden relative`}>
@@ -66,13 +72,22 @@ function SummaryCard({ label, value, color, BgColor, Icon, trend }: {
               vs. mês anterior
             </div>
           )}
+          {delta != null && Math.abs(delta) >= 0.5 && (
+            <div
+              className={`flex items-center gap-1 mt-1 text-xs font-bold ${deltaGood ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
+              title="Variação em relação ao mês anterior"
+            >
+              {deltaUp ? <TrendingUp size={12} aria-hidden /> : <TrendingDown size={12} aria-hidden />}
+              <span>{deltaUp ? '+' : '−'}{Math.abs(delta).toFixed(0)}% vs. mês anterior</span>
+            </div>
+          )}
         </div>
       </Card>
     </motion.div>
   )
 }
 
-export default function DashboardClientView({ mes, ano, resumo, pieData, dadosMensais, totalSaidas, saldo }: any) {
+export default function DashboardClientView({ mes, ano, resumo, pieData, dadosMensais, totalSaidas, saldo, anterior }: any) {
   const [visao, setVisao] = useState<'mensal' | 'anual'>('mensal')
 
   const totalAnoEntradas = dadosMensais.reduce((acc: number, d: any) => acc + d.entradas, 0)
@@ -105,6 +120,7 @@ export default function DashboardClientView({ mes, ano, resumo, pieData, dadosMe
             <button
               key={key}
               onClick={() => setVisao(key as 'mensal' | 'anual')}
+              aria-pressed={visao === key}
               className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
                 visao === key
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
@@ -120,12 +136,17 @@ export default function DashboardClientView({ mes, ano, resumo, pieData, dadosMe
       {visao === 'mensal' ? (
         <motion.div variants={containerVariants} initial="hidden" animate="show">
 
+          {/* Próximos vencimentos (widget) */}
+          <motion.div variants={itemVariants}>
+            <ProximosVencimentos />
+          </motion.div>
+
           {/* Cards de resumo */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-7">
-            <SummaryCard label="Entradas"     value={resumo.entradas} color="border-b-emerald-500/60" BgColor="bg-emerald-100 dark:bg-emerald-500/10" Icon={DollarSign}      />
-            <SummaryCard label="Cartões"      value={resumo.cartoes}  color="border-b-indigo-500/60"  BgColor="bg-indigo-100 dark:bg-indigo-500/10"  Icon={CreditCard}      />
-            <SummaryCard label="Contas Fixas" value={resumo.fixas}    color="border-b-amber-500/60"   BgColor="bg-amber-100 dark:bg-amber-500/10"    Icon={Home}            />
-            <SummaryCard label="Total Saídas" value={totalSaidas}     color="border-b-rose-500/60"    BgColor="bg-rose-100 dark:bg-rose-500/10"      Icon={ArrowDownCircle} />
+            <SummaryCard label="Entradas"     value={resumo.entradas} color="border-b-emerald-500/60" BgColor="bg-emerald-100 dark:bg-emerald-500/10" Icon={DollarSign}      anterior={anterior?.entradas} />
+            <SummaryCard label="Cartões"      value={resumo.cartoes}  color="border-b-indigo-500/60"  BgColor="bg-indigo-100 dark:bg-indigo-500/10"  Icon={CreditCard}      anterior={anterior?.cartoes} invert />
+            <SummaryCard label="Contas Fixas" value={resumo.fixas}    color="border-b-amber-500/60"   BgColor="bg-amber-100 dark:bg-amber-500/10"    Icon={Home}            anterior={anterior?.fixas} invert />
+            <SummaryCard label="Total Saídas" value={totalSaidas}     color="border-b-rose-500/60"    BgColor="bg-rose-100 dark:bg-rose-500/10"      Icon={ArrowDownCircle} anterior={anterior?.totalSaidas} invert />
           </div>
 
           {/* Card de saldo mensal */}
