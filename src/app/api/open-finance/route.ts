@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { parseOFX, parseCSV, detectarBanco } from '@/lib/ofx-parser'
+import { parseOFX, parseCSV, parsePDFText, detectarBanco } from '@/lib/ofx-parser'
 import { enforceRateLimit, requireApiUser } from '@/lib/api-auth'
 
 export async function POST(req: NextRequest) {
@@ -19,12 +19,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Arquivo muito grande. Máximo 5MB.' }, { status: 413 })
     }
 
-    const content = await file.text()
     const nomeArquivo = file.name
-    const isOFX = nomeArquivo.toLowerCase().endsWith('.ofx') || content.includes('<OFX>')
+    const isPDF = nomeArquivo.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf'
+    let content: string
+    if (isPDF) {
+      try {
+        const { extractText, getDocumentProxy } = await import('unpdf')
+        const pdf = await getDocumentProxy(new Uint8Array(await file.arrayBuffer()))
+        const { text } = await extractText(pdf, { mergePages: true })
+        content = (Array.isArray(text) ? text.join('\n') : text).replace(/\u0000/g, '')
+      } catch {
+        return NextResponse.json({ error: 'Não foi possível ler o PDF. Ele pode estar protegido por senha ou ser uma imagem escaneada.' }, { status: 422 })
+      }
+    } else {
+      content = (await file.text()).replace(/\u0000/g, '')
+    }
+    const isOFX = !isPDF && (nomeArquivo.toLowerCase().endsWith('.ofx') || content.includes('<OFX>'))
     const banco = detectarBanco(content, nomeArquivo)
 
-    const lancamentos = isOFX ? parseOFX(content) : parseCSV(content)
+    const lancamentos = isPDF ? parsePDFText(content) : isOFX ? parseOFX(content) : parseCSV(content)
 
     if (lancamentos.length === 0) {
       return NextResponse.json({ error: 'Nenhum lançamento encontrado no arquivo.' }, { status: 422 })

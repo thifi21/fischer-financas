@@ -160,6 +160,39 @@ export function parseCSV(content: string): LancamentoOFX[] {
   return lancamentos
 }
 
+// ── Parser PDF (texto já extraído) ────────────────────────────
+export function parsePDFText(texto: string): LancamentoOFX[] {
+  const linhas = texto.split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean)
+  const anoAtual = new Date().getFullYear()
+  const lancamentos: LancamentoOFX[] = []
+  // data (DD/MM[/AAAA]) no início, valor monetário brasileiro (com sinal, R$, C/D) no fim
+  const re = /^(\d{2})\/(\d{2})(?:\/(\d{2,4}))?\s+(.+?)\s+(-?\s?(?:R\$\s?)?-?\d{1,3}(?:\.\d{3})*,\d{2})\s*([CD])?(?:\s+-?\d{1,3}(?:\.\d{3})*,\d{2}\s*[CD]?)?$/i
+
+  linhas.forEach((linha, i) => {
+    const m = linha.match(re)
+    if (!m) return
+    const [, dd, mm, aa, descRaw, valRaw, cd] = m
+    const ano = !aa ? anoAtual : aa.length === 2 ? 2000 + Number(aa) : Number(aa)
+    const numero = parseFloat(valRaw.replace(/[R$\s.]/g, '').replace(',', '.'))
+    const valor = Math.abs(numero)
+    if (!valor || Number(mm) > 12 || Number(dd) > 31) return
+    const descricao = descRaw.trim()
+    if (/saldo/i.test(descricao)) return
+    const tipo: 'debito' | 'credito' = cd
+      ? (cd.toUpperCase() === 'C' ? 'credito' : 'debito')
+      : (numero > 0 && !/^-/.test(valRaw.trim()) && /receb|cr[eé]dit|dep[oó]sito|sal[aá]rio|estorno/i.test(descricao) ? 'credito' : numero < 0 ? 'debito' : 'debito')
+    lancamentos.push({
+      id: `pdf_${i}_${Date.now()}`,
+      data: `${ano}-${mm}-${dd}`,
+      descricao,
+      valor,
+      tipo,
+      categoria: categorizarDescricao(descricao),
+    })
+  })
+  return lancamentos
+}
+
 export function detectarBanco(content: string, nomeArquivo: string): string {
   const c = (content + nomeArquivo).toLowerCase()
   if (c.includes('bradesco'))   return 'Bradesco'

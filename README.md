@@ -19,7 +19,7 @@
 | 🎯 **Sonhos & Objetivos** | Gestão de metas de longo prazo com priorização e progresso visual. |
 | 📱 **Ecosystem (PWA & Mobile)** | Aplicativo nativo (Expo) e **PWA Offline-First** de alta performance. |
 | 🆕 **IA Financeira** | Chat inteligente via **Google Gemini AI** com rate limiting e proteção de custo. |
-| 🆕 **Open Finance** | Importação inteligente de arquivos **OFX** e **CSV**. |
+| 🆕 **Open Finance** | Importação inteligente de arquivos **OFX**, **CSV** e **PDF** (texto extraído via `unpdf`; PDFs escaneados não são suportados). |
 | 🆕 **Modo Família** | Orçamento compartilhado com gestão de membros e convites. |
 | 🆕 **Investimentos** | Simulador avançado de juros compostos e independência financeira. |
 
@@ -82,7 +82,7 @@ fischer-financas/
 │   │   │   ├── drive/             ← Upload para Google Drive
 │   │   │   ├── familia/           ← Gestão de membros da família
 │   │   │   ├── ia/                ← Análise financeira via Gemini
-│   │   │   ├── open-finance/      ← Importação OFX/CSV
+│   │   │   ├── open-finance/      ← Importação OFX/CSV/PDF
 │   │   │   ├── telegram/          ← Webhook de notificações
 │   │   │   └── whatsapp/          ← Notificações WhatsApp
 │   │   └── dashboard/
@@ -108,7 +108,7 @@ fischer-financas/
 │   │   ├── api-auth.ts            ← [NOVO] Rate limiting + autenticação de rotas API
 │   │   ├── auth-fetch.ts          ← [NOVO] fetch autenticado do lado do cliente
 │   │   ├── ai-analise.ts          ← Engine Gemini + heurística financeira
-│   │   ├── ofx-parser.ts          ← Parser OFX/CSV
+│   │   ├── ofx-parser.ts          ← Parser OFX/CSV/PDF
 │   │   ├── utils.ts               ← formatBRL com Intl singleton
 │   │   ├── telegram.ts            ← Integração de alertas
 │   │   └── notifications.ts       ← Engine de notificações

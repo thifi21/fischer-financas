@@ -233,11 +233,11 @@ export default function OpenFinancePage() {
                 <Card 
                   className={`p-16 border-dashed border-2 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${dragging ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10 scale-[1.01]' : 'bg-gray-50 dark:bg-slate-900 shadow-inner'}`}
                 >
-                  <input ref={fileInputRef} type="file" className="hidden" accept=".ofx,.csv" onChange={(e) => { const f = e.target.files?.[0]; if(f) processarArquivo(f) }} />
+                  <input ref={fileInputRef} type="file" className="hidden" accept=".ofx,.csv,.pdf,application/pdf" onChange={(e) => { const f = e.target.files?.[0]; if(f) processarArquivo(f) }} />
                   <div className="text-6xl mb-6">📂</div>
                   <h3 className="text-xl font-bold dark:text-gray-100 mb-2">Selecione seu Extrato</h3>
                   <p className="text-sm text-gray-500 max-w-sm mb-6">
-                    Arraste aqui ou clique para buscar arquivos **.OFX** ou **.CSV**. Detectamos automaticamente Bradesco, Itaú, Nubank, Santander e outros.
+                    Arraste aqui ou clique para buscar arquivos .OFX, .CSV ou .PDF. Detectamos automaticamente Bradesco, Itaú, Nubank, Santander e outros.
                   </p>
                   <Button className="bg-blue-600 text-white font-bold px-8 py-3 rounded-xl shadow-lg shadow-blue-500/20">
                     {uploading ? 'Processando...' : 'Carregar Extrato'}
