@@ -5,7 +5,6 @@ import dynamic from 'next/dynamic'
 import { formatBRL } from '@/lib/utils'
 import { MESES } from '@/types'
 import { Card } from '@/components/ui/Card'
-import ProximosVencimentos from '@/components/ProximosVencimentos'
 import {
   TrendingUp, TrendingDown, CreditCard, Home, ArrowDownCircle,
   DollarSign, ArrowUpCircle, CheckCircle2, AlertTriangle,
@@ -135,11 +134,6 @@ export default function DashboardClientView({ mes, ano, resumo, pieData, dadosMe
 
       {visao === 'mensal' ? (
         <motion.div variants={containerVariants} initial="hidden" animate="show">
-
-          {/* Próximos vencimentos (widget) */}
-          <motion.div variants={itemVariants}>
-            <ProximosVencimentos />
-          </motion.div>
 
           {/* Cards de resumo */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-7">

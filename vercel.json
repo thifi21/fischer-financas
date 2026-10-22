@@ -9,6 +9,10 @@
       "schedule": "0 12 * * *"
     },
     {
+      "path": "/api/cron/vencimentos-email",
+      "schedule": "0 14 * * *"
+    },
+    {
       "path": "/api/cron/orcamento",
       "schedule": "0 15 * * *"
     }
