@@ -76,7 +76,7 @@ export default function SonhosPage() {
 
     const queries = meses6.map(({ mes: mm, ano: aa }) =>
       Promise.all([
-        supabase.from('entradas').select('valor').eq('user_id', uid).eq('mes', mm).eq('ano', aa),
+        supabase.from('entradas').select('valor').eq('user_id', uid).eq('mes', mm).eq('ano', aa).not('categoria', 'in', '(saldo_inicial,extrato_entrada,extrato_saida)'),
         supabase.from('cartoes').select('valor').eq('user_id', uid).eq('mes', mm).eq('ano', aa),
         supabase.from('contas_fixas').select('valor').eq('user_id', uid).eq('mes', mm).eq('ano', aa),
         supabase.from('combustivel').select('valor').eq('user_id', uid).eq('mes', mm).eq('ano', aa),

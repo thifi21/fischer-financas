@@ -140,7 +140,7 @@ export default function ContasFixasPage() {
     const [{ data: contasData }, { data: cartoesData }, { data: entradasData }, { data: lancamentosData, error: erroLancamentos }] = await Promise.all([
       supabase.from('contas_fixas').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).order('categoria'),
       supabase.from('cartoes').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano),
-      supabase.from('entradas').select('valor').eq('user_id', uid).eq('mes', mes).eq('ano', ano),
+      supabase.from('entradas').select('valor').eq('user_id', uid).eq('mes', mes).eq('ano', ano).not('categoria', 'in', '(saldo_inicial,extrato_entrada,extrato_saida)'),
       supabase.from('lancamentos_cartao').select('cartao_id, valor').eq('user_id', uid).eq('mes', mes).eq('ano', ano),
     ])
 
@@ -641,11 +641,11 @@ export default function ContasFixasPage() {
                 {/* Saídas */}
                 <div className="flex justify-between">
                   <span className="text-gray-400">💳 Total Cartões</span>
-                  <span className="font-semibold">{formatBRL(totalCartoes)}</span>
+                  <span className="font-semibold text-gray-100">{formatBRL(totalCartoes)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">🏠 Total Contas Fixas</span>
-                  <span className="font-semibold">{formatBRL(totalFixas)}</span>
+                  <span className="font-semibold text-gray-100">{formatBRL(totalFixas)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-300 font-semibold">Total Saídas</span>
