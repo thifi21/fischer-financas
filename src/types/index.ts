@@ -5,6 +5,7 @@ export type Cartao = {
   ano: number
   nome: string
   vencimento: string | null
+  melhor_data_compra?: string | null
   valor: number
   pago: boolean
   created_at: string

@@ -164,6 +164,18 @@ export default function CartoesPage() {
     setLoading(false)
   }
 
+  async function salvarMelhorData(cartao: Cartao, valor: string) {
+    const novo = valor.trim() || null
+    if ((cartao.melhor_data_compra ?? null) === novo) return
+    const { error } = await supabase.from('cartoes').update({ melhor_data_compra: novo }).eq('id', cartao.id)
+    if (error) {
+      toast.error('Erro ao salvar melhor data de compra: ' + (error.message || ''))
+      return
+    }
+    setCartoes(prev => prev.map(c => c.id === cartao.id ? { ...c, melhor_data_compra: novo } : c))
+    toast.success('Melhor data de compra salva!')
+  }
+
   function toggleExpandido(cartaoId: string) {
     setExpandidos(prev => {
       const next = new Set(prev)
@@ -635,6 +647,19 @@ export default function CartoesPage() {
                             Venc: {formatVencimento(cartao.vencimento)}
                           </span>
                         )}
+                        <label className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1">
+                          Melhor data de compra:
+                          <input
+                            key={`${cartao.id}-${cartao.melhor_data_compra ?? ''}`}
+                            type="text"
+                            defaultValue={cartao.melhor_data_compra ?? ''}
+                            placeholder="dd/mm"
+                            maxLength={20}
+                            onBlur={e => salvarMelhorData(cartao, e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                            className="w-20 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 bg-transparent text-gray-700 dark:text-gray-200 text-xs focus:outline-none focus:border-blue-400"
+                          />
+                        </label>
                         <span className="text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-500 dark:text-blue-400 px-1.5 py-0.5 rounded">
                           {lancs.length} lançamento{lancs.length !== 1 ? 's' : ''}
                         </span>
