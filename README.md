@@ -3,9 +3,9 @@
 > Sistema de controle financeiro familiar completo desenvolvido para a **Família Fischer**.
 
 **Desenvolvido por:** Thiago Fischer  
-**Versão:** 3.6.1 — Segurança de APIs, Limpeza de Código 🧹  
+**Versão:** 3.7.0 — Visão Geral Bento & Open Finance Inteligente (Pluggy + Conciliação) 🚀  
 **Ano:** 2026  
-**Stack:** Next.js 15 · TypeScript · Supabase · Tailwind CSS · Gemini AI · Telegram API
+**Stack:** Next.js 15 · TypeScript · Supabase · Tailwind CSS · Gemini AI · Pluggy Open Finance · Telegram API
 
 ---
 
@@ -13,13 +13,14 @@
 
 | Módulo | Descrição |
 |---|---|
-| 📊 **Dashboard 2.0** | Gráficos dinâmicos com **Sankey Flow** para visualização do fluxo de caixa. |
+| 🏠 **Visão Geral (Bento UI)** | Painel prático estilo Bento com Saldo Previsto, checklist de Contas a Pagar por dia de vencimento, carrossel de Cartões + próximas 3 faturas, indicador de Moradia (meta 30%) e Análise Completa integrada. |
+| 📊 **Dashboard 2.0 & Sankey** | Gráficos dinâmicos com **Sankey Flow** para visualização detalhada do fluxo de caixa. |
+| 🏦 **Open Finance & Pluggy** | Conexão direta via **Meu Pluggy** + importação de extratos/faturas (**OFX**, **CSV** e **PDF** com fallback Gemini AI), conciliação automática da Caixa (`quitar_conta` / `quitar_cartao`), propagação de parcelas e proteção anti-duplicidade nos cartões. |
 | 💰 **Extrato & Conciliação** | Controle total de lançamentos com status de conferência (OK/Pendente). |
 | 🤖 **Telegram Bot** | Notificações automáticas em tempo real para pagamentos e vencimentos. |
 | 🎯 **Sonhos & Objetivos** | Gestão de metas de longo prazo com priorização e progresso visual. |
 | 📱 **Ecosystem (PWA & Mobile)** | Aplicativo nativo (Expo) e **PWA Offline-First** de alta performance. |
 | 🆕 **IA Financeira** | Chat inteligente via **Google Gemini AI** com rate limiting e proteção de custo. |
-| 🆕 **Open Finance** | Importação inteligente de arquivos **OFX**, **CSV** e **PDF** (texto extraído via `unpdf`; PDFs escaneados não são suportados). |
 | 🆕 **Modo Família** | Orçamento compartilhado com gestão de membros e convites. |
 | 🆕 **Investimentos** | Simulador avançado de juros compostos e independência financeira. |
 
@@ -68,7 +69,7 @@ Configure as variáveis para receber notificações automáticas:
 
 ---
 
-## 📁 Estrutura do Projeto (v3.6.1)
+## 📁 Estrutura do Projeto (v3.7.0)
 
 ```
 fischer-financas/
@@ -82,11 +83,14 @@ fischer-financas/
 │   │   │   ├── drive/             ← Upload para Google Drive
 │   │   │   ├── familia/           ← Gestão de membros da família
 │   │   │   ├── ia/                ← Análise financeira via Gemini
-│   │   │   ├── open-finance/      ← Importação OFX/CSV/PDF
+│   │   │   ├── open-finance/      ← Importação OFX/CSV/PDF, Conciliação (/sync) e Meu Pluggy (/pluggy)
 │   │   │   ├── telegram/          ← Webhook de notificações
 │   │   │   └── whatsapp/          ← Notificações WhatsApp
 │   │   └── dashboard/
 │   │       ├── layout.tsx         ← Atalhos de teclado + UserProvider + Clock isolado
+│   │       ├── page.tsx           ← Visão Geral (Bento Dashboard + Análise Completa)
+│   │       ├── visao-geral/       ← Módulo da Visão Geral prática
+│   │       ├── open-finance/      ← Conciliação Caixa, Faturas de Cartão e Pluggy Connect
 │   │       ├── cartoes/           ← Race condition guard + exclusão precisa de parcelas
 │   │       ├── contas-fixas/      ← Race condition guard + useMemo supabase
 │   │       ├── entradas/          ← useMemo supabase
@@ -96,19 +100,21 @@ fischer-financas/
 │   │       ├── sonhos/            ← Metas de longo prazo
 │   │       └── ia-analise/        ← IA Gemini
 │   ├── components/
+│   │   ├── visao/                 ← VisaoGeralView + Money (privacidade de valores)
+│   │   ├── DashboardAnalise.tsx   ← Wrapper client-side da análise detalhada
 │   │   ├── AIChatBot.tsx          ← Speech cleanup + split otimizado
 │   │   ├── CotacoesPanel.tsx      ← Cotações client-side (USD, EUR, PETR4, CDI)
 │   │   ├── SankeyFlow.tsx         ← Fluxo de caixa visual
 │   │   ├── DrivePanel.tsx         ← Painel Google Drive
-│   │   └── DashboardClientView    ← Core do dashboard
+│   │   └── DashboardClientView    ← Core analítico do dashboard
 │   ├── context/
 │   │   ├── MesContext.tsx         ← Fonte única de verdade para mês/ano
 │   │   └── UserContext.tsx        ← userId centralizado para todo o dashboard
 │   ├── lib/
-│   │   ├── api-auth.ts            ← [NOVO] Rate limiting + autenticação de rotas API
-│   │   ├── auth-fetch.ts          ← [NOVO] fetch autenticado do lado do cliente
-│   │   ├── ai-analise.ts          ← Engine Gemini + heurística financeira
-│   │   ├── ofx-parser.ts          ← Parser OFX/CSV/PDF
+│   │   ├── api-auth.ts            ← Rate limiting + autenticação de rotas API
+│   │   ├── auth-fetch.ts          ← fetch autenticado do lado do cliente
+│   │   ├── ai-analise.ts          ← Engine Gemini + extração inteligente de PDFs bancários
+│   │   ├── ofx-parser.ts          ← Parser OFX/CSV/PDF + detecção de parcelas e cartões
 │   │   ├── utils.ts               ← formatBRL com Intl singleton
 │   │   ├── telegram.ts            ← Integração de alertas
 │   │   └── notifications.ts       ← Engine de notificações

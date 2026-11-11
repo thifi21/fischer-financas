@@ -28,7 +28,7 @@ import {
 
 // ── Mapeamento de ícones ─────────────────────────────────────────
 const NAV_ITEMS = [
-  { href: '/dashboard',                   icon: LayoutDashboard, label: 'Dashboard',           grupo: 'principal' },
+  { href: '/dashboard',                   icon: LayoutDashboard, label: 'Visão Geral',          grupo: 'principal' },
   { href: '/dashboard/cartoes',           icon: CreditCard,      label: 'Cartões de Crédito',  grupo: 'principal' },
   { href: '/dashboard/contas-fixas',      icon: Home,            label: 'Contas Fixas',         grupo: 'principal' },
   { href: '/dashboard/entradas',          icon: DollarSign,      label: 'Entradas / Salários',  grupo: 'principal' },

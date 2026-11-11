@@ -8,6 +8,22 @@ export interface LancamentoOFX {
   valor: number
   tipo: 'debito' | 'credito'
   categoria: string
+  parcela?: string | null // ex: "02/10" quando extraído de fatura de cartão
+}
+
+// Extrai parcela no formato "01/12" a partir de uma descrição (ex: "MERCADO LIVRE 2/10", "LOJA PARC 03/06")
+export function extrairParcelaDaDescricao(raw: string): { descricaoLimpa: string; parcela: string | null } {
+  const m = raw.match(/(?:\bparc(?:ela)?\.?\s*|\b)(\d{1,2})\s*(?:\/|de)\s*(\d{1,2})\b/i)
+  if (!m) return { descricaoLimpa: raw.trim(), parcela: null }
+  const atual = Number(m[1])
+  const total = Number(m[2])
+  // Evita confundir datas curtas como 10/11 se total > 36 ou atual > total ou total < 2
+  if (isNaN(atual) || isNaN(total) || atual < 1 || total < 2 || atual > total || total > 36) {
+    return { descricaoLimpa: raw.trim(), parcela: null }
+  }
+  const parcela = `${String(atual).padStart(2, '0')}/${String(total).padStart(2, '0')}`
+  const limpa = raw.replace(m[0], '').replace(/\s{2,}/g, ' ').replace(/[-–—]\s*$/, '').trim()
+  return { descricaoLimpa: limpa || raw.trim(), parcela }
 }
 
 // Mapa de palavras-chave para categorização automática (PT-BR)
@@ -68,13 +84,16 @@ export function parseOFX(content: string): LancamentoOFX[] {
 
     if (valor === 0) continue
 
+    const { descricaoLimpa, parcela } = extrairParcelaDaDescricao(memo)
+
     lancamentos.push({
       id: fitid,
       data: parseDate(dtposted),
-      descricao: memo,
+      descricao: descricaoLimpa,
       valor,
       tipo,
-      categoria: categorizarDescricao(memo),
+      categoria: categorizarDescricao(descricaoLimpa),
+      parcela,
     })
   }
 
@@ -147,13 +166,16 @@ export function parseCSV(content: string): LancamentoOFX[] {
       tipo = valorOriginal > 0 ? 'credito' : 'debito'
     }
 
+    const { descricaoLimpa, parcela } = extrairParcelaDaDescricao(descricao)
+
     lancamentos.push({
       id: `csv_${i}_${Date.now()}`,
       data: dataISO,
-      descricao,
+      descricao: descricaoLimpa,
       valor,
       tipo,
-      categoria: categorizarDescricao(descricao),
+      categoria: categorizarDescricao(descricaoLimpa),
+      parcela,
     })
   }
 
@@ -176,33 +198,43 @@ export function parsePDFText(texto: string): LancamentoOFX[] {
     const numero = parseFloat(valRaw.replace(/[R$\s.]/g, '').replace(',', '.'))
     const valor = Math.abs(numero)
     if (!valor || Number(mm) > 12 || Number(dd) > 31) return
-    const descricao = descRaw.trim()
-    if (/saldo/i.test(descricao)) return
+    const descricaoBruta = descRaw.trim()
+    if (/saldo|total da fatura|pagamento minimo|limite/i.test(descricaoBruta)) return
+    const { descricaoLimpa, parcela } = extrairParcelaDaDescricao(descricaoBruta)
     const tipo: 'debito' | 'credito' = cd
       ? (cd.toUpperCase() === 'C' ? 'credito' : 'debito')
-      : (numero > 0 && !/^-/.test(valRaw.trim()) && /receb|cr[eé]dit|dep[oó]sito|sal[aá]rio|estorno/i.test(descricao) ? 'credito' : numero < 0 ? 'debito' : 'debito')
+      : (numero > 0 && !/^-/.test(valRaw.trim()) && /receb|cr[eé]dit|dep[oó]sito|sal[aá]rio|estorno/i.test(descricaoBruta) ? 'credito' : numero < 0 ? 'debito' : 'debito')
     lancamentos.push({
       id: `pdf_${i}_${Date.now()}`,
       data: `${ano}-${mm}-${dd}`,
-      descricao,
+      descricao: descricaoLimpa,
       valor,
       tipo,
-      categoria: categorizarDescricao(descricao),
+      categoria: categorizarDescricao(descricaoLimpa),
+      parcela,
     })
   })
   return lancamentos
 }
 
 export function detectarBanco(content: string, nomeArquivo: string): string {
-  const c = (content + nomeArquivo).toLowerCase()
-  if (c.includes('bradesco'))   return 'Bradesco'
-  if (c.includes('itau'))       return 'Itaú'
-  if (c.includes('santander'))  return 'Santander'
-  if (c.includes('nubank') || c.includes('nu bank')) return 'Nubank'
-  if (c.includes('inter'))      return 'Banco Inter'
-  if (c.includes('caixa'))      return 'Caixa Econômica'
+  const c = (content + ' ' + nomeArquivo).toLowerCase()
+  if (c.includes('hipercard'))     return 'Hipercard'
+  if (c.includes('tricard'))       return 'Tricard'
+  if (c.includes('dmcard') || c.includes('dm card') || c.includes('koch')) return 'DM Card Koch'
+  if (c.includes('havan'))         return 'Havan'
+  if (c.includes('pernambucanas')) return 'Pernambucanas'
+  if (c.includes('mercado pago') || c.includes('mercadopago')) return 'Mercado Pago'
+  if (c.includes('amazon'))        return 'Amazon Prime'
+  if (c.includes('bradesco'))      return 'Bradesco'
+  if (c.includes('itau') || c.includes('itaú')) return 'Itaú'
+  if (c.includes('santander'))     return 'Santander'
+  if (c.includes('nubank') || c.includes('nu pagamentos')) return 'Nubank'
+  if (c.includes('nu bank'))       return 'Nu Bank'
+  if (c.includes('inter'))         return 'Banco Inter'
+  if (c.includes('caixa'))         return 'Caixa Econômica'
   if (c.includes('bb') || c.includes('banco do brasil')) return 'Banco do Brasil'
-  if (c.includes('sicoob'))     return 'Sicoob'
-  if (c.includes('c6'))         return 'C6 Bank'
+  if (c.includes('sicoob'))        return 'Sicoob'
+  if (c.includes('c6'))            return 'C6 Bank'
   return 'Banco não identificado'
 }

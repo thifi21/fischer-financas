@@ -86,7 +86,7 @@ function SummaryCard({ label, value, color, BgColor, Icon, trend, anterior, inve
   )
 }
 
-export default function DashboardClientView({ mes, ano, resumo, pieData, dadosMensais, totalSaidas, saldo, anterior }: any) {
+export default function DashboardClientView({ mes, ano, resumo, pieData, dadosMensais, totalSaidas, saldo, anterior, embedded = false }: any) {
   const [visao, setVisao] = useState<'mensal' | 'anual'>('mensal')
 
   const totalAnoEntradas = dadosMensais.reduce((acc: number, d: any) => acc + d.entradas, 0)
@@ -107,10 +107,19 @@ export default function DashboardClientView({ mes, ano, resumo, pieData, dadosMe
       {/* Header + Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-7 gap-4">
         <div>
+          {embedded ? (
+            <>
+              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 tracking-tight">Análise detalhada</h2>
+              <p className="text-slate-400 dark:text-slate-500 text-sm mt-0.5">Comparativos, distribuição e evolução no ano</p>
+            </>
+          ) : (
+            <>
           <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2.5">
             <span className="gradient-text">Dashboard</span>
           </h1>
           <p className="text-slate-400 dark:text-slate-500 text-sm mt-0.5">Resumo financeiro da família Fischer</p>
+            </>
+          )}
         </div>
 
         {/* Segmented control */}

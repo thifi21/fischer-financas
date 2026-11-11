@@ -1,7 +1,7 @@
 # 📚 Documentação Completa — Fischer Finanças
-## Versão 3.6.1 — Propagação Automática de Parcelas & Correções ✅
+## Versão 3.7.0 — Visão Geral Bento & Open Finance Inteligente (Pluggy + Conciliação) ✅
 
-> Desenvolvido por Thiago Fischer | Versão 3.6.1 | 11/05/2026
+> Desenvolvido por Thiago Fischer | Versão 3.7.0 | 11/11/2026
 
 ---
 
@@ -135,13 +135,24 @@ Configurados em `next.config.js` para todas as rotas:
 
 ## Módulos Implementados
 
-### Dashboard Principal
-**Novo Recurso: Sankey Flow**
-Localizado no Dashboard, o gráfico de Sankey (`src/components/SankeyFlow.tsx`) oferece uma visualização animada de como a receita é distribuída entre:
-- Cartões de Crédito
-- Contas Fixas
-- Combustível
-- Reserva/Sobra
+### Dashboard Principal — Visão Geral (Bento UI) *(v3.7.0 — novo)*
+**Rotas:** `/dashboard` e `/dashboard/visao-geral` (`src/components/visao/VisaoGeralView.tsx`)
+- **Saldo Previsto & Barra Empilhada**: Mostra entradas recebidas vs. previstas, contas pagas, a pagar, faturas de cartões e reserva livre com modo privacidade (`Money.tsx`).
+- **Contas a Pagar com Checklist Rápido**: Filtro instantâneo (A pagar / Pagas / Todas), chip colorido do dia de vencimento e botão de 1 clique para marcar/desmarcar conta paga direto da tela inicial.
+- **Carrossel de Cartões & Próximas 3 Faturas**: Exibe os cartões do mês com indicador de pago/em aberto e projeção automática das próximas 3 faturas mensais.
+- **Indicador de Moradia (Regra dos 30%)**: Compara o comprometimento com moradia frente à receita mensal.
+- **Análise Completa Integrada**: Abaixo do painel Bento, carrega `DashboardAnalise.tsx` / `DashboardClientView.tsx` (modo `embedded`) com gráficos Recharts, comparativo de 12 meses e **Sankey Flow** (`src/components/SankeyFlow.tsx`).
+
+### Open Finance, Conciliação Automática e Meu Pluggy *(v3.7.0 — novo)*
+**Rota:** `/dashboard/open-finance`
+- **Conexão Direta via Meu Pluggy (`/api/open-finance/pluggy`)**:
+  - Permite vincular gratuitamente a conta da Caixa Econômica e cartões de crédito (Nubank, Mercado Pago, Itaú/Hipercard, Caixa Mastercard) via widget oficial **Pluggy Connect** (`🔗 Vincular MeuPluggy (1 clique)`).
+  - Puxa transações do mês/ano selecionado diretamente para a mesa de revisão.
+- **Conciliação Automática de Extrato Bancário (`/api/open-finance/sync`)**:
+  - Ao importar o extrato da Caixa (via Pluggy, OFX, CSV ou PDF), o sistema cruza os débitos com as `contas_fixas` e `cartoes` do mês (por similaridade de nome e proximidade de valor) e sugere automaticamente **Dar baixa em Conta Fixa existente (`quitar_conta`)** ou **Dar baixa em Fatura de Cartão (`quitar_cartao`)**, marcando `pago = true` sem duplicar despesas.
+- **Importação de Faturas de Cartão com Parcelas e Anti-Duplicidade**:
+  - Extrai parcelas no formato `01/12` (via parser regex ou fallback **Google Gemini AI** para PDFs complexos) e propaga automaticamente as parcelas futuras nos meses seguintes, recalculando o total do cartão em cada mês.
+  - **Proteção de Lançamentos Existentes**: Compara cada compra importada com os registros já lançados em `lancamentos_cartao` (no Frontend e no Backend). Caso a compra já exista (mesmo cartão, valor próximo e nome/parcela compatíveis), ela vem pré-marcada como `🚫 Ignorar (✨ Já lançado neste cartão)` e é bloqueada contra duplicação no banco.
 
 ### Cartões de Crédito e Contas Fixas (v3.6.1)
 **Propagação Automática de Parcelas:**
@@ -223,8 +234,13 @@ TELEGRAM_CHAT_ID=
 # IA e Arquivos
 GOOGLE_AI_KEY=
 GOOGLE_DRIVE_PASTA_CONTAS_2026_ID=
+
+# Open Finance gratuito via Meu Pluggy (https://meu.pluggy.ai + https://dashboard.pluggy.ai)
+PLUGGY_CLIENT_ID=
+PLUGGY_CLIENT_SECRET=
+PLUGGY_ITEM_IDS=
 ```
 
 ---
 
-*Fischer Finanças 2026 — Documentação Técnica v3.6.1*
+*Fischer Finanças 2026 — Documentação Técnica v3.7.0*

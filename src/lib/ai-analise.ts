@@ -203,5 +203,62 @@ ${transacoes.map(t => `- ${t.descricao} (R$ ${t.valor})`).join('\n')}
   }
 }
 
+// ── Extração de PDF de Extrato ou Fatura via Gemini AI ─────────
+export async function extrairLancamentosPDFComIA(textoPDF: string): Promise<{
+  data: string
+  descricao: string
+  valor: number
+  tipo: 'debito' | 'credito'
+  categoria: string
+  parcela: string | null
+}[]> {
+  const apiKey = process.env.GOOGLE_AI_KEY
+  if (!apiKey || !textoPDF.trim()) return []
+
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+
+  const anoAtual = new Date().getFullYear()
+  const trecho = textoPDF.slice(0, 18000)
+
+  const prompt = `
+Você é um extrator de extratos bancários e faturas de cartão de crédito brasileiros.
+Extraia TODOS os lançamentos/compras individuais do texto abaixo e retorne APENAS um array JSON válido (sem markdown).
+Ignore linhas de Saldo Anterior, Saldo Atual, Total da Fatura, Pagamento Mínimo ou Juros informativos.
+
+Formato de cada objeto no array JSON:
+{
+  "data": "YYYY-MM-DD" (se o ano não aparecer, use ${anoAtual}),
+  "descricao": "Nome limpo do estabelecimento ou conta",
+  "valor": 123.45 (número positivo em reais),
+  "tipo": "debito" ou "credito" (compras de cartão e saídas = "debito"; salário, depósitos e pix recebidos = "credito"),
+  "categoria": uma entre ["alimentacao","transporte","saude","educacao","lazer","moradia","vestuario","cartao","salario","outros"],
+  "parcela": "02/10" se for compra parcelada (formato 2 dígitos XX/YY) ou null se for à vista
+}
+
+Texto do documento:
+${trecho}
+`
+  try {
+    const result = await model.generateContent(prompt)
+    const text = result.response.text().replace(/```json|```/gi, '').trim()
+    const parsed = JSON.parse(text)
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter((x: any) => x && typeof x.descricao === 'string' && Number(x.valor) > 0)
+      .map((x: any) => ({
+        data: /^\d{4}-\d{2}-\d{2}$/.test(String(x.data)) ? String(x.data) : `${anoAtual}-01-01`,
+        descricao: String(x.descricao).trim(),
+        valor: Math.abs(Number(x.valor)),
+        tipo: x.tipo === 'credito' ? 'credito' : 'debito',
+        categoria: String(x.categoria || 'outros'),
+        parcela: typeof x.parcela === 'string' && /^\d{2}\/\d{2}$/.test(x.parcela) ? x.parcela : null,
+      }))
+  } catch (err) {
+    console.error('Erro na extração de PDF com Gemini:', err)
+    return []
+  }
+}
+
 // ── Exportações públicas ──────────────────────────────────────
 export { analiseHeuristica, analiseGemini }

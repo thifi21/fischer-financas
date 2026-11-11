@@ -5,6 +5,35 @@
 
 ---
 
+## [3.7.0] — Novembro 2026
+
+### ✨ Novas Funcionalidades
+
+#### Visão Geral Prática (Bento Dashboard — Opção 1)
+- Novo painel inicial em `/dashboard` (`src/components/visao/VisaoGeralView.tsx` e `src/components/visao/Money.tsx`) inspirado em layout Bento moderno:
+  - **Saldo Previsto** com barra empilhada proporcional (Fixas pagas, a pagar, cartões, combustível e saldo livre) e botão de privacidade (ocultar/mostrar valores).
+  - **Contas a Pagar** com chips de dia de vencimento, filtro rápido (`A pagar`, `Pagas`, `Todas`) e baixa rápida em 1 clique direto do dashboard.
+  - **Carrossel de Cartões & Próximas 3 Faturas** com projeção automática dos 3 meses seguintes.
+  - **Termômetro de Moradia** comparando gastos de habitação com o teto recomendado de 30% da renda.
+  - **Análise Detalhada Integrada** (`src/components/DashboardAnalise.tsx` + `DashboardClientView.tsx` com suporte à prop `embedded`) exibida logo abaixo na mesma tela.
+
+#### Open Finance & Conciliação Inteligente (`/dashboard/open-finance`)
+- **Integração Meu Pluggy (`/api/open-finance/pluggy`)**:
+  - Conexão direta com Open Finance pessoal gratuito (Caixa Econômica, Nubank, Mercado Pago, Itaú/Hipercard) com botão **🔗 Vincular MeuPluggy (1 clique)** usando o SDK oficial `PluggyConnect` e deduplicação automática de contas listadas.
+- **Baixa Automática de Contas e Faturas (`/api/open-finance/sync`)**:
+  - Novos destinos `quitar_conta` e `quitar_cartao`: ao importar o extrato da Caixa, o sistema identifica pagamentos de contas fixas e faturas de cartão já cadastradas no mês e apenas marca `pago = true`, evitando duplicidade.
+- **Importação de Faturas com Propagação de Parcelas e Anti-Duplicidade**:
+  - Parser aprimorado (`src/lib/ofx-parser.ts`) para extrair parcelas (`01/12`, `PARC 02/10`, `3 de 12`) e reconhecer cartões da família (`Hipercard`, `Tricard`, `DM Card Koch`, `Havan`, `Pernambucanas`, `Mercado Pago`, `Amazon Prime`, `C6`, `Nubank`, `Caixa`).
+  - Fallback inteligente via **Google Gemini AI** (`extrairLancamentosPDFComIA` em `src/lib/ai-analise.ts`) quando o PDF de fatura possui layout complexo.
+  - **Proteção contra duplicação em Cartões**: compara os lançamentos importados com `lancamentos_cartao` já existentes no mês (e nos meses futuros ao propagar parcelas), marcando itens já cadastrados como `ignorado` com aviso visual `✨ Já lançado neste cartão`.
+  - Rota `DELETE /api/open-finance` para descartar importações pendentes.
+
+#### Segurança & Configuração
+- Atualizada a `Content-Security-Policy` em `next.config.js` para permitir o carregamento seguro do widget oficial da Pluggy (`https://cdn.pluggy.ai` e `https://connect.pluggy.ai`).
+- Adicionadas variáveis `PLUGGY_CLIENT_ID`, `PLUGGY_CLIENT_SECRET` e `PLUGGY_ITEM_IDS` ao `.env.example`.
+
+---
+
 ## [3.6.1] — Julho 2026
 
 ### 🧹 Limpeza de código

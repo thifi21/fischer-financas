@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseOFX, parseCSV, detectarBanco } from './ofx-parser'
+import { parseOFX, parseCSV, detectarBanco, extrairParcelaDaDescricao } from './ofx-parser'
 
 const OFX = `
 <OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><BANKTRANLIST>
@@ -91,5 +91,25 @@ describe('detectarBanco', () => {
 
   it('devolve mensagem padrão quando não reconhece', () => {
     expect(detectarBanco('xyz', 'arquivo.ofx')).toBe('Banco não identificado')
+  })
+})
+
+describe('extrairParcelaDaDescricao', () => {
+  it('extrai e formata parcela no formato XX/YY', () => {
+    expect(extrairParcelaDaDescricao('MERCADO LIVRE 2/10')).toEqual({
+      descricaoLimpa: 'MERCADO LIVRE',
+      parcela: '02/10',
+    })
+    expect(extrairParcelaDaDescricao('LOJA HAVAN PARC 03 de 12')).toEqual({
+      descricaoLimpa: 'LOJA HAVAN',
+      parcela: '03/12',
+    })
+  })
+
+  it('retorna null quando não há parcela', () => {
+    expect(extrairParcelaDaDescricao('SUPERMERCADO KOCH')).toEqual({
+      descricaoLimpa: 'SUPERMERCADO KOCH',
+      parcela: null,
+    })
   })
 })

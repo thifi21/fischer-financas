@@ -13,10 +13,11 @@ const isDev = process.env.NODE_ENV !== 'production'
 // - 'unsafe-eval' apenas em desenvolvimento (React refresh).
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
+  `script-src 'self' 'unsafe-inline' https://cdn.pluggy.ai${isDev ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
+  "frame-src 'self' https://connect.pluggy.ai https://*.pluggy.ai",
   [
     "connect-src 'self'",
     'https://*.supabase.co',
@@ -25,6 +26,7 @@ const csp = [
     'https://open.er-api.com',
     'https://brapi.dev',
     'https://api.bcb.gov.br',
+    'https://*.pluggy.ai',
     ...(isDev ? ['ws://localhost:*', 'http://localhost:*'] : []),
   ].join(' '),
   "worker-src 'self' blob:",
