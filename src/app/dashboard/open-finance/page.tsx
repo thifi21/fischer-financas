@@ -296,6 +296,7 @@ export default function OpenFinancePage() {
       const PluggyConnect = (window as any).PluggyConnect
       const instance = new PluggyConnect({
         connectToken: json.connectToken,
+        connectorIds: [200], // Força abrir diretamente o conector MeuPluggy (ID 200), evitando erro de trial
         includeSandbox: false,
         onSuccess: async (itemData: any) => {
           const novoItemId = itemData?.item?.id
@@ -834,18 +835,21 @@ export default function OpenFinancePage() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <Button onClick={abrirWidgetMeuPluggy} isLoading={buscandoPluggy} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs">
+                    🔗 Autorizar MeuPluggy no App
+                  </Button>
+                  <Button variant="outline" onClick={() => consultarContasPluggy(pluggyItemInput)} isLoading={buscandoPluggy}>
+                    🔄 Atualizar Contas
+                  </Button>
                   <a
                     href="https://meu.pluggy.ai"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all"
                   >
-                    <span>➕ Adicionar Cartões no Meu Pluggy</span>
+                    <span>Abrir meu.pluggy.ai</span>
                     <span className="text-[10px] opacity-75">↗</span>
                   </a>
-                  <Button variant="outline" onClick={() => consultarContasPluggy(pluggyItemInput)} isLoading={buscandoPluggy}>
-                    🔄 Atualizar Contas
-                  </Button>
                 </div>
               </div>
 
