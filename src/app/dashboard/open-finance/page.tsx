@@ -12,6 +12,7 @@ import { MESES } from '@/types'
 
 type DestinoLancamento =
   | 'nao_sincronizado'
+  | 'apenas_extrato'
   | 'cartoes'
   | 'contas_fixas'
   | 'entradas'
@@ -87,7 +88,9 @@ const CATEGORIAS_LABEL: Record<string, string> = {
   moradia: '🏠 Moradia',
   vestuario: '👕 Vestuário',
   cartao: '💳 Cartão',
-  salario: '💵 Salário',
+  salario: '💵 Salário (OBR / Implatec)',
+  extrato_entrada: '📄 Crédito no Extrato',
+  extrato_saida: '📄 Débito no Extrato',
   transferencia: '↔️ Transferência',
   outros: '📦 Outros',
 }
@@ -159,50 +162,21 @@ function sugerirDestinoInteligente(
   }
 
   // 2) Modo Extrato de Conta Corrente (ex: Caixa Econômica)
+  // Alimenta apenas a aba Salários (somente OBR e Implatec) e o Extrato da Conta,
+  // mantendo as marcações de Contas Fixas, Cartões e Combustível nos botões manuais de cada aba.
   if (l.tipo === 'credito') {
-    return { destino: 'entradas', sugestaoMotivo: 'Entrada / Recebimento na conta' }
-  }
-
-  const descNorm = normalizarTexto(l.descricao)
-
-  // 2a) Verifica se é pagamento de fatura de algum cartão do mês
-  for (const c of cartoesMes) {
-    const nomeNorm = normalizarTexto(c.nome)
-    const palavrasCartao = nomeNorm.split(' ').filter(p => p.length >= 3)
-    const mencionaCartao = palavrasCartao.some(p => descNorm.includes(p)) || (c.nome.toLowerCase().includes('c6') && descNorm.includes('c6'))
-    const valorProximo = c.valor > 0 && Math.abs(c.valor - l.valor) <= Math.max(2, c.valor * 0.03)
-    if ((mencionaCartao && /fatura|cartao|boleto|pag|deb/.test(descNorm)) || (mencionaCartao && valorProximo)) {
-      return {
-        destino: 'quitar_cartao',
-        cartaoId: c.id,
-        sugestaoMotivo: `Quita fatura ${c.nome}`,
-      }
+    const ehSalarioObrOuImplatec =
+      l.categoria === 'salario' ||
+      /\bobr\b|implatec|nayara|ted\s*salario|cred\s*salario/i.test(l.descricao)
+    if (ehSalarioObrOuImplatec) {
+      return { destino: 'entradas', sugestaoMotivo: 'Salário OBR / Implatec (Salários + Extrato)' }
     }
+    return { destino: 'apenas_extrato', sugestaoMotivo: 'Crédito avulso (vai apenas para o Extrato da Conta)' }
   }
 
-  // 2b) Verifica se bate com alguma Conta Fixa do mês (pelo nome ou valor exato)
-  for (const cf of contasMes) {
-    const cfNorm = normalizarTexto(cf.descricao)
-    const tokens = cfNorm.split(' ').filter(t => t.length >= 4)
-    const bateNome = tokens.length > 0 && tokens.some(t => descNorm.includes(t))
-    const bateValorExato = cf.valor > 0 && Math.abs(cf.valor - l.valor) < 0.05
-    if (bateNome || (bateValorExato && !cf.pago)) {
-      return {
-        destino: 'quitar_conta',
-        contaId: cf.id,
-        sugestaoMotivo: `Dá baixa em "${cf.descricao}"`,
-      }
-    }
-  }
-
-  // 2c) Se for posto de combustível
-  if (l.categoria === 'transporte' && /posto|combustivel|gasolina|etanol|ipiranga|shell|petrobras|br /.test(descNorm)) {
-    return { destino: 'combustivel', sugestaoMotivo: 'Abastecimento detectado' }
-  }
-
-  // 2d) Se o arquivo inteiro parece ser fatura de um cartão específico (ex.: Hipercard, Nubank, Tricard)
+  // Se o arquivo inteiro for fatura de um cartão específico (ex.: PDF/OFX de cartão aberto por engano no modo extrato)
   const cartaoDoArquivo = cartoesMes.find(c => normalizarTexto(c.nome) === normalizarTexto(bancoDetectado))
-  if (cartaoDoArquivo && bancoDetectado !== 'Caixa Econômica') {
+  if (cartaoDoArquivo && !bancoDetectado.toLowerCase().includes('caixa')) {
     const dup = encontrarDuplicadoNoCartao(l, cartaoDoArquivo.id, lancsCartaoMes)
     if (dup) {
       return {
@@ -218,7 +192,7 @@ function sugerirDestinoInteligente(
     }
   }
 
-  return { destino: 'contas_fixas' }
+  return { destino: 'apenas_extrato', sugestaoMotivo: 'Movimentação do Extrato da Conta' }
 }
 
 export default function OpenFinancePage() {
@@ -388,7 +362,11 @@ export default function OpenFinancePage() {
       setImportacaoId(json.importacaoId)
       setBanco(json.banco)
       setTab('importar')
-      setMsg({ tipo: 'ok', texto: `${json.total} lançamentos importados via Open Finance (${acc.name})` })
+      const msgSaldo =
+        typeof json.saldoDia01 === 'number'
+          ? ` · Saldo em 01/${String(mes).padStart(2, '0')}/${ano} atualizado para ${formatBRL(json.saldoDia01)}`
+          : ''
+      setMsg({ tipo: 'ok', texto: `${json.total} lançamentos importados via Open Finance (${acc.name})${msgSaldo}` })
     } catch (e: any) {
       setMsg({ tipo: 'erro', texto: e.message || 'Falha ao puxar transações' })
     } finally {
@@ -521,6 +499,7 @@ export default function OpenFinancePage() {
           importacaoId,
           mes,
           ano,
+          modoImportacao,
           itens: preview.map(l => ({
             id: l.id,
             destino: l.destino,
@@ -773,16 +752,18 @@ export default function OpenFinancePage() {
                             >
                               {l.tipo === 'credito' ? (
                                 <>
-                                  <option value="entradas">💵 Nova Entrada / Salário</option>
+                                  <option value="entradas">💼 Salário (OBR / Implatec) + Extrato</option>
+                                  <option value="apenas_extrato">📄 Apenas no Extrato da Conta</option>
                                   <option value="ignorado">🚫 Ignorar</option>
                                 </>
                               ) : (
                                 <>
-                                  <option value="quitar_conta">✅ Dar baixa em Conta Fixa existente</option>
-                                  <option value="quitar_cartao">✅ Dar baixa em Fatura de Cartão</option>
-                                  <option value="contas_fixas">🏠 Criar nova Conta Fixa</option>
+                                  <option value="apenas_extrato">📄 Apenas no Extrato da Conta</option>
+                                  <option value="quitar_conta">✅ Dar baixa em Conta Fixa + Extrato</option>
+                                  <option value="quitar_cartao">✅ Dar baixa em Fatura de Cartão + Extrato</option>
+                                  <option value="combustivel">⛽ Lançar em Combustível + Extrato</option>
+                                  <option value="contas_fixas">🏠 Criar nova Conta Fixa + Extrato</option>
                                   <option value="cartoes">💳 Lançar compra em Cartão (com parcelas)</option>
-                                  <option value="combustivel">⛽ Lançar em Combustível</option>
                                   <option value="ignorado">🚫 Ignorar</option>
                                 </>
                               )}

@@ -65,6 +65,8 @@ export default function EntradasPage() {
   const [loadingExtrato, setLoadingExtrato] = useState(false)
   const [saldoInicial, setSaldoInicial] = useState<Partial<Entrada>>({ valor: 0 })
   const [savingSaldo, setSavingSaldo] = useState(false)
+  const [selecionadosExtrato, setSelecionadosExtrato] = useState<Set<string>>(new Set())
+  const [excluindoLote, setExcluindoLote] = useState(false)
   
   // Estados aba Extrato_Manual
   const [modalManual, setModalManual] = useState(false)
@@ -112,6 +114,7 @@ export default function EntradasPage() {
       .eq('user_id', uid)
       .eq('mes', mes)
       .eq('ano', ano)
+      .eq('oculto_extrato', false)
       .neq('categoria', 'saldo_inicial') // Oculta saldo inicial da lista comum
       .neq('categoria', 'extrato_entrada') // Oculta manual do extrato
       .neq('categoria', 'extrato_saida') // Oculta manual do extrato
@@ -174,17 +177,20 @@ export default function EntradasPage() {
     if (!uid) return
     setLoadingExtrato(true)
     
-    const [resEntradas, resFixas, resCartoes, resComb] = await Promise.all([
-      supabase.from('entradas').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).eq('oculto_extrato', false),
-      supabase.from('contas_fixas').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).eq('pago', true).eq('oculto_extrato', false),
-      supabase.from('cartoes').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).eq('pago', true).eq('oculto_extrato', false),
-      supabase.from('combustivel').select('*').eq('user_id', uid).eq('mes', mes).eq('ano', ano).eq('oculto_extrato', false)
-    ])
+    // O Extrato da Conta é alimentado exclusivamente pelo Open Finance (e lançamentos manuais "+ Movimentação Avulsa"),
+    // sem puxar contas fixas marcadas como pagas, cartões pagos ou aba de combustível.
+    const resEntradas = await supabase
+      .from('entradas')
+      .select('*')
+      .eq('user_id', uid)
+      .eq('mes', mes)
+      .eq('ano', ano)
+      .eq('oculto_extrato', false)
 
-    let items: ExtratoItem[] = []
+    const items: ExtratoItem[] = []
+    const entradasRows = resEntradas.data || []
 
-    // 1. Entradas normais
-    resEntradas.data?.filter(e => e.categoria !== 'saldo_inicial').forEach(e => {
+    entradasRows.filter(e => e.categoria !== 'saldo_inicial').forEach(e => {
        const ts = e.data_entrada || (e.created_at ? e.created_at.split('T')[0] : get5thBusinessDayFormatado(ano, mes))
        const isSaida = e.categoria === 'extrato_saida'
        items.push({
@@ -192,64 +198,20 @@ export default function EntradasPage() {
          data: ts,
          descricao: e.descricao,
          categoria: e.categoria,
-         valor: e.valor,
+         valor: Number(e.valor),
          tipo: isSaida ? 'saida' : 'entrada',
          tabelaOrigem: 'entradas',
          conferido: !!e.conferido
        })
     })
 
-    // 2. Contas Fixas 
-    resFixas.data?.forEach(e => {
-      const ts = e.data_vencimento || (e.created_at ? e.created_at.split('T')[0] : '')
-      items.push({
-        id: e.id,
-        data: ts,
-        descricao: e.descricao,
-        categoria: e.categoria,
-        valor: e.valor,
-        tipo: 'saida',
-        tabelaOrigem: 'contas_fixas',
-        conferido: !!e.conferido
-      })
-    })
-
-    // 3. Cartões
-    resCartoes.data?.forEach(e => {
-      const ts = e.vencimento ? `${ano}-${String(mes).padStart(2,'0')}-${String(e.vencimento.split('/')[0]).padStart(2,'0')}` : (e.created_at ? e.created_at.split('T')[0] : '')
-      items.push({
-        id: e.id,
-        data: ts,
-        descricao: `Fatura Cartão: ${e.nome}`,
-        categoria: 'cartao',
-        valor: e.valor,
-        tipo: 'saida',
-        tabelaOrigem: 'cartoes',
-        conferido: !!e.conferido
-      })
-    })
-
-    // 4. Combustível
-    resComb.data?.forEach(e => {
-      const ts = e.data_abastecimento || (e.created_at ? e.created_at.split('T')[0] : '')
-      items.push({
-        id: e.id,
-        data: ts,
-        descricao: 'Abastecimento',
-        categoria: 'combustivel',
-        valor: e.valor,
-        tipo: 'saida',
-        tabelaOrigem: 'combustivel',
-        conferido: !!e.conferido
-      })
-    })
-
     // Ordenar itens por data
     items.sort((a, b) => new Date(a.data || '2000-01-01').getTime() - new Date(b.data || '2000-01-01').getTime())
     setExtrato(items)
+    setSelecionadosExtrato(new Set())
 
     // Procurar saldo inicial
-    const sInicial = resEntradas.data?.find(e => e.categoria === 'saldo_inicial')
+    const sInicial = entradasRows.find(e => e.categoria === 'saldo_inicial')
     if (sInicial) {
       setSaldoInicial(sInicial)
     } else {
@@ -383,9 +345,65 @@ export default function EntradasPage() {
   }
 
   async function ocultarEdicaoExtrato(item: ExtratoItem) {
-    if (!confirm('Deseja ocultar este lançamento apenas do extrato? Ele continuará visível em suas respectivas abas.')) return
-    await supabase.from(item.tabelaOrigem).update({ oculto_extrato: true }).eq('id', item.id)
+    if (!confirm('Deseja excluir este lançamento do extrato?')) return
+    if (item.tabelaOrigem === 'entradas') {
+      await supabase.from('entradas').delete().eq('id', item.id)
+    } else {
+      await supabase.from(item.tabelaOrigem).update({ oculto_extrato: true }).eq('id', item.id)
+    }
     await carregarExtrato()
+  }
+
+  function chaveItemExtrato(item: ExtratoItem) {
+    return `${item.tabelaOrigem}:${item.id}`
+  }
+
+  function toggleSelecionarItemExtrato(item: ExtratoItem) {
+    const k = chaveItemExtrato(item)
+    setSelecionadosExtrato(prev => {
+      const next = new Set(prev)
+      if (next.has(k)) next.delete(k)
+      else next.add(k)
+      return next
+    })
+  }
+
+  function toggleSelecionarTodosExtrato() {
+    if (extrato.length === 0) return
+    if (selecionadosExtrato.size === extrato.length) {
+      setSelecionadosExtrato(new Set())
+    } else {
+      setSelecionadosExtrato(new Set(extrato.map(chaveItemExtrato)))
+    }
+  }
+
+  async function excluirSelecionadosExtrato() {
+    if (selecionadosExtrato.size === 0) return
+    if (!confirm(`Deseja excluir os ${selecionadosExtrato.size} lançamento(s) selecionado(s)?`)) return
+    setExcluindoLote(true)
+    try {
+      const porTabela: Record<string, string[]> = {}
+      for (const item of extrato) {
+        if (!selecionadosExtrato.has(chaveItemExtrato(item))) continue
+        if (!porTabela[item.tabelaOrigem]) porTabela[item.tabelaOrigem] = []
+        porTabela[item.tabelaOrigem].push(item.id)
+      }
+
+      for (const tabela of Object.keys(porTabela)) {
+        const ids = porTabela[tabela]
+        if (ids.length === 0) continue
+        if (tabela === 'entradas') {
+          await supabase.from('entradas').delete().in('id', ids)
+        } else {
+          await supabase.from(tabela).update({ oculto_extrato: true }).in('id', ids)
+        }
+      }
+
+      setSelecionadosExtrato(new Set())
+      await carregarExtrato()
+    } finally {
+      setExcluindoLote(false)
+    }
   }
 
   // ==========================================
@@ -491,9 +509,21 @@ export default function EntradasPage() {
           </div>
 
           <div className="card">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
               <h2 className="text-lg font-bold">Movimentações do Mês (Realizadas)</h2>
-              <button className="btn-primary text-sm" onClick={abrirModalManual}>+ Movimentação Avulsa</button>
+              <div className="flex items-center gap-2">
+                {selecionadosExtrato.size > 0 && (
+                  <button
+                    onClick={excluirSelecionadosExtrato}
+                    disabled={excluindoLote}
+                    className="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors disabled:opacity-50"
+                  >
+                    <Trash2 size={14} />
+                    {excluindoLote ? 'Excluindo...' : `Excluir Selecionados (${selecionadosExtrato.size})`}
+                  </button>
+                )}
+                <button className="btn-primary text-sm" onClick={abrirModalManual}>+ Movimentação Avulsa</button>
+              </div>
             </div>
             {loadingExtrato ? (
                <div className="animate-pulse space-y-3">
@@ -512,13 +542,33 @@ export default function EntradasPage() {
                        <th className="py-3 px-2 w-10 text-center">
                          <button 
                            onClick={toggleTodosConferidosExtrato}
-                           title="Marcar/Desmarcar todos"
+                           title="Marcar/Desmarcar todos como conferidos"
                            className="hover:text-green-500 transition-colors"
                          >
                            ✓✓
                          </button>
                        </th>
-                       <th className="py-3 px-2 w-10"></th>
+                       <th className="py-3 px-2 w-24 text-center">
+                         <div className="flex items-center justify-center gap-1.5">
+                           <input
+                             type="checkbox"
+                             checked={extrato.length > 0 && selecionadosExtrato.size === extrato.length}
+                             onChange={toggleSelecionarTodosExtrato}
+                             title="Selecionar todos para excluir"
+                             className="w-4 h-4 rounded border-gray-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
+                           />
+                           {selecionadosExtrato.size > 0 && (
+                             <button
+                               onClick={excluirSelecionadosExtrato}
+                               disabled={excluindoLote}
+                               title={`Excluir ${selecionadosExtrato.size} selecionado(s)`}
+                               className="p-1 rounded bg-rose-600 hover:bg-rose-700 text-white transition-colors"
+                             >
+                               <Trash2 size={12} />
+                             </button>
+                           )}
+                         </div>
+                       </th>
                      </tr>
                    </thead>
                    <tbody>
@@ -534,8 +584,9 @@ export default function EntradasPage() {
                         let runningBalance = Number(saldoInicial.valor || 0)
                         return extrato.map((item, index) => {
                           runningBalance += (item.tipo === 'entrada' ? item.valor : -item.valor)
+                          const isSelected = selecionadosExtrato.has(chaveItemExtrato(item))
                           return (
-                            <tr key={`${item.tabelaOrigem}-${item.id}-${index}`} className="hover:bg-gray-50 transition-colors">
+                            <tr key={`${item.tabelaOrigem}-${item.id}-${index}`} className={`hover:bg-gray-50 transition-colors ${isSelected ? 'bg-rose-50/60 dark:bg-rose-950/20' : ''}`}>
                               <td className="py-3 px-2">{formatDateBr(item.data)}</td>
                               <td className="py-3 px-2 font-semibold">{item.descricao}</td>
                               <td className="py-3 px-2 text-center text-xs">{item.tipo === 'entrada' ? 'Depósito' : 'Pagamento'}</td>
@@ -543,14 +594,21 @@ export default function EntradasPage() {
                                 {item.tipo === 'entrada' ? '+' : '-'} {formatBRL(item.valor)}
                               </td>
                               <td className="py-3 px-2 text-right font-bold">{formatBRL(runningBalance)}</td>
-                              <td className="py-3 px-2">
+                              <td className="py-3 px-2 text-center">
                                 <button 
                                   onClick={() => toggleConferidoExtrato(item)}
                                   className={`w-6 h-6 rounded border-2 ${item.conferido ? 'bg-green-500 border-green-500 text-white' : 'border-gray-200 text-transparent hover:border-green-400'}`}
                                 >✓</button>
                               </td>
                               <td className="py-3 px-2">
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => toggleSelecionarItemExtrato(item)}
+                                    title="Selecionar para exclusão"
+                                    className="w-4 h-4 rounded border-gray-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
+                                  />
                                   <button onClick={() => abrirEdicaoExtrato(item)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 text-slate-300 hover:text-blue-500 transition-colors"><Pencil size={13} /></button>
                                   <button onClick={() => ocultarEdicaoExtrato(item)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900/40 text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={13} /></button>
                                 </div>

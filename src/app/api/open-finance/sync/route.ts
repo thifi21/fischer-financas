@@ -3,7 +3,7 @@ import { enforceRateLimit, requireApiUser } from '@/lib/api-auth'
 
 type ItemSync = {
   id: string
-  destino: 'entradas' | 'contas_fixas' | 'combustivel' | 'cartoes' | 'ignorado' | 'quitar_conta' | 'quitar_cartao'
+  destino: 'entradas' | 'apenas_extrato' | 'contas_fixas' | 'combustivel' | 'cartoes' | 'ignorado' | 'quitar_conta' | 'quitar_cartao'
   cartao_id?: string
   conta_id?: string
   parcela?: string | null
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
   const limited = await enforceRateLimit(user.id, 'open-finance-sync', 5, 60)
   if (limited) return limited
 
-  let body: { importacaoId?: unknown; mes?: unknown; ano?: unknown; itens?: unknown }
+  let body: { importacaoId?: unknown; mes?: unknown; ano?: unknown; modoImportacao?: unknown; itens?: unknown }
   try { body = await req.json() }
   catch { return NextResponse.json({ error: 'Solicitação inválida' }, { status: 400 }) }
 
@@ -70,20 +70,34 @@ export async function POST(req: NextRequest) {
 
   const mes = Number(body.mes)
   const ano = Number(body.ano)
+  const modoImportacao = body.modoImportacao === 'fatura_cartao' ? 'fatura_cartao' : 'extrato'
   const itens = body.itens as ItemSync[]
 
-  // 1) Processa baixas de contas/cartões existentes ("quitar_conta" e "quitar_cartao")
-  // e evita duplicar lançamentos de cartão que já existem na base!
+  // Se estamos sincronizando um Extrato Bancário, remove eventuais linhas antigas ocultas de `entradas`
+  if (modoImportacao === 'extrato') {
+    await supabase
+      .from('entradas')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('mes', mes)
+      .eq('ano', ano)
+      .eq('oculto_extrato', true)
+  }
+
+  // 1) Processa baixas de contas/cartões existentes ("quitar_conta" e "quitar_cartao"),
+  // grava movimentações do extrato bancário e evita duplicar lançamentos!
   let baixasRealizadas = 0
   let duplicadosIgnorados = 0
+  let lancamentosExtratoCriados = 0
   const itensParaRpc = []
   const idsDuplicadosNoCartao = new Set<string>()
+  const idsEntradasConsumidos = new Set<string>()
 
-  // Carrega lançamentos de cartão e importados para checagem de duplicidade
-  const [{ data: importadosMes }, { data: lancsExistentesMes }] = await Promise.all([
+  // Carrega lançamentos importados, de cartão e entradas existentes no mês para checagem de duplicidade
+  const [{ data: importadosMes }, { data: lancsExistentesMes }, { data: entradasExistentesMes }] = await Promise.all([
     supabase
       .from('lancamentos_importados')
-      .select('id, descricao, valor, data_transacao')
+      .select('id, descricao, valor, data_transacao, tipo, categoria')
       .eq('importacao_id', body.importacaoId)
       .eq('user_id', user.id),
     supabase
@@ -92,31 +106,97 @@ export async function POST(req: NextRequest) {
       .eq('user_id', user.id)
       .eq('mes', mes)
       .eq('ano', ano),
+    supabase
+      .from('entradas')
+      .select('id, descricao, valor, data_entrada, categoria')
+      .eq('user_id', user.id)
+      .eq('mes', mes)
+      .eq('ano', ano)
+      .eq('oculto_extrato', false),
   ])
 
   const mapaImp = new Map((importadosMes || []).map(x => [x.id, x]))
   const lancsDoMes = lancsExistentesMes || []
+  const entradasDoMes = entradasExistentesMes || []
+
+  async function registrarMovimentoExtrato(
+    imp: { descricao: string; valor: number; data_transacao: string; tipo: string },
+    categoriaAlvo: 'salario' | 'extrato_entrada' | 'extrato_saida'
+  ) {
+    const valorAbs = Math.abs(Number(imp.valor))
+    const dataIso = (imp.data_transacao || '').slice(0, 10)
+    const jaExiste = entradasDoMes.find(ex => {
+      if (idsEntradasConsumidos.has(ex.id)) return false
+      if (ex.categoria !== categoriaAlvo) return false
+      const mesmoValor = Math.abs(Number(ex.valor) - valorAbs) <= 0.02
+      const mesmaData = (ex.data_entrada || '').slice(0, 10) === dataIso
+      return mesmoValor && mesmaData && mesmaDescricao(ex.descricao, imp.descricao)
+    })
+
+    if (jaExiste) {
+      idsEntradasConsumidos.add(jaExiste.id)
+      duplicadosIgnorados++
+      return false
+    }
+
+    const { error: errIns } = await supabase.from('entradas').insert({
+      user_id: user.id,
+      mes,
+      ano,
+      descricao: imp.descricao,
+      valor: valorAbs,
+      categoria: categoriaAlvo,
+      data_entrada: dataIso,
+      conferido: true,
+      oculto_extrato: false,
+    })
+    if (!errIns) {
+      lancamentosExtratoCriados++
+      return true
+    }
+    return false
+  }
 
   for (const item of itens) {
-    if (item.destino === 'quitar_conta' && item.conta_id && /^[0-9a-f-]{36}$/i.test(item.conta_id)) {
+    const imp = mapaImp.get(item.id)
+
+    if (item.destino === 'entradas' && imp) {
+      // Na aba Salários entram apenas os salários oriundos da OBR (Nayara) ou da Implatec (Thiago)
+      const descLower = (imp.descricao || '').toLowerCase()
+      const ehSalarioObrOuImplatec =
+        imp.categoria === 'salario' ||
+        /\bobr\b|implatec|nayara|thiago.*implatec|ted\s*salario|cred\s*salario/i.test(descLower)
+      const catAlvo = ehSalarioObrOuImplatec ? 'salario' : 'extrato_entrada'
+      await registrarMovimentoExtrato(imp, catAlvo)
+      itensParaRpc.push({ id: item.id, destino: 'ignorado' })
+    } else if (item.destino === 'apenas_extrato' && imp) {
+      const catAlvo = imp.tipo === 'credito' ? 'extrato_entrada' : 'extrato_saida'
+      await registrarMovimentoExtrato(imp, catAlvo)
+      itensParaRpc.push({ id: item.id, destino: 'ignorado' })
+    } else if (item.destino === 'quitar_conta' && item.conta_id && /^[0-9a-f-]{36}$/i.test(item.conta_id)) {
       const { error } = await supabase
         .from('contas_fixas')
-        .update({ pago: true })
+        .update({ pago: true, oculto_extrato: true })
         .eq('id', item.conta_id)
         .eq('user_id', user.id)
       if (!error) baixasRealizadas++
+      if (modoImportacao === 'extrato' && imp) {
+        await registrarMovimentoExtrato(imp, 'extrato_saida')
+      }
       itensParaRpc.push({ id: item.id, destino: 'ignorado' })
     } else if (item.destino === 'quitar_cartao' && item.cartao_id && /^[0-9a-f-]{36}$/i.test(item.cartao_id)) {
       const { error } = await supabase
         .from('cartoes')
-        .update({ pago: true })
+        .update({ pago: true, oculto_extrato: true })
         .eq('id', item.cartao_id)
         .eq('user_id', user.id)
       if (!error) baixasRealizadas++
+      if (modoImportacao === 'extrato' && imp) {
+        await registrarMovimentoExtrato(imp, 'extrato_saida')
+      }
       itensParaRpc.push({ id: item.id, destino: 'ignorado' })
     } else if (item.destino === 'cartoes' && item.cartao_id) {
       // Verifica se já existe lançamento igual neste cartão/mês/ano para NÃO duplicar nem alterar
-      const imp = mapaImp.get(item.id)
       const parsedParc = parseParcela(item.parcela)
       const parcFmt = parsedParc ? formatParcela(parsedParc.atual, parsedParc.total) : null
 
@@ -145,6 +225,9 @@ export async function POST(req: NextRequest) {
         })
       }
     } else {
+      if (modoImportacao === 'extrato' && imp && (item.destino === 'combustivel' || item.destino === 'contas_fixas')) {
+        await registrarMovimentoExtrato(imp, 'extrato_saida')
+      }
       itensParaRpc.push({
         id: item.id,
         destino: item.destino,
@@ -299,8 +382,9 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({
-    sincronizados: Number(syncCount || 0) + baixasRealizadas,
+    sincronizados: Number(syncCount || 0) + baixasRealizadas + lancamentosExtratoCriados,
     baixasRealizadas,
+    lancamentosExtratoCriados,
     parcelasFuturasCriadas,
     duplicadosIgnorados,
   })
