@@ -50,7 +50,6 @@ const GRUPOS = [
   'Previdência Yan',
   'Academia',
   'Juros Bancários Conta',
-  'Outros',
 ]
 
 const ICONES_GRUPO: Record<string, string> = {
@@ -62,7 +61,6 @@ const ICONES_GRUPO: Record<string, string> = {
   'Previdência Yan':      '💰',
   'Academia':             '💪',
   'Juros Bancários Conta':'🏦',
-  'Outros':               '📌',
 }
 
 
@@ -147,7 +145,19 @@ export default function ContasFixasPage() {
     // Se uma carga mais recente já foi iniciada, ignora esta resposta
     if (gen !== loadGenRef.current) return
 
-    setContas(contasData || [])
+    // Remove do banco e do estado itens fora dos grupos oficiais de contas fixas (ex: categoria 'Outros')
+    const contasInvalidas = (contasData || []).filter(
+      c => !GRUPOS.includes(c.categoria) || c.categoria?.toLowerCase() === 'outros'
+    )
+    if (contasInvalidas.length > 0) {
+      const idsInvalidos = contasInvalidas.map(c => c.id)
+      await supabase.from('contas_fixas').delete().in('id', idsInvalidos)
+    }
+
+    const contasValidas = (contasData || []).filter(
+      c => GRUPOS.includes(c.categoria) && c.categoria?.toLowerCase() !== 'outros'
+    )
+    setContas(contasValidas)
     // Ordena cartões pela sequência personalizada
     if (erroLancamentos) toast.error('Não foi possível conferir os totais dos cartões.')
     const totais = new Map<string, number>()
@@ -315,9 +325,6 @@ export default function ContasFixasPage() {
     icone: ICONES_GRUPO[g] || '📌',
     itens: contas.filter(c => c.categoria === g),
   })).filter(g => g.itens.length > 0)
-
-  const outrosItens = contas.filter(c => !GRUPOS.includes(c.categoria))
-  if (outrosItens.length > 0) grupos.push({ grupo: 'Outros', icone: '📌', itens: outrosItens })
 
   // ── Totais ──────────────────────────────────────────────────
   const totalFixas        = contas.reduce((s, c) => s + Number(c.valor), 0)
