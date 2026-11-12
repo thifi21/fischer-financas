@@ -375,7 +375,11 @@ export default function OpenFinancePage() {
         typeof json.saldoDia01 === 'number'
           ? ` · Saldo em 01/${String(mes).padStart(2, '0')}/${ano} atualizado para ${formatBRL(json.saldoDia01)}`
           : ''
-      setMsg({ tipo: 'ok', texto: `${json.total} lançamentos importados via Open Finance (${acc.name})${msgSaldo}` })
+      const msgFatura =
+        json.faturaInfo?.totalAmount !== undefined
+          ? ` · Fatura oficial: ${formatBRL(json.faturaInfo.totalAmount)}${json.faturaInfo.dueDate ? ` (Vence ${formatDate(json.faturaInfo.dueDate)})` : ''}`
+          : ''
+      setMsg({ tipo: 'ok', texto: `${json.total} lançamentos importados via Open Finance (${acc.name})${msgSaldo}${msgFatura}` })
     } catch (e: any) {
       setMsg({ tipo: 'erro', texto: e.message || 'Falha ao puxar transações' })
     } finally {

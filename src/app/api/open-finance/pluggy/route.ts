@@ -156,13 +156,52 @@ export async function POST(req: NextRequest) {
     const to = `${ano}-${String(mes).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`
     const isCreditCard = accountType === 'CREDIT'
 
-    // Para conta bancária (ex.: Caixa), buscamos desde o dia 01 do mês até hoje para calcular com exatidão
-    // o saldo da conta no dia 01/MM/AAAA a partir do saldo atual (currentBalance - soma das transações desde 01/MM/AAAA).
+    // Para cartão de crédito, consulta as faturas (/bills) para identificar o ciclo exato e o vencimento
+    let faturaInfo: { totalAmount?: number; dueDate?: string; closingDate?: string } | null = null
+    let targetBillClosingDate: string | null = null
+    let prevBillClosingDate: string | null = null
+
+    if (isCreditCard) {
+      try {
+        const billsRes = await fetch(`${PLUGGY_API}/bills?accountId=${encodeURIComponent(accountId)}`, {
+          headers: { 'X-API-KEY': apiKey },
+          cache: 'no-store',
+        })
+        if (billsRes.ok) {
+          const billsJson = await billsRes.json()
+          const bills: any[] = billsJson.results || []
+          const targetPrefix = `${ano}-${String(mes).padStart(2, '0')}`
+          const billIndex = bills.findIndex(b => String(b.dueDate || '').startsWith(targetPrefix))
+          if (billIndex !== -1) {
+            const b = bills[billIndex]
+            faturaInfo = {
+              totalAmount: typeof b.totalAmount === 'number' ? b.totalAmount : undefined,
+              dueDate: b.dueDate ? String(b.dueDate).slice(0, 10) : undefined,
+              closingDate: b.billClosingDate ? String(b.billClosingDate).slice(0, 10) : undefined,
+            }
+            targetBillClosingDate = faturaInfo.closingDate || null
+            const prevBill = bills[billIndex + 1]
+            if (prevBill?.billClosingDate) {
+              prevBillClosingDate = String(prevBill.billClosingDate).slice(0, 10)
+            }
+          }
+        }
+      } catch (errBills) {
+        console.warn('Não foi possível consultar /bills da Pluggy:', errBills)
+      }
+    }
+
+    // Para cartão de crédito, buscamos até 60 dias antes para pegar todo o ciclo da fatura que fecha/vence neste mês.
+    // Para conta bancária, buscamos desde 01 do mês até hoje para cálculo exato do saldo em 01.
+    const mesAnteriorDate = new Date(ano, mes - 2, 1)
+    const queryStart = isCreditCard
+      ? `${mesAnteriorDate.getFullYear()}-${String(mesAnteriorDate.getMonth() + 1).padStart(2, '0')}-01`
+      : from
     const queryEnd = isCreditCard ? to : '2099-12-31'
 
     const todasTransacoes: any[] = []
     let nextQuery: string | null =
-      `?accountId=${encodeURIComponent(accountId)}&dateFrom=${from}&dateTo=${queryEnd}`
+      `?accountId=${encodeURIComponent(accountId)}&dateFrom=${queryStart}&dateTo=${queryEnd}`
     let paginas = 0
     while (nextQuery && paginas < 20) {
       const txRes: Response = await fetch(`${PLUGGY_API}/v2/transactions${nextQuery}`, {
@@ -223,10 +262,38 @@ export async function POST(req: NextRequest) {
     }
 
     // Filtra apenas as transações pertencentes ao mês/ano solicitado
-    const results = todasTransacoes.filter(tx => {
-      const dataIso = String(tx.date || '').slice(0, 10)
-      return dataIso >= from && dataIso <= to
-    })
+    const targetPeriodStr = `${ano}-${String(mes).padStart(2, '0')}`
+
+    const results = isCreditCard
+      ? todasTransacoes.filter(tx => {
+          // Descarta linhas de saldo acumulado anterior ou total anterior que não são despesas reais
+          const desc = String(tx.description || tx.descriptionRaw || '').toLowerCase()
+          if (/total da fatura anterior|saldo da fatura anterior/i.test(desc)) return false
+
+          // 1) Se a Pluggy forneceu o forecast da fatura, esse é o indicador mais preciso do banco
+          const forecast = tx.creditCardMetadata?.billForecastDate
+          if (forecast) {
+            return forecast === targetPeriodStr
+          }
+          // 2) Se encontramos a fatura em /bills com a data de fechamento
+          const dataIso = String(tx.date || '').slice(0, 10)
+          if (targetBillClosingDate) {
+            const dentroDoCiclo =
+              dataIso <= targetBillClosingDate && (!prevBillClosingDate || dataIso > prevBillClosingDate)
+            return dentroDoCiclo
+          }
+          // 3) Se tiver billPostDate, verifica se o post cai no mês
+          const postDate = String(tx.creditCardMetadata?.billPostDate || '').slice(0, 7)
+          if (postDate) {
+            return postDate === targetPeriodStr
+          }
+          // 4) Fallback: data da compra
+          return dataIso >= from && dataIso <= to
+        })
+      : todasTransacoes.filter(tx => {
+          const dataIso = String(tx.date || '').slice(0, 10)
+          return dataIso >= from && dataIso <= to
+        })
 
     if (results.length === 0) {
       return NextResponse.json({ error: 'Nenhuma transação encontrada neste período para esta conta.' }, { status: 422 })
@@ -358,6 +425,7 @@ export async function POST(req: NextRequest) {
       banco: `Open Finance · ${accountName}`,
       accountType,
       saldoDia01,
+      faturaInfo,
       total: lancamentosComId.length,
       lancamentos: lancamentosComId,
     })
