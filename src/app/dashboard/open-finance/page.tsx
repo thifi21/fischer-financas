@@ -316,7 +316,15 @@ export default function OpenFinancePage() {
         },
         onError: (err: any) => {
           console.error('Pluggy Connect erro:', err)
-          setMsg({ tipo: 'erro', texto: err?.message || 'Erro ao autorizar no Pluggy Connect' })
+          const msgErro = String(err?.message || err?.error || err || '')
+          if (msgErro.includes('TRIAL_CLIENT_ITEM_CREATE_NOT_ALLOWED')) {
+            setMsg({
+              tipo: 'erro',
+              texto: 'No plano gratuito da Pluggy, novos bancos/cartões devem ser adicionados no portal meu.pluggy.ai. Adicione por lá e depois clique em "Atualizar Contas" aqui!',
+            })
+          } else {
+            setMsg({ tipo: 'erro', texto: msgErro || 'Erro ao autorizar no Pluggy Connect' })
+          }
         },
       })
       instance.init()
@@ -826,11 +834,17 @@ export default function OpenFinancePage() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button onClick={abrirWidgetMeuPluggy} isLoading={buscandoPluggy} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
-                    🔗 Vincular MeuPluggy (1 clique)
-                  </Button>
+                  <a
+                    href="https://meu.pluggy.ai"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all"
+                  >
+                    <span>➕ Adicionar Cartões no Meu Pluggy</span>
+                    <span className="text-[10px] opacity-75">↗</span>
+                  </a>
                   <Button variant="outline" onClick={() => consultarContasPluggy(pluggyItemInput)} isLoading={buscandoPluggy}>
-                    Atualizar Contas
+                    🔄 Atualizar Contas
                   </Button>
                 </div>
               </div>
@@ -863,6 +877,20 @@ PLUGGY_ITEM_IDS=id_item_caixa,id_item_nubank`}
                     <Button variant="outline" onClick={() => consultarContasPluggy(pluggyItemInput)} disabled={buscandoPluggy || !pluggyItemInput.trim()}>
                       Buscar Item
                     </Button>
+                  </div>
+
+                  <div className="rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                    <div className="text-slate-700 dark:text-slate-300">
+                      💡 <strong>Como conectar seus outros cartões (Nubank, C6, Mercado Pago, Itaú, etc.):</strong> No plano gratuito do Meu Pluggy, conecte-os diretamente em seu portal pessoal em <strong>meu.pluggy.ai</strong>. Após conectar lá, clique em <strong>Atualizar Contas</strong> aqui!
+                    </div>
+                    <a
+                      href="https://meu.pluggy.ai"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 font-bold text-blue-600 dark:text-blue-400 hover:underline flex-shrink-0"
+                    >
+                      Abrir meu.pluggy.ai ↗
+                    </a>
                   </div>
 
                   {pluggyAccounts.length === 0 ? (
